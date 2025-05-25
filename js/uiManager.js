@@ -1,7 +1,5 @@
 // js/uiManager.js
 import { controls } from './sceneSetup.js';
-// Removed direct import of realityRiverUI, dialogueBox from main.js as they are DOM elements
-// and uiManager should handle its own DOM references.
 
 // --- DOM Element References ---
 let dialogueBoxEl, dialogueTextEl, dialogueOptionsEl, inventoryListEl, questNameUIEl, questObjectiveUIEl;
@@ -29,6 +27,12 @@ export function initUIManager() {
     if (loadingScreen) loadingScreen.classList.add('hidden');
 }
 
+function hideAllModals(except = null) {
+    if (dialogueBoxEl && except !== dialogueBoxEl) dialogueBoxEl.classList.add('hidden');
+    if (realityRiverUIEl && except !== realityRiverUIEl) realityRiverUIEl.classList.add('hidden');
+    // Add any other modal UI elements here in the future, checking against `except`
+}
+
 export function updateInventoryUI(inventory) {
     if (!inventoryListEl) return;
     inventoryListEl.innerHTML = '';
@@ -48,13 +52,16 @@ export function updateInventoryUI(inventory) {
 
 export function showDialogue(text, options = [], setGameInteractingState) {
     if (!dialogueBoxEl || !dialogueTextEl || !dialogueOptionsEl) return;
+    
+    hideAllModals(dialogueBoxEl); // Hide other modals first
+
     dialogueTextEl.textContent = text;
     dialogueOptionsEl.innerHTML = '';
     options.forEach(opt => {
         const button = document.createElement('button');
         button.textContent = opt.text;
         button.onclick = () => {
-            hideDialogue(setGameInteractingState);
+            hideDialogue(setGameInteractingState); // This will hide the current dialogue box
             if (opt.action) opt.action();
         };
         dialogueOptionsEl.appendChild(button);
@@ -67,10 +74,16 @@ export function showDialogue(text, options = [], setGameInteractingState) {
 export function hideDialogue(setGameInteractingState) {
     if (!dialogueBoxEl) return;
     dialogueBoxEl.classList.add('hidden');
+    // Only re-enable controls if no other modal is active (e.g., reality river)
     if (realityRiverUIEl && realityRiverUIEl.classList.contains('hidden')) {
         if (controls) controls.enabled = true;
     }
-    setGameInteractingState(false);
+    // It's crucial that setGameInteractingState(false) is only called if no other modal is active.
+    // The caller (interactionManager or questManager) should manage the overall interacting state.
+    // For simple dialogues, this is okay. For complex flows, manage state more globally.
+    if (setGameInteractingState) { // Check if function is provided
+       setGameInteractingState(false);
+    }
 }
 
 export function updateQuestUI(currentQuest) {
@@ -84,7 +97,7 @@ export function updateQuestUI(currentQuest) {
     }
 }
 
-export function showFeedback(message, duration = 3500) { // Increased default duration
+export function showFeedback(message, duration = 3500) {
     let feedbackContainer = document.getElementById('feedbackContainer');
     if (!feedbackContainer) {
         feedbackContainer = document.createElement('div');
@@ -136,10 +149,13 @@ export function hideInteractionPrompt() {
 }
 
 export function showRealityRiverUI() {
+    hideAllModals(realityRiverUIEl); // Hide other modals first
     if(realityRiverUIEl) realityRiverUIEl.classList.remove('hidden');
+    // Caller (questManager) should handle controls.enabled and isUserInteracting state
 }
 export function hideRealityRiverUI() {
     if(realityRiverUIEl) realityRiverUIEl.classList.add('hidden');
+    // Caller (questManager) should handle controls.enabled and isUserInteracting state
 }
 export function updateRiverQuestion(questionText) {
     if(riverQuestionUIEl) riverQuestionUIEl.textContent = questionText;

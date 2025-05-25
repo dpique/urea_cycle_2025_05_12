@@ -5,7 +5,8 @@ export const MITO_PRIMARY_COLOR = 0x604040;
 export const MITO_SECONDARY_COLOR = 0x886666;
 export const CYTO_PRIMARY_COLOR = 0x556677;
 export const WALL_GENERAL_COLOR = 0x999999;
-export const ROCK_COLOR = 0x5A5A5A;
+export const ROCK_COLOR = 0x5A5A5A; // Darker rock for cave
+export const CAVE_FLOOR_COLOR = 0x4A4A4A; // Darker floor for cave
 export const WATER_COLOR = 0x3399FF;
 export const BRAZIER_COLOR = 0xB87333;
 export const EMBER_COLOR = 0xFF4500;
@@ -48,6 +49,7 @@ export const ALCOVE_Z_START = ALCOVE_Z_CENTER - ALCOVE_WIDTH / 2;
 export const ALCOVE_Z_END = ALCOVE_Z_CENTER + ALCOVE_WIDTH / 2;
 export const ALCOVE_INTERIOR_BACK_X = MIN_X + WALL_THICKNESS / 2; // Adjusted for wall thickness
 export const ALCOVE_OPENING_X_PLANE = MIN_X + WALL_THICKNESS / 2 + ALCOVE_DEPTH;
+export const CAVE_SLOPE_DROP = 1.0; // How much the cave floor drops vertically
 
 // --- Player Constants ---
 export const PLAYER_SPEED = 5.0;

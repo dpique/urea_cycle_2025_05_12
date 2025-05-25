@@ -10,27 +10,23 @@ import { getGameState, setGameState, getCurrentQuest, getInventory, addToInvento
 import { createSimpleParticleSystem } from './utils.js';
 
 let closestInteractiveObject = null;
-let lastClosestObject = null; // To manage unhighlighting when moving away from one object directly to another
+let lastClosestObject = null; 
 const highlightMaterial = new THREE.MeshStandardMaterial({ emissive: 0xffff00, emissiveIntensity: 0.7, roughness: 0.3 });
 
 function getMeshToHighlight(interactiveObj) {
     if (!interactiveObj) return null;
-    // If userData.mainMesh is defined, use that (for Groups where a specific child is the visual target)
     if (interactiveObj.userData && interactiveObj.userData.mainMesh) {
         return interactiveObj.userData.mainMesh;
     }
-    // If the interactiveObject itself is a Mesh, use it
     if (interactiveObj.isMesh) {
         return interactiveObj;
     }
-    // Fallback for groups: try to find the first mesh child that is registered in originalMaterials
     if (interactiveObj.isGroup) {
         for (const child of interactiveObj.children) {
             if (child.isMesh && originalMaterials.has(child)) {
                 return child;
             }
         }
-        // If no registered child, try to find any mesh (less ideal)
         return interactiveObj.children.find(child => child.isMesh);
     }
     return null;
@@ -41,7 +37,6 @@ function highlightObject(object) {
     const meshToHighlight = getMeshToHighlight(object);
     if (meshToHighlight && meshToHighlight.isMesh) {
         if (!originalMaterials.has(meshToHighlight) && meshToHighlight.material !== highlightMaterial) {
-            // This case should ideally not happen if objects are registered correctly upon creation
             originalMaterials.set(meshToHighlight, meshToHighlight.material);
             console.warn("Highlight: Original material not found for", meshToHighlight.name, " Storing current.");
         }
@@ -54,7 +49,7 @@ function highlightObject(object) {
 function unhighlightObject(object) {
     const meshToHighlight = getMeshToHighlight(object);
      if (meshToHighlight && meshToHighlight.isMesh && originalMaterials.has(meshToHighlight)) {
-         if (meshToHighlight.material === highlightMaterial) { // Only restore if currently highlighted
+         if (meshToHighlight.material === highlightMaterial) { 
             meshToHighlight.material = originalMaterials.get(meshToHighlight);
         }
     }
@@ -63,18 +58,11 @@ function unhighlightObject(object) {
 
 export function updateInteraction(scene) {
     const gameState = getGameState();
-    if (gameState.isUserInteracting) { // If dialogue or other UI is active, don't change highlights
-        if (closestInteractiveObject) {
-            // We might still want to unhighlight if the UI interaction started *while* an object was highlighted
-            // but for now, let's keep it simple: UI active = no highlight changes.
-            // unhighlightObject(closestInteractiveObject); // Optional: clear highlight when UI opens
-            // closestInteractiveObject = null;
-        }
-        // if (lastClosestObject) { // Also clear last if needed
-        //     unhighlightObject(lastClosestObject);
-        //     lastClosestObject = null;
-        // }
-        // hideInteractionPrompt(); // Prompt might still be relevant if dialogue is about the object
+    if (gameState.isUserInteracting) { 
+        // If a modal UI is active, don't change highlights or prompts.
+        // The prompt might still be relevant if the dialogue is about the highlighted object.
+        // However, if the player moves away while UI is open, the highlight might become stale.
+        // For now, freezing highlights/prompts when UI is open is simpler.
         return;
     }
 
@@ -84,7 +72,7 @@ export function updateInteraction(scene) {
     player.getWorldPosition(playerWorldPos);
 
     interactiveObjects.forEach(obj => {
-        if (obj?.parent === scene && obj.visible) { // Check if object is in the current scene and visible
+        if (obj?.parent === scene && obj.visible) { 
             const objPos = new THREE.Vector3();
             obj.getWorldPosition(objPos);
             const distSq = playerWorldPos.distanceToSquared(objPos);
@@ -105,7 +93,6 @@ export function updateInteraction(scene) {
         } else {
             hideInteractionPrompt();
         }
-        // lastClosestObject = closestInteractiveObject; // Not strictly needed with current logic
         closestInteractiveObject = foundClosest;
     }
 }
@@ -117,10 +104,10 @@ export function getClosestInteractiveObject() {
 
 export function interactWithObject(object, scene) {
     const gameState = getGameState();
-    if (!object || gameState.isUserInteracting) return;
+    if (!object || gameState.isUserInteracting) return; // Second check for safety
 
     const userData = object.userData;
-    let interactionProcessedThisFrame = false; // To prevent multiple interactions from one key press
+    let interactionProcessedThisFrame = false; 
     const currentQuest = getCurrentQuest();
     const inventory = getInventory();
 
@@ -139,16 +126,16 @@ export function interactWithObject(object, scene) {
                          { text: "Give me a moment." }
                      ], setGameInteracting);
                 } else if (currentQuest.state === CONSTANTS.QUEST_STATE.COMPLETED) {
-                     showDialogue("Thanks again for helping clear the ammonia!", [ { text: "You're welcome."} ], setGameInteracting);
+                     showDialogue("Thanks again for helping clear the ammonia! You've shown a great understanding of this vital process.", [ { text: "You're welcome."} ], setGameInteracting);
                 } else {
                      showDialogue(`Current Objective: ${ureaCycleQuestData.objectives[currentQuest.state]}`, [ { text: "Okay"} ], setGameInteracting);
                 }
             } else if (!currentQuest) {
                  showDialogue("The cell is overwhelmed with ammonia! We need to convert it to Urea. Can you help?", [
                      { text: "Accept Quest", action: () => {
-                         if(getGameState().startUreaCycleQuest()) { // startUreaCycleQuest returns true if successful
+                         if(getGameState().startUreaCycleQuest()) { 
                             startBackgroundMusic();
-                         } // Feedback is handled by startUreaCycleQuest
+                         } 
                      }},
                      { text: "Decline" }
                  ], setGameInteracting);
@@ -157,7 +144,7 @@ export function interactWithObject(object, scene) {
         else if (userData.name === CONSTANTS.NPC_NAMES.ORNITHINE_USHER) {
              if (currentQuest && currentQuest.id === 'ureaCycle') {
                 if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER) {
-                    showDialogue("Ah, you must be the one Professor Hepaticus sent. Need some Ornithine for your journey?", [
+                    showDialogue("Ah, you must be the one Professor Hepaticus sent. I'm the Ornithine Usher. I help Ornithine move back into the mitochondria, and Citrulline out. For you to make Citrulline, you'll need some Ornithine. Take this.", [
                         { text: "Yes, please!", action: () => {
                             addToInventory('Ornithine', 1);
                             if (advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_5_MAKE_CITRULLINE)) {
@@ -170,71 +157,71 @@ export function interactWithObject(object, scene) {
                     ], setGameInteracting);
                 } else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_6_TALK_TO_USHER_PASSAGE) {
                     if (hasRequiredItems({ 'Citrulline': 1 })) {
-                        showDialogue("Excellent, you've made Citrulline! You may pass through the ORNT1 portal.", [
+                        showDialogue("Excellent, you've made Citrulline! It's ready for its journey to the cytosol. You may pass through the ORNT1 portal.", [
                             { text: "Thank you!", action: () => {
                                 setGameState({hasPortalPermission: true});
-                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL); // Handles feedback
+                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL); 
                             }}
                         ], setGameInteracting);
                     } else {
-                        showDialogue("You need Citrulline to pass. Come back when you have it.", [{ text: "Okay" }], setGameInteracting);
+                        showDialogue("You need Citrulline to pass. Remember, I help transport it. Come back when you have it.", [{ text: "Okay" }], setGameInteracting);
                     }
                 } else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA && hasRequiredItems({'Ornithine': 1})) { 
-                     showDialogue("Welcome back, traveler! You've returned with Ornithine. The cycle is complete within you.", [
+                     showDialogue("Welcome back, traveler! You've returned with Ornithine. I'll ensure it gets back into the mitochondria, ready to start the cycle anew. Well done!", [
                         { text: "Indeed!", action: () => {
                             consumeItems({'Ornithine': 1});
-                            advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_14_RIVER_CHALLENGE); // Handles feedback
+                            advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_14_RIVER_CHALLENGE); 
                         }}
                     ], setGameInteracting);
                 } else if (currentQuest.state < CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER) {
-                    showDialogue("Greetings! I am the Ornithine Usher. I guard this passage and assist with... transport.", [{ text: "Interesting." }], setGameInteracting);
+                    showDialogue("Greetings! I am the Ornithine Usher. I guard this passage and facilitate the transport of Ornithine and Citrulline across the mitochondrial membrane.", [{ text: "Interesting." }], setGameInteracting);
                 } else if (currentQuest.state > CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL && currentQuest.state < CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA) {
-                     showDialogue("Keep up the good work in the Cytosol!", [{ text: "Will do." }], setGameInteracting);
+                     showDialogue("Keep up the good work in the Cytosol! Remember, the cycle links two cellular compartments.", [{ text: "Will do." }], setGameInteracting);
                 } else {
-                    showDialogue("The cycle continues...", [{ text: "Indeed." }], setGameInteracting);
+                    showDialogue("The cycle continues, a testament to efficient biochemical pathways...", [{ text: "Indeed." }], setGameInteracting);
                 }
             } else {
                  showDialogue("I am the Ornithine Usher. Speak to Professor Hepaticus to learn about the Urea Cycle.", [{ text: "Okay" }], setGameInteracting);
             }
         }
-        else if (userData.name === CONSTANTS.NPC_NAMES.DONKEY) {
+        else if (userData.name === CONSTANTS.NPC_NAMES.DONKEY) { // Argininosuccinate Synthetase (ASS)
             if (currentQuest && currentQuest.state === userData.requiredQuestState) {
                 if (hasRequiredItems(userData.requires)) {
-                    showDialogue("Hee-haw! Well now, a talking human! Fancy that. Got Citrulline, Aspartate, and some ATP, eh? I can whip those into Argininosuccinate for ya, sure can!", [
-                        { text: "Uh... yes, please!", action: () => {
+                    showDialogue("Hee-haw! Got Citrulline, Aspartate, and ATP? I'm Argininosuccinate Synthetase - call me Donkey! I take that Citrulline from the mitochondria, and with Aspartate providing the second nitrogen and ATP for energy, I stitch 'em together to make Argininosuccinate. It's a vital link! Ready to synthesize?", [
+                        { text: "Yes, let's do it!", action: () => {
                             consumeItems(userData.requires);
                             playMoleculeGenerationSound();
-                            createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 2 }, userData.productColors[userData.produces]);
+                            createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 2, yBase: object.position.y }, userData.productColors[userData.produces]);
                             if (advanceUreaCycleQuest(userData.advancesQuestTo)){
                                 // Quest feedback is primary
                             } else {
-                                showFeedback(`${userData.produces} synthesized by the... Donkey!`);
+                                showFeedback(`${userData.produces} synthesized by the Donkey!`);
                             }
                         }},
                         { text: "Just admiring the... talking donkey."}
                     ], setGameInteracting);
                 } else {
                     let missing = Object.keys(userData.requires).filter(item => !inventory[item] || inventory[item] < userData.requires[item]);
-                    showDialogue(`Hee-haw! Need ${missing.join(' and ')} to make Argininosuccinate. Come back when you got the goods!`, [{text: "Right-o."}], setGameInteracting);
+                    showDialogue(`Hee-haw! To make Argininosuccinate, I need ${missing.join(' and ')}. Aspartate is key for that second nitrogen atom, you know!`, [{text: "Right-o."}], setGameInteracting);
                 }
             } else {
-                showDialogue("Hee-haw! Mighty strange seeing folks wanderin' 'round here. I'm just a simple donkey, really.", [{text: "Okay then..."}], setGameInteracting);
+                showDialogue("Hee-haw! Mighty strange seeing folks wanderin' 'round here. I'm just a simple donkey, really, who happens to be an expert in amino acid ligation.", [{text: "Okay then..."}], setGameInteracting);
             }
         }
-        else if (userData.name === CONSTANTS.NPC_NAMES.ASLAN) {
-            if (currentQuest && currentQuest.state === userData.requiredQuestState) { // STEP_10_TALK_TO_ASLAN
+        else if (userData.name === CONSTANTS.NPC_NAMES.ASLAN) { // Argininosuccinate Lyase (ASL)
+            if (currentQuest && currentQuest.state === userData.requiredQuestState) { 
                 if (hasRequiredItems(userData.requires)) {
-                    showDialogue("You bring Argininosuccinate. With one big bite, I can help you break it into 2 pieces: Arginine and Fumarate. Shall I proceed?", [
+                    showDialogue("You bring Argininosuccinate. I am Argininosuccinate Lyase, Aslan to my friends. With one decisive action, I cleave Argininosuccinate. This releases Fumarate, which can rejoin the Krebs cycle, and forms Arginine, which carries on in the Urea Cycle. A critical branch point! Shall I proceed?", [
                         { text: "Yes, mighty Aslan!", action: () => {
                             consumeItems(userData.requires);
                             playMoleculeGenerationSound();
                             createGameBoySound('success');
                             let offset = 0;
                             userData.produces.forEach(prod => {
-                                createResource(scene, prod, { x: object.position.x + offset - 0.5, z: object.position.z - 1.5 }, userData.productColors[prod]);
+                                createResource(scene, prod, { x: object.position.x + offset - 0.5, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[prod]);
                                 offset += 1.0;
                             });
-                            if(advanceUreaCycleQuest(userData.advancesQuestTo)) { // Advances to STEP_11_FURNACE_FUMARATE
+                            if(advanceUreaCycleQuest(userData.advancesQuestTo)) { 
                                 // Quest feedback is primary
                             } else {
                                 showFeedback(`Aslan cleaves Argininosuccinate!`);
@@ -243,36 +230,34 @@ export function interactWithObject(object, scene) {
                         { text: "Not yet."}
                     ], setGameInteracting);
                 } else {
-                    showDialogue("You require Argininosuccinate for my work.", [{text: "I understand."}], setGameInteracting);
+                    showDialogue("You require Argininosuccinate for my work. It is the substrate upon which I act.", [{text: "I understand."}], setGameInteracting);
                 }
             } else if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_11_FURNACE_FUMARATE && !(hasRequiredItems({Arginine: 1}) && hasRequiredItems({Fumarate: 1}))) {
-                 // Check if both are not collected yet. If one is, dialogue in interactionManager will prompt for the other.
-                 // If player talks to Aslan *after* collecting one but not both.
                 if (!hasRequiredItems({Arginine: 1})) {
-                    showDialogue("You must gather the Arginine I have created.", [{text: "I will."}], setGameInteracting);
+                    showDialogue("Gather the Arginine I have created. It continues the Urea Cycle.", [{text: "I will."}], setGameInteracting);
                 } else if (!hasRequiredItems({Fumarate: 1})) {
-                     showDialogue("You must gather the Fumarate I have created.", [{text: "I will."}], setGameInteracting);
+                     showDialogue("Gather the Fumarate I have created. It can return to the Krebs cycle as Malate.", [{text: "I will."}], setGameInteracting);
                 } else {
                     showDialogue("You have collected both. Proceed with your task.", [{text: "I will."}], setGameInteracting);
                 }
             }
             else {
-                showDialogue("The balance of this realm is delicate. Tread carefully.", [{text: "I will."}], setGameInteracting);
+                showDialogue("The balance of metabolic pathways is delicate. Tread carefully.", [{text: "I will."}], setGameInteracting);
             }
         }
-        else if (userData.name === CONSTANTS.NPC_NAMES.ARGUS) {
-            if (currentQuest && currentQuest.state === userData.requiredQuestState) { // STEP_12_TALK_TO_ARGUS
+        else if (userData.name === CONSTANTS.NPC_NAMES.ARGUS) { // Arginase-1 (ARG1)
+            if (currentQuest && currentQuest.state === userData.requiredQuestState) { 
                 if (hasRequiredItems(userData.requires)) {
-                    showDialogue("Ah, Arginine. My many eyes see its potential. I shall finalize its fate into Urea and Ornithine with a single chop. Ready?", [
+                    showDialogue("Ah, Arginine. My many eyes see its potential. I am Arginase-1, Argus to you. I perform the final hydrolysis: splitting Arginine into Urea – the waste product destined for excretion – and Ornithine. This Ornithine is then recycled back to the mitochondria to begin the cycle anew. Ready for the grand finale?", [
                         { text: "Proceed, Argus.", action: () => {
                             consumeItems(userData.requires);
                             playMoleculeGenerationSound();
                             let offset = 0;
                              userData.produces.forEach(prod => {
-                                createResource(scene, prod, { x: object.position.x + offset -0.5 , z: object.position.z - 1.5 }, userData.productColors[prod]);
+                                createResource(scene, prod, { x: object.position.x + offset -0.5 , z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[prod]);
                                 offset += 1.0;
                             });
-                            if(advanceUreaCycleQuest(userData.advancesQuestTo)) { // Advances to STEP_13_DISPOSE_UREA
+                            if(advanceUreaCycleQuest(userData.advancesQuestTo)) { 
                                // Quest feedback is primary
                             } else {
                                showFeedback(`Argus finalizes the reaction!`);
@@ -281,24 +266,22 @@ export function interactWithObject(object, scene) {
                         { text: "One moment."}
                     ], setGameInteracting);
                 } else {
-                    showDialogue("Bring me Arginine, and I shall do what must be done.", [{text: "I shall."}], setGameInteracting);
+                    showDialogue("Bring me Arginine. It is the substrate I require to liberate Urea and regenerate Ornithine.", [{text: "I shall."}], setGameInteracting);
                 }
             } else if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA && !(hasRequiredItems({Urea: 1}) && hasRequiredItems({Ornithine: 1}))){
                 if (!hasRequiredItems({Urea: 1})) {
-                    showDialogue("Gather the Urea I have created.", [{text: "Understood."}], setGameInteracting);
+                    showDialogue("Gather the Urea I have created. It must be disposed of.", [{text: "Understood."}], setGameInteracting);
                 } else if (!hasRequiredItems({Ornithine: 1})) {
-                    showDialogue("Gather the Ornithine I have created.", [{text: "Understood."}], setGameInteracting);
+                    showDialogue("Gather the Ornithine I have created. It is key to continue the cycle.", [{text: "Understood."}], setGameInteracting);
                 } else {
                      showDialogue("You have collected both. Fulfill your destiny.", [{text: "Understood."}], setGameInteracting);
                 }
             }
             else {
-                showDialogue("I see all... but I await the right moment for action.", [{text: "Very well."}], setGameInteracting);
+                showDialogue("I see all... but I await the right moment for action. The precise orchestration of these reactions is paramount.", [{text: "Very well."}], setGameInteracting);
             }
         }
         else {
-             // If no specific NPC logic, ensure interaction state is reset if it was set by mistake
-             // This path should ideally not be taken for defined NPCs.
              setGameInteracting(false);
         }
     }
@@ -308,7 +291,7 @@ export function interactWithObject(object, scene) {
             showFeedback(`Not the right time to use the ${userData.name}. Objective: ${currentQuest?.objectives[currentQuest.state] || "Start quest first."}`);
             return;
         }
-        if (inventory[userData.provides] >=1) { // Assuming sources provide 1 at a time and are not stackable beyond quest needs
+        if (inventory[userData.provides] >=1) { 
             showFeedback(`You already have ${userData.provides}.`);
             return;
         }
@@ -316,10 +299,8 @@ export function interactWithObject(object, scene) {
         addToInventory(userData.provides, 1);
         createGameBoySound('collect');
 
-        // Check if collecting this source completes the pair for STEP_0
         if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2 && hasRequiredItems({ 'Water': 1, 'CO2': 1 })) {
-            advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE); // This will show next objective
-            questAdvancedGenericFeedbackSuppressed = true;
+            if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE)) questAdvancedGenericFeedbackSuppressed = true;
         }
 
         if (!questAdvancedGenericFeedbackSuppressed) {
@@ -328,7 +309,7 @@ export function interactWithObject(object, scene) {
     }
     else if (userData.type === 'resource' && !interactionProcessedThisFrame) {
         interactionProcessedThisFrame = true;
-        const initialQuestDependentResources = ['NH3', 'ATP', 'Water', 'CO2', 'Bicarbonate']; // Added Bicarbonate too
+        const initialQuestDependentResources = ['NH3', 'ATP', 'Water', 'CO2', 'Bicarbonate']; 
         if (initialQuestDependentResources.includes(userData.name) && (!currentQuest || currentQuest.state === CONSTANTS.QUEST_STATE.NOT_STARTED)) {
             showFeedback("You should talk to Professor Hepaticus first.");
             return;
@@ -336,12 +317,11 @@ export function interactWithObject(object, scene) {
 
         addToInventory(userData.name, 1);
         createGameBoySound('collect');
-        removeResourceFromWorld(object); // object is the resource mesh
-        hideInteractionPrompt(); // Hide prompt as object is gone
+        removeResourceFromWorld(object); 
+        hideInteractionPrompt(); 
 
         let specificFeedbackGivenForThisResource = false;
         questAdvancedGenericFeedbackSuppressed = false;
-
 
         if (currentQuest?.id === 'ureaCycle') {
             if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE && userData.name === 'Bicarbonate') {
@@ -354,23 +334,23 @@ export function interactWithObject(object, scene) {
                 if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER)) questAdvancedGenericFeedbackSuppressed = true;
             }
             else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO) {
-                const itemsNeeded = { 'Citrulline': 1, 'Aspartate': 1, 'ATP': 1 }; // Assuming player collects Citrulline first as per portal logic
+                const itemsNeeded = { 'Citrulline': 1, 'Aspartate': 1, 'ATP': 1 }; 
                 if (hasRequiredItems(itemsNeeded)) {
                     if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY)) questAdvancedGenericFeedbackSuppressed = true;
                 }
             }
              else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_11_FURNACE_FUMARATE && (userData.name === 'Arginine' || userData.name === 'Fumarate')) {
-                specificFeedbackGivenForThisResource = true; // This step has specific feedback needs
+                specificFeedbackGivenForThisResource = true; 
                 if (hasRequiredItems({'Arginine': 1}) && hasRequiredItems({'Fumarate': 1})) {
                     showFeedback(`Both Arginine and Fumarate collected! Take Fumarate to the Krebs Cycle Furnace.`);
                 } else if (userData.name === 'Arginine' && inventory['Arginine'] >= 1 && !(inventory['Fumarate'] >=1) ) {
                     showFeedback("Arginine collected. Still need Fumarate.");
                 } else if (userData.name === 'Fumarate' && inventory['Fumarate'] >= 1 && !(inventory['Arginine'] >=1) ) {
                     showFeedback("Fumarate collected. Still need Arginine.");
-                } // No "else" needed, the above covers specific cases for this step.
+                } 
             }
              else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA && (userData.name === 'Urea' || userData.name === 'Ornithine')) {
-                specificFeedbackGivenForThisResource = true; // Specific feedback for this step
+                specificFeedbackGivenForThisResource = true; 
                  if (hasRequiredItems({'Urea': 1}) && hasRequiredItems({'Ornithine': 1})) {
                     showFeedback(`Both Urea and Ornithine collected! Dispose of Urea and return Ornithine to the Usher.`);
                 } else if (userData.name === 'Urea' && inventory['Urea'] >= 1 && !(inventory['Ornithine'] >= 1)) { 
@@ -385,10 +365,28 @@ export function interactWithObject(object, scene) {
             showFeedback(`Collected ${userData.name}`);
         }
     }
-    else if (userData.type === 'station' && !interactionProcessedThisFrame) { // CAVA, CPS1, OTC
+    else if (userData.type === 'station' && !interactionProcessedThisFrame) { 
         interactionProcessedThisFrame = true;
+        let dialogueTitle = userData.name;
+        let educationalBlurb = "";
+        let actionButtonText = `Synthesize ${userData.produces}!`;
+
+        if (userData.name === "CAVA Shrine") {
+            dialogueTitle = "CAVA Shrine (Carbonic Anhydrase VA)";
+            educationalBlurb = "Welcome, seeker. I am the CAVA Shrine, representing Carbonic Anhydrase VA. Here in the mitochondria, I hydrate CO2 with Water to form Bicarbonate (HCO3-). This Bicarbonate is a key ingredient for the first step of the Urea Cycle. Provide the elements, and I shall transform them.";
+            actionButtonText = `Create Bicarbonate!`;
+        } else if (userData.name === "CPS1") {
+            dialogueTitle = "CPS1 Station (Carbamoyl Phosphate Synthetase I)";
+            educationalBlurb = "Greetings! I am the CPS1 station, embodying Carbamoyl Phosphate Synthetase I. This is a critical, rate-limiting step in the mitochondria! I take Bicarbonate, one Ammonia (NH3), and two ATP molecules to forge Carbamoyl Phosphate. This molecule carries the first nitrogen atom into the Urea Cycle.";
+            actionButtonText = `Forge Carbamoyl Phosphate!`;
+        } else if (userData.name === "OTC") {
+            dialogueTitle = "OTC Station (Ornithine Transcarbamoylase)";
+            educationalBlurb = "Well met! I am the OTC station, for Ornithine Transcarbamoylase. My task is to combine the Carbamoyl Phosphate you just made with Ornithine. This reaction forms Citrulline, which is then transported out of the mitochondria to the cytosol.";
+            actionButtonText = `Make Citrulline!`;
+        }
+        
         if (!currentQuest || currentQuest.state !== userData.requiredQuestState) {
-            showFeedback(`Not the right time for ${userData.name}. Objective: ${currentQuest?.objectives[currentQuest.state] || "Start quest first."}`);
+            showDialogue(`${dialogueTitle}:\nNot the right time for this. Current Objective: ${currentQuest?.objectives[currentQuest.state] || "Start quest first."}`, [{ text: "Understood" }], setGameInteracting);
             return;
         }
         if (!hasRequiredItems(userData.requires)) {
@@ -398,23 +396,48 @@ export function interactWithObject(object, scene) {
                     missing.push(`${item} (need ${userData.requires[item]}${inventory[item] ? `, have ${inventory[item]}` : ''})`);
                 }
             }
-            showFeedback(`Missing: ${missing.join(', ')} for ${userData.name}.`);
+            showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nYou seem to be missing: ${missing.join(', ')}. Gather them and return.`, [{ text: "I'll be back" }], setGameInteracting);
             return;
         }
 
-        createGameBoySound('success');
-        playMoleculeGenerationSound();
-        consumeItems(userData.requires);
-        createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 2 }, userData.productColors[userData.produces]);
-        
-        questAdvancedGenericFeedbackSuppressed = false;
-        if (userData.advancesQuestTo) {
-            if(advanceUreaCycleQuest(userData.advancesQuestTo)) questAdvancedGenericFeedbackSuppressed = true;
-        }
-        
-        if (!questAdvancedGenericFeedbackSuppressed) {
-             showFeedback(`${userData.produces} created at ${userData.name}!`);
-        }
+        showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nYou have all the required components. Shall we begin the reaction?`, [
+            { text: actionButtonText, action: () => {
+                createGameBoySound('success');
+                playMoleculeGenerationSound();
+                consumeItems(userData.requires);
+                // Product needs to be placed on the station's ground level.
+                // Stations are positioned with their center at position.yBase + height/2.
+                // So, product Y is station.position.y (center) + height/2 + offset for above ground.
+                // Or, more simply, use the station's yBase as the ground for the resource.
+                const stationObject = interactiveObjects.find(io => io.userData.name === userData.name && io.userData.type === 'station');
+                let productYBase = 0.01; // Default ground
+                if (stationObject) {
+                    // station.position.y is the center of the station box. yBase is its foot.
+                    // resource yBase should be the ground the station stands on.
+                    const stationMesh = getMeshToHighlight(stationObject);
+                    if (stationMesh) {
+                         // If station has yBase in its position from creation (like CAVA on slope)
+                        if (stationObject.position.yBase !== undefined) {
+                            productYBase = stationObject.position.yBase;
+                        } else {
+                            // If not, assume it's on flat ground, and its base is position.y - height/2
+                             productYBase = stationObject.position.y - (stationMesh.geometry.parameters.height / 2);
+                        }
+                    }
+                }
+                createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 2, yBase: productYBase }, userData.productColors[userData.produces]);
+                
+                questAdvancedGenericFeedbackSuppressed = false;
+                if (userData.advancesQuestTo) {
+                    if(advanceUreaCycleQuest(userData.advancesQuestTo)) questAdvancedGenericFeedbackSuppressed = true;
+                }
+                
+                if (!questAdvancedGenericFeedbackSuppressed) {
+                     showFeedback(`${userData.produces} created at ${userData.name}!`);
+                }
+            }},
+            { text: "Not just yet." }
+        ], setGameInteracting);
     }
     else if (userData.type === 'portal' && userData.name === 'ORNT1 Portal' && !interactionProcessedThisFrame) {
         interactionProcessedThisFrame = true;
@@ -427,33 +450,29 @@ export function interactWithObject(object, scene) {
             return;
         }
 
-        consumeItems(userData.requires); // Consume Citrulline
+        consumeItems(userData.requires); 
         if (removePortalBarrierFromWorld(scene)) {
             console.log("Portal barrier removed by interaction.");
         }
         stopBackgroundMusic();
-        playPortalCelebration(); // This will restart music with 'postPortal' theme
+        playPortalCelebration(); 
         
-        // Position player just past the portal line and create the transported Citrulline there
         player.position.set(CONSTANTS.DIVIDING_WALL_X + 1.5, player.position.y, CONSTANTS.PORTAL_WALL_CENTER_Z);
         setPlayerLocation('cytosol');
-        // Re-create Citrulline in cytosol for collection
-        createResource(scene, 'Citrulline', { x: CONSTANTS.DIVIDING_WALL_X + 1, z: CONSTANTS.PORTAL_WALL_CENTER_Z + 1 }, userData.productColor || CONSTANTS.CITRULLINE_COLOR);
+        createResource(scene, 'Citrulline', { x: CONSTANTS.DIVIDING_WALL_X + 1, z: CONSTANTS.PORTAL_WALL_CENTER_Z + 1, yBase: 0.01 }, userData.productColor || CONSTANTS.CITRULLINE_COLOR);
         
-        advanceUreaCycleQuest(userData.advancesQuestTo); // This provides "Portal to Cytosol open! Now: ..."
+        advanceUreaCycleQuest(userData.advancesQuestTo); 
     }
     else if (userData.type === 'wasteBucket' && !interactionProcessedThisFrame) {
         interactionProcessedThisFrame = true;
         if (currentQuest?.state === CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA && hasRequiredItems({ 'Urea': 1 })) {
             consumeItems({ 'Urea': 1 });
             createGameBoySound('success');
-            if (hasRequiredItems({'Ornithine': 1})) { // Check if Ornithine is ALSO collected
+            if (hasRequiredItems({'Ornithine': 1})) { 
                  showFeedback("Urea disposed! With Ornithine also in hand, see the Usher to complete the cycle's return trip.");
             } else {
                  showFeedback("Urea disposed! Now, ensure you have Ornithine to return to the Usher.");
             }
-            // This interaction does not directly advance the quest state.
-            // The quest advances when Ornithine is returned to the Usher.
         } else if (inventory['Urea']) {
             showFeedback("You have Urea, but it's not time to dispose of it yet. Check your objective.");
         } else {
@@ -463,7 +482,7 @@ export function interactWithObject(object, scene) {
     else if (userData.type === 'krebsFurnace' && !interactionProcessedThisFrame) {
         interactionProcessedThisFrame = true;
         if (currentQuest?.state === CONSTANTS.QUEST_STATE.STEP_11_FURNACE_FUMARATE && hasRequiredItems({ 'Fumarate': 1 })) {
-            if (!hasRequiredItems({ 'Arginine': 1 })) { // Ensure Arginine was collected from Aslan's output
+            if (!hasRequiredItems({ 'Arginine': 1 })) { 
                 showFeedback("You need to collect the Arginine produced by Aslan first!");
                 return;
             }
@@ -474,7 +493,7 @@ export function interactWithObject(object, scene) {
             if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_12_TALK_TO_ARGUS)) {
                 // Quest feedback is primary
             } else {
-                showFeedback("Fumarate fed to the Krebs Cycle! It will be converted to Malate.");
+                showFeedback("Fumarate fed to the Krebs Cycle! It will be converted to Malate, linking the Urea Cycle to the Krebs Cycle.");
             }
         } else if (inventory['Fumarate']) {
             showFeedback("You have Fumarate, but it's not time to use the furnace. Check your objective.");
@@ -483,15 +502,13 @@ export function interactWithObject(object, scene) {
         }
     }
     
-    // If a dialogue or quiz was NOT opened, reset interaction state.
-    // This is important because showDialogue sets isUserInteracting to true, and hideDialogue resets it.
-    // For non-dialogue interactions, we need to ensure it's reset if not handled by a modal UI.
+    // This logic might need refinement if multiple modals can be opened by non-dialogue interactions.
+    // Currently, only showDialogue and startRealityRiverChallenge (via questManager) open modals.
+    // uiManager's hideAllModals should handle ensuring only one is visible.
+    // The isUserInteracting state is primarily managed by showDialogue/hideDialogue and startRealityRiverChallenge/endRealityRiver.
     const gameStateAfterInteraction = getGameState();
-    if (interactionProcessedThisFrame &&
-        document.getElementById('dialogueBox').classList.contains('hidden') &&
-        document.getElementById('realityRiver').classList.contains('hidden')) {
-        if (gameStateAfterInteraction.isUserInteracting) { // Check if it was set true by a non-dialogue path
-            setGameState({ isUserInteracting: false });
-        }
+    if (interactionProcessedThisFrame && !gameStateAfterInteraction.isUserInteracting) {
+         // This case handles interactions that don't open a modal UI, ensuring isUserInteracting is false.
+         // If a modal was opened, isUserInteracting would be true, and this block wouldn't run.
     }
 }
