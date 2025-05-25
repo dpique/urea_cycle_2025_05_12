@@ -2,30 +2,70 @@
 import * as THREE from 'three';
 import * as CONSTANTS from './constants.js';
 import { createTextSprite } from './utils.js';
-import { interactiveObjects, originalMaterials } from './worldManager.js'; // For adding NPCs
+import { interactiveObjects, originalMaterials } from './worldManager.js';
 
 let professorHepaticusNPC, ornithineUsherNPC, aslanNPC, donkeyNPC, argusNPC;
-let professorBasePos, professorTargetPos, professorPaceTimer = 0, professorPaceInterval = 0;
+
+// Structure to hold NPC state for animation
+const npcAnims = {};
+
 const professorSwaySpeed = 0.5;
 const professorArmSwingSpeed = 1.2;
-const usherFloatSpeed = 1.0;
-const usherFloatAmount = 0.1;
-
+const generalNpcPaceLerpFactor = 0.015; // Slower, more deliberate pacing
 
 export function initNPCs(scene) {
     professorHepaticusNPC = createProfessorHepaticus(scene, new THREE.Vector3(-3, 0, -8));
     ornithineUsherNPC = createOrnithineUsher(scene, new THREE.Vector3(-2, 0, -2));
-    
-    // New NPCs replacing stations
-    aslanNPC = createAslan(scene, new THREE.Vector3(10, 0, 0)); // Former ASL station position
-    donkeyNPC = createDonkey(scene, new THREE.Vector3(5, 0, 5)); // Former ASS station position
-    argusNPC = createArgus(scene, new THREE.Vector3(5, 0, -5));   // Former ARG1 station position
+    aslanNPC = createAslan(scene, new THREE.Vector3(10, 0, 0));
+    donkeyNPC = createDonkey(scene, new THREE.Vector3(5, 0, 5));
+    argusNPC = createArgus(scene, new THREE.Vector3(5, 0, -5));
 
-    if (professorHepaticusNPC) {
-        professorBasePos = professorHepaticusNPC.position.clone();
-        professorTargetPos = professorBasePos.clone();
-        professorPaceInterval = 2 + Math.random() * 2;
-    }
+    // Initialize animation data for each NPC
+    npcAnims.professor = {
+        group: professorHepaticusNPC,
+        basePos: professorHepaticusNPC.position.clone(),
+        targetPos: professorHepaticusNPC.position.clone(),
+        paceTimer: 0,
+        paceInterval: 2 + Math.random() * 2,
+        paceRange: 2.5, // Professor paces a bit more
+        bounds: { minX: -6, maxX: -1, minZ: -9, maxZ: -6 } // Specific area for prof
+    };
+    npcAnims.usher = {
+        group: ornithineUsherNPC,
+        basePos: ornithineUsherNPC.position.clone(),
+        targetPos: ornithineUsherNPC.position.clone(),
+        paceTimer: Math.random() * 4, // Stagger start times
+        paceInterval: 4 + Math.random() * 3,
+        paceRange: 1.5, // Usher paces less
+        bounds: { minX: -3, maxX: -1, minZ: -3, maxZ: -1 } // Near portal
+    };
+     npcAnims.aslan = {
+        group: aslanNPC,
+        basePos: aslanNPC.position.clone(),
+        targetPos: aslanNPC.position.clone(),
+        paceTimer: Math.random() * 4,
+        paceInterval: 5 + Math.random() * 3, // Slower, more regal
+        paceRange: 2.0,
+        bounds: { minX: 9, maxX: 11, minZ: -1.5, maxZ: 1.5 }
+    };
+    npcAnims.donkey = {
+        group: donkeyNPC,
+        basePos: donkeyNPC.position.clone(),
+        targetPos: donkeyNPC.position.clone(),
+        paceTimer: Math.random() * 4,
+        paceInterval: 3.5 + Math.random() * 3,
+        paceRange: 2.0,
+        bounds: { minX: 3.5, maxX: 6.5, minZ: 3.5, maxZ: 6.5 }
+    };
+    npcAnims.argus = {
+        group: argusNPC,
+        basePos: argusNPC.position.clone(),
+        targetPos: argusNPC.position.clone(),
+        paceTimer: Math.random() * 4,
+        paceInterval: 4.5 + Math.random() * 3,
+        paceRange: 1.8,
+        bounds: { minX: 3.5, maxX: 6.5, minZ: -6.5, maxZ: -3.5 }
+    };
 }
 
 function createProfessorHepaticus(scene, position) {
@@ -34,6 +74,7 @@ function createProfessorHepaticus(scene, position) {
     const robeMaterial = new THREE.MeshStandardMaterial({ color: 0x8888cc, roughness: 0.7 });
     const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 1.5, 24), robeMaterial);
     robe.position.y = 0.75; robe.name = "robe"; professorGroup.add(robe);
+    // ... (rest of professor model)
     const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffe0b3, roughness: 0.4 });
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 24, 18), headMaterial);
     head.position.y = 1.55; professorGroup.add(head);
@@ -71,10 +112,10 @@ function createProfessorHepaticus(scene, position) {
     const leftHand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 10), handMaterial);
     leftHand.position.set(-0.23 - Math.sin(Math.PI/4)*0.55, 1.18 - Math.cos(Math.PI/4)*0.55, 0); professorGroup.add(leftHand);
     const rightHand = leftHand.clone(); rightHand.position.x = 0.23 + Math.sin(Math.PI/4)*0.55; professorGroup.add(rightHand);
-    
+
     const label = createTextSprite(CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS, { x: 0, y: 2.1, z: 0 }, { fontSize: 36, scale: 0.75 });
     professorGroup.add(label);
-    professorGroup.userData = { type: 'npc', name: CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS, questId: 'ureaCycle' };
+    professorGroup.userData = { type: 'npc', name: CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS, questId: 'ureaCycle', mainMesh: robe };
     professorGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(professorGroup);
     interactiveObjects.push(professorGroup);
@@ -88,6 +129,7 @@ function createOrnithineUsher(scene, position) {
     const torsoMaterial = new THREE.MeshStandardMaterial({ color: 0x3366cc, roughness: 0.5 });
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.18), torsoMaterial);
     torso.position.y = 1.0; torso.name = "body"; usherGroup.add(torso);
+    // ... (rest of usher model)
     const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffe0b3, roughness: 0.4 });
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 20, 16), headMaterial);
     head.position.y = 1.38; usherGroup.add(head);
@@ -124,7 +166,7 @@ function createOrnithineUsher(scene, position) {
 
     const label = createTextSprite(CONSTANTS.NPC_NAMES.ORNITHINE_USHER, { x: 0, y: 1.7, z: 0 }, { fontSize: 36, scale: 0.75 });
     usherGroup.add(label);
-    usherGroup.userData = { type: 'npc', name: CONSTANTS.NPC_NAMES.ORNITHINE_USHER };
+    usherGroup.userData = { type: 'npc', name: CONSTANTS.NPC_NAMES.ORNITHINE_USHER, mainMesh: torso };
     usherGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(usherGroup);
     interactiveObjects.push(usherGroup);
@@ -135,129 +177,85 @@ function createOrnithineUsher(scene, position) {
 function createAslan(scene, position) {
     const aslanGroup = new THREE.Group();
     aslanGroup.position.copy(position);
-    aslanGroup.userData = {
-        type: 'npc',
-        name: CONSTANTS.NPC_NAMES.ASLAN,
-        requiredQuestState: CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN,
-        requires: { 'Argininosuccinate': 1 },
-        produces: ['Arginine', 'Fumarate'],
-        productColors: { 'Arginine': CONSTANTS.ARGININE_COLOR, 'Fumarate': CONSTANTS.FUMARATE_COLOR },
-        advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_11_FURNACE_FUMARATE
-    };
-
     // Body (Lion-like color, more blocky/stylized)
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0xD2B48C, roughness: 0.6 }); // Tan
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 1.2), bodyMat);
-    body.position.y = 0.6; // Lifted by leg height
-    aslanGroup.add(body);
-
-    // Head
+    body.position.y = 0.6; body.name = "body"; aslanGroup.add(body);
+    // ... (rest of Aslan model)
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), bodyMat);
-    head.position.set(0, 1.25, 0.4); // On front of body
-    aslanGroup.add(head);
-
-    // Mane (darker brown, several overlapping parts)
-    const maneMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 }); // Dark brown
+    head.position.set(0, 1.25, 0.4); aslanGroup.add(head);
+    const maneMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 }); 
     const manePart1 = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), maneMat);
-    manePart1.position.set(0, 1.25, 0.3);
-    manePart1.scale.set(1, 1.2, 0.8);
-    aslanGroup.add(manePart1);
+    manePart1.position.set(0, 1.25, 0.3); manePart1.scale.set(1, 1.2, 0.8); aslanGroup.add(manePart1);
     const manePart2 = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 0.6, 8), maneMat);
-    manePart2.position.set(0, 1.2, 0.2);
-    aslanGroup.add(manePart2);
-
-
-    // Legs (4)
+    manePart2.position.set(0, 1.2, 0.2); aslanGroup.add(manePart2);
     const legGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.6, 8);
     const legPositions = [ {x: 0.25, z: 0.4}, {x: -0.25, z: 0.4}, {x: 0.25, z: -0.4}, {x: -0.25, z: -0.4} ];
     legPositions.forEach(pos => {
         const leg = new THREE.Mesh(legGeo, bodyMat);
-        leg.position.set(pos.x, 0.3, pos.z);
-        aslanGroup.add(leg);
+        leg.position.set(pos.x, 0.3, pos.z); aslanGroup.add(leg);
     });
-
-    // Eyes
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
     const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), eyeMat);
     leftEye.position.set(-0.15, 1.35, 0.68); aslanGroup.add(leftEye);
     const rightEye = leftEye.clone(); rightEye.position.x = 0.15; aslanGroup.add(rightEye);
-
-    // "Crystal" Knife (a simple elongated, shiny pyramid)
-    const knifeMat = new THREE.MeshStandardMaterial({ color: 0xB0E0E6, emissive: 0x87CEEB, metalness: 0.5, roughness: 0.2 }); // Powdery blue, shiny
-    const knifeBlade = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.6, 4), knifeMat); // Pyramid shape
-    knifeBlade.rotation.x = Math.PI / 2;
-    knifeBlade.position.set(0.4, 0.8, 0); // Held in a conceptual "paw"
+    const knifeMat = new THREE.MeshStandardMaterial({ color: 0xB0E0E6, emissive: 0x87CEEB, metalness: 0.5, roughness: 0.2 });
+    const knifeBlade = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.6, 4), knifeMat); 
+    knifeBlade.rotation.x = Math.PI / 2; knifeBlade.position.set(0.4, 0.8, 0);
     const knifeHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 6), new THREE.MeshStandardMaterial({color: 0x505050}));
-    knifeHandle.position.set(0.4, 0.8, -0.35); // Behind the blade
-    aslanGroup.add(knifeBlade);
-    aslanGroup.add(knifeHandle);
+    knifeHandle.position.set(0.4, 0.8, -0.35); aslanGroup.add(knifeBlade); aslanGroup.add(knifeHandle);
 
-
+    aslanGroup.userData = {
+        type: 'npc', name: CONSTANTS.NPC_NAMES.ASLAN,
+        requiredQuestState: CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN,
+        requires: { 'Argininosuccinate': 1 }, produces: ['Arginine', 'Fumarate'],
+        productColors: { 'Arginine': CONSTANTS.ARGININE_COLOR, 'Fumarate': CONSTANTS.FUMARATE_COLOR },
+        advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_11_FURNACE_FUMARATE, mainMesh: body
+    };
     const label = createTextSprite(CONSTANTS.NPC_NAMES.ASLAN, { x: 0, y: 1.9, z: 0 }, { fontSize: 36, scale: 0.75 });
     aslanGroup.add(label);
     aslanGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(aslanGroup);
     interactiveObjects.push(aslanGroup);
-    originalMaterials.set(body, bodyMat.clone()); // For highlighting
+    originalMaterials.set(body, bodyMat.clone());
     return aslanGroup;
 }
 
 function createDonkey(scene, position) {
     const donkeyGroup = new THREE.Group();
     donkeyGroup.position.copy(position);
-    donkeyGroup.userData = {
-        type: 'npc',
-        name: CONSTANTS.NPC_NAMES.DONKEY,
-        requiredQuestState: CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY,
-        requires: { 'Citrulline': 1, 'Aspartate': 1, 'ATP': 1 },
-        produces: 'Argininosuccinate',
-        productColors: { 'Argininosuccinate': CONSTANTS.ARG_SUCC_COLOR },
-        advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN
-    };
-
-    // Body (grey)
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.7 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 1.0), bodyMat);
-    body.position.y = 0.5; // Lifted by leg height
-    donkeyGroup.add(body);
-
-    // Head (slightly smaller box)
+    body.position.y = 0.5; body.name = "body"; donkeyGroup.add(body);
+    // ... (rest of donkey model)
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.5), bodyMat);
-    head.position.set(0, 0.9, 0.35); // On front/top of body
-    donkeyGroup.add(head);
-
-    // Legs (4, thinner)
+    head.position.set(0, 0.9, 0.35); donkeyGroup.add(head);
     const legGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.5, 6);
     const legPositions = [ {x: 0.2, z: 0.35}, {x: -0.2, z: 0.35}, {x: 0.2, z: -0.35}, {x: -0.2, z: -0.35} ];
     legPositions.forEach(pos => {
         const leg = new THREE.Mesh(legGeo, bodyMat);
-        leg.position.set(pos.x, 0.25, pos.z);
-        donkeyGroup.add(leg);
+        leg.position.set(pos.x, 0.25, pos.z); donkeyGroup.add(leg);
     });
-
-    // Ears (long, pointy)
     const earMat = new THREE.MeshStandardMaterial({ color: 0x606060 });
     const earGeo = new THREE.ConeGeometry(0.08, 0.5, 4);
     const leftEar = new THREE.Mesh(earGeo, earMat);
-    leftEar.position.set(-0.15, 1.3, 0.3);
-    leftEar.rotation.z = -Math.PI / 6;
-    donkeyGroup.add(leftEar);
-    const rightEar = leftEar.clone();
-    rightEar.position.x = 0.15;
-    rightEar.rotation.z = Math.PI / 6;
-    donkeyGroup.add(rightEar);
-    
-    // Eyes
+    leftEar.position.set(-0.15, 1.3, 0.3); leftEar.rotation.z = -Math.PI / 6; donkeyGroup.add(leftEar);
+    const rightEar = leftEar.clone(); rightEar.position.x = 0.15; rightEar.rotation.z = Math.PI / 6; donkeyGroup.add(rightEar);
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
     const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), eyeMat);
     leftEye.position.set(-0.1, 0.95, 0.63); donkeyGroup.add(leftEye);
     const rightEye = leftEye.clone(); rightEye.position.x = 0.1; donkeyGroup.add(rightEye);
-
-    // Snout
     const snout = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.2, 0.2), bodyMat);
-    snout.position.set(0, 0.8, 0.65);
-    donkeyGroup.add(snout);
+    snout.position.set(0, 0.8, 0.65); donkeyGroup.add(snout);
 
+
+    donkeyGroup.userData = {
+        type: 'npc', name: CONSTANTS.NPC_NAMES.DONKEY,
+        requiredQuestState: CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY,
+        requires: { 'Citrulline': 1, 'Aspartate': 1, 'ATP': 1 }, produces: 'Argininosuccinate',
+        productColors: { 'Argininosuccinate': CONSTANTS.ARG_SUCC_COLOR },
+        advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN, mainMesh: body
+    };
     const label = createTextSprite(CONSTANTS.NPC_NAMES.DONKEY, { x: 0, y: 1.6, z: 0 }, { fontSize: 36, scale: 0.75 });
     donkeyGroup.add(label);
     donkeyGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
@@ -270,64 +268,41 @@ function createDonkey(scene, position) {
 function createArgus(scene, position) {
     const argusGroup = new THREE.Group();
     argusGroup.position.copy(position);
-    argusGroup.userData = {
-        type: 'npc',
-        name: CONSTANTS.NPC_NAMES.ARGUS,
-        requiredQuestState: CONSTANTS.QUEST_STATE.STEP_12_TALK_TO_ARGUS,
-        requires: { 'Arginine': 1 },
-        produces: ['Urea', 'Ornithine'],
-        productColors: { 'Urea': CONSTANTS.UREA_COLOR, 'Ornithine': CONSTANTS.ORNITHINE_COLOR },
-        advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA
-    };
-
-    // Torso (humanoid but sturdy)
-    const torsoMat = new THREE.MeshStandardMaterial({ color: 0x4A3B31, roughness: 0.5 }); // Dark leather brown
+    const torsoMat = new THREE.MeshStandardMaterial({ color: 0x4A3B31, roughness: 0.5 });
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), torsoMat);
-    torso.position.y = 0.7 + 0.4; // Leg height + half torso height
-    argusGroup.add(torso);
-
-    // Head
-    const headMat = new THREE.MeshStandardMaterial({ color: 0xD2B48C, roughness: 0.4 }); // Tan skin
+    torso.position.y = 0.7 + 0.4; torso.name = "body"; argusGroup.add(torso);
+    // ... (rest of Argus model)
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xD2B48C, roughness: 0.4 });
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 12), headMat);
-    head.position.y = torso.position.y + 0.4 + 0.125; // Top of torso + half head height
-    argusGroup.add(head);
-
-    // Multiple Eyes (stylized) - one main, two smaller on sides
+    head.position.y = torso.position.y + 0.4 + 0.125; argusGroup.add(head);
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
     const mainEye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), eyeMat);
     mainEye.position.set(0, head.position.y + 0.05, 0.22); argusGroup.add(mainEye);
     const leftSideEye = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), eyeMat);
     leftSideEye.position.set(-0.15, head.position.y, 0.18); argusGroup.add(leftSideEye);
-    const rightSideEye = leftSideEye.clone();
-    rightSideEye.position.x = 0.15; argusGroup.add(rightSideEye);
-
-    // Legs
+    const rightSideEye = leftSideEye.clone(); rightSideEye.position.x = 0.15; argusGroup.add(rightSideEye);
     const legGeo = new THREE.CylinderGeometry(0.12, 0.1, 0.7, 8);
     const leftLeg = new THREE.Mesh(legGeo, torsoMat);
     leftLeg.position.set(-0.15, 0.35, 0); argusGroup.add(leftLeg);
-    const rightLeg = leftLeg.clone();
-    rightLeg.position.x = 0.15; argusGroup.add(rightLeg);
-
-    // Arms (two main, holding cleaver)
+    const rightLeg = leftLeg.clone(); rightLeg.position.x = 0.15; argusGroup.add(rightLeg);
     const armGeo = new THREE.CylinderGeometry(0.08, 0.07, 0.6, 8);
-    const leftArm = new THREE.Mesh(armGeo, headMat); // Skin color for arms
-    leftArm.position.set(-0.3, torso.position.y + 0.2, 0);
-    leftArm.rotation.z = Math.PI / 5; argusGroup.add(leftArm);
-    const rightArm = leftArm.clone();
-    rightArm.position.x = 0.3; rightArm.rotation.z = -Math.PI / 5; argusGroup.add(rightArm);
-
-    // Cleaver (Simple: box for blade, cylinder for handle)
+    const leftArm = new THREE.Mesh(armGeo, headMat); 
+    leftArm.position.set(-0.3, torso.position.y + 0.2, 0); leftArm.rotation.z = Math.PI / 5; argusGroup.add(leftArm);
+    const rightArm = leftArm.clone(); rightArm.position.x = 0.3; rightArm.rotation.z = -Math.PI / 5; argusGroup.add(rightArm);
     const cleaverBladeMat = new THREE.MeshStandardMaterial({ color: 0xAAAAAA, metalness: 0.8, roughness: 0.3 });
     const cleaverBlade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.5), cleaverBladeMat);
-    cleaverBlade.position.set(0, torso.position.y - 0.1, 0.3); // Held in front
-    cleaverBlade.rotation.y = Math.PI / 4;
-    argusGroup.add(cleaverBlade);
-    const cleaverHandleMat = new THREE.MeshStandardMaterial({ color: 0x5D4037 }); // Wood color
+    cleaverBlade.position.set(0, torso.position.y - 0.1, 0.3); cleaverBlade.rotation.y = Math.PI / 4; argusGroup.add(cleaverBlade);
+    const cleaverHandleMat = new THREE.MeshStandardMaterial({ color: 0x5D4037 });
     const cleaverHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.25, 6), cleaverHandleMat);
-    cleaverHandle.position.set(0, torso.position.y - 0.3, 0.2); // Below blade center
-    argusGroup.add(cleaverHandle);
+    cleaverHandle.position.set(0, torso.position.y - 0.3, 0.2); argusGroup.add(cleaverHandle);
 
-
+    argusGroup.userData = {
+        type: 'npc', name: CONSTANTS.NPC_NAMES.ARGUS,
+        requiredQuestState: CONSTANTS.QUEST_STATE.STEP_12_TALK_TO_ARGUS,
+        requires: { 'Arginine': 1 }, produces: ['Urea', 'Ornithine'],
+        productColors: { 'Urea': CONSTANTS.UREA_COLOR, 'Ornithine': CONSTANTS.ORNITHINE_COLOR },
+        advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA, mainMesh: torso
+    };
     const label = createTextSprite(CONSTANTS.NPC_NAMES.ARGUS, { x: 0, y: head.position.y + 0.5, z: 0 }, { fontSize: 36, scale: 0.75 });
     argusGroup.add(label);
     argusGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
@@ -339,46 +314,56 @@ function createArgus(scene, position) {
 
 
 export function updateNPCs(delta, elapsedTime) {
-    if (professorHepaticusNPC && professorBasePos) {
-        professorPaceTimer += delta;
-        if (professorPaceTimer > professorPaceInterval) {
-            let newTargetX = professorBasePos.x + (Math.random()-0.5)*1.5;
-            let newTargetZ = professorBasePos.z + (Math.random()-0.5)*1.5;
-            if (newTargetX < CONSTANTS.ALCOVE_OPENING_X_PLANE + 1 && newTargetZ > CONSTANTS.ALCOVE_Z_START -1 && newTargetZ < CONSTANTS.ALCOVE_Z_END + 1) {
-                newTargetX = Math.max(newTargetX, CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5);
-            }
-            professorTargetPos.set(newTargetX, professorBasePos.y, newTargetZ);
-            professorPaceTimer = 0;
-            professorPaceInterval = 2 + Math.random() * 2;
-        }
-        professorHepaticusNPC.position.lerp(professorTargetPos, 0.02);
-        professorHepaticusNPC.rotation.y = Math.sin(elapsedTime * professorSwaySpeed * 0.5) * 0.1;
-        const profRobe = professorHepaticusNPC.children.find(c => c.name === "robe");
-        if (profRobe) profRobe.rotation.y = Math.sin(elapsedTime * professorSwaySpeed) * 0.05;
+    for (const npcKey in npcAnims) {
+        const npc = npcAnims[npcKey];
+        if (!npc.group) continue;
 
-        const leftSleeve = professorHepaticusNPC.children.find(c => c.geometry && c.position.x < -0.1 && c.geometry instanceof THREE.CylinderGeometry);
-        const rightSleeve = professorHepaticusNPC.children.find(c => c.geometry && c.position.x > 0.1 && c.geometry instanceof THREE.CylinderGeometry);
-        if(leftSleeve) leftSleeve.rotation.z = Math.PI / 4 + Math.sin(elapsedTime * professorArmSwingSpeed) * 0.2;
-        if(rightSleeve) rightSleeve.rotation.z = -Math.PI / 4 - Math.sin(elapsedTime * professorArmSwingSpeed) * 0.2;
-    }
-    if (ornithineUsherNPC) {
-        ornithineUsherNPC.position.y = 0 + Math.sin(elapsedTime * usherFloatSpeed) * usherFloatAmount;
-        ornithineUsherNPC.rotation.y = Math.sin(elapsedTime * usherFloatSpeed * 0.7) * 0.15;
-    }
-    // Add simple animations for new NPCs if desired
-    if (donkeyNPC) {
-        donkeyNPC.rotation.y = Math.sin(elapsedTime * 0.3) * 0.1; // Gentle sway
-        // Ear twitch
-        const leftEar = donkeyNPC.children.find(c => c.geometry instanceof THREE.ConeGeometry && c.position.x < 0);
-        if (leftEar) leftEar.rotation.x = Math.sin(elapsedTime * 2.0 + 1) * 0.2;
-    }
-    if (aslanNPC) {
-        aslanNPC.rotation.y = Math.sin(elapsedTime * 0.2) * 0.05; // Slow, regal turn
-    }
-    if (argusNPC) {
-        // Slight breathing-like movement for torso
-        const torso = argusNPC.children.find(c => c.geometry instanceof THREE.BoxGeometry && c.position.y > 0.5);
-        if (torso) torso.scale.y = 1 + Math.sin(elapsedTime * 1.5) * 0.02;
+        npc.paceTimer += delta;
+        if (npc.paceTimer > npc.paceInterval) {
+            let newTargetX = npc.basePos.x + (Math.random() - 0.5) * npc.paceRange;
+            let newTargetZ = npc.basePos.z + (Math.random() - 0.5) * npc.paceRange;
+
+            // Clamp to bounds
+            newTargetX = Math.max(npc.bounds.minX, Math.min(npc.bounds.maxX, newTargetX));
+            newTargetZ = Math.max(npc.bounds.minZ, Math.min(npc.bounds.maxZ, newTargetZ));
+            
+            // Professor specific alcove check (he is near it)
+            if (npcKey === 'professor') {
+                 if (newTargetX < CONSTANTS.ALCOVE_OPENING_X_PLANE + 1 && newTargetZ > CONSTANTS.ALCOVE_Z_START -1 && newTargetZ < CONSTANTS.ALCOVE_Z_END + 1) {
+                    newTargetX = Math.max(newTargetX, CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5); // Push him out if he wanders too close to alcove opening
+                }
+            }
+
+            npc.targetPos.set(newTargetX, npc.basePos.y, newTargetZ);
+            npc.paceTimer = 0;
+            npc.paceInterval = (3 + Math.random() * 3) * (npcKey === 'professor' ? 0.7 : 1); // Prof paces a bit faster
+        }
+        npc.group.position.lerp(npc.targetPos, generalNpcPaceLerpFactor * (npcKey === 'professor' ? 1.5 : 1));
+
+        // Character-specific idle animations
+        if (npcKey === 'professor') {
+            npc.group.rotation.y = Math.sin(elapsedTime * professorSwaySpeed * 0.5) * 0.1;
+            const profRobe = npc.group.children.find(c => c.name === "robe");
+            if (profRobe) profRobe.rotation.y = Math.sin(elapsedTime * professorSwaySpeed) * 0.05;
+            const leftSleeve = npc.group.children.find(c => c.geometry && c.position.x < -0.1 && c.geometry instanceof THREE.CylinderGeometry);
+            const rightSleeve = npc.group.children.find(c => c.geometry && c.position.x > 0.1 && c.geometry instanceof THREE.CylinderGeometry);
+            if(leftSleeve) leftSleeve.rotation.z = Math.PI / 4 + Math.sin(elapsedTime * professorArmSwingSpeed) * 0.2;
+            if(rightSleeve) rightSleeve.rotation.z = -Math.PI / 4 - Math.sin(elapsedTime * professorArmSwingSpeed) * 0.2;
+        } else if (npcKey === 'usher') {
+            npc.group.position.y = npc.basePos.y + Math.sin(elapsedTime * 1.0) * 0.1; // Bobbing
+            npc.group.rotation.y = Math.sin(elapsedTime * 0.7) * 0.15;
+        } else if (npcKey === 'donkey') {
+            npc.group.rotation.y = npc.basePos.y + Math.sin(elapsedTime * 0.3) * 0.1;
+            const leftEar = npc.group.children.find(c => c.geometry instanceof THREE.ConeGeometry && c.position.x < 0);
+            if (leftEar) leftEar.rotation.x = Math.sin(elapsedTime * 2.0 + 1) * 0.2; // Ear twitch
+        } else if (npcKey === 'aslan') {
+            // Aslan is more stoic, slight "breathing" or slow head turn
+            const bodyMesh = npc.group.userData.mainMesh; // Assuming body is mainMesh
+            if (bodyMesh) bodyMesh.scale.y = 1 + Math.sin(elapsedTime * 0.8) * 0.015;
+             npc.group.rotation.y = Math.sin(elapsedTime * 0.1) * 0.03; // Very slow regal turn
+        } else if (npcKey === 'argus') {
+            const torsoMesh = npc.group.userData.mainMesh;
+            if (torsoMesh) torsoMesh.scale.y = 1 + Math.sin(elapsedTime * 1.2) * 0.02; // Breathing
+        }
     }
 }
-

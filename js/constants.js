@@ -40,9 +40,9 @@ export const PORTAL_GAP_WIDTH = 3.0;
 export const PORTAL_WALL_X = DIVIDING_WALL_X;
 export const PORTAL_WALL_CENTER_Z = 0;
 
-// Alcove Dimensions
-export const ALCOVE_DEPTH = 3;
-export const ALCOVE_WIDTH = 4;
+// Alcove Dimensions - EXPANDED
+export const ALCOVE_DEPTH = 5; // Was 3
+export const ALCOVE_WIDTH = 7; // Was 4
 export const ALCOVE_Z_CENTER = 0;
 export const ALCOVE_Z_START = ALCOVE_Z_CENTER - ALCOVE_WIDTH / 2;
 export const ALCOVE_Z_END = ALCOVE_Z_CENTER + ALCOVE_WIDTH / 2;
@@ -93,7 +93,7 @@ export const QUEST_STATE = Object.freeze({
 export const NPC_NAMES = Object.freeze({
     PROFESSOR_HEPATICUS: "Professor Hepaticus",
     ORNITHINE_USHER: "Ornithine Usher",
-    ASLAN: "Aslan, the Cleaver",
-    DONKEY: "Donkey, the Synthesizer", // Or just "Donkey" for simplicity in prompt
-    ARGUS: "Argus, the Finalizer"
+    ASLAN: "Aslan, the Chomper (ASL)",
+    DONKEY: "Donkey, the Synthesizer (ASS)", // Or just "Donkey" for simplicity in prompt
+    ARGUS: "Argus, the Finalizer (ARG1)"
 });

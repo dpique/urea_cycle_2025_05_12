@@ -77,7 +77,8 @@ export function initWorld(scene) {
 
     // Internal Mito Walls
     const internalWallLength = CONSTANTS.MITO_WIDTH * 0.3;
-    const internalWallCenterX = CONSTANTS.MIN_X + CONSTANTS.MITO_WIDTH * 0.7;
+    const internalWallCenterX = CONSTANTS.MIN_X + CONSTANTS.MITO_WIDTH * 0.7; // More towards dividing wall
+    // Ensure internal walls don't clash with expanded alcove
     if (internalWallCenterX - internalWallLength/2 > CONSTANTS.ALCOVE_OPENING_X_PLANE + 1) {
         createWall(scene, { x: internalWallCenterX, y: 0, z: -4 }, { x: internalWallLength, y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "H_Mito_Internal_1", alcoveWallMaterial);
         createWall(scene, { x: internalWallCenterX, y: 0, z: 4 }, { x: internalWallLength, y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "H_Mito_Internal_2", alcoveWallMaterial);
@@ -85,13 +86,9 @@ export function initWorld(scene) {
     addMitoCristae(scene); // Decorative
     addCytoVesicles(scene); // Decorative
 
-    // --- Create ALCOVE ITEMS (Sources & CAVA Shrine station) ---
-    const alcoveItemNearOpeningX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + CONSTANTS.ALCOVE_DEPTH - 0.8;
-    const alcoveItemDeeperX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + 0.8;
-
-    createWaterWell(scene, new THREE.Vector3(alcoveItemNearOpeningX, 0, CONSTANTS.ALCOVE_Z_CENTER - 1));
-    createAlchemistsBrazier(scene, new THREE.Vector3(alcoveItemNearOpeningX, 0, CONSTANTS.ALCOVE_Z_CENTER + 1));
-    createStation(scene, "CAVA Shrine", { x: alcoveItemDeeperX , z: CONSTANTS.ALCOVE_Z_CENTER }, CONSTANTS.MITO_SECONDARY_COLOR, {
+    // --- Create ALCOVE ITEMS (Sources & CAVA Shrine station) - SPREAD OUT ---
+    const cavaShrineX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + 1.2;
+    createStation(scene, "CAVA Shrine", { x: cavaShrineX, z: CONSTANTS.ALCOVE_Z_CENTER }, CONSTANTS.MITO_SECONDARY_COLOR, {
         requires: { 'Water': 1, 'CO2': 1 },
         produces: 'Bicarbonate',
         productColors: { 'Bicarbonate': CONSTANTS.BICARBONATE_COLOR },
@@ -99,23 +96,32 @@ export function initWorld(scene) {
         advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE
     });
 
+    const wellX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + CONSTANTS.ALCOVE_DEPTH / 2;
+    const wellZ = CONSTANTS.ALCOVE_Z_START + 1.2;
+    createWaterWell(scene, new THREE.Vector3(wellX, 0, wellZ));
+
+    const brazierX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + CONSTANTS.ALCOVE_DEPTH / 2 + 0.5;
+    const brazierZ = CONSTANTS.ALCOVE_Z_END - 1.2;
+    createAlchemistsBrazier(scene, new THREE.Vector3(brazierX, 0, brazierZ));
+
+
     // --- Create MITO STATIONS (non-NPC) & Resources ---
-    const mitoStationOffset = CONSTANTS.ALCOVE_OPENING_X_PLANE + 2;
-    createStation(scene, "OTC", { x: Math.max(mitoStationOffset, -10), z: -5 }, 0xff4500, {
+    const mitoStationXOffset = CONSTANTS.ALCOVE_OPENING_X_PLANE + 2.5;
+    createStation(scene, "OTC", { x: Math.max(mitoStationXOffset, -10), z: -5 }, 0xff4500, {
         requires: { 'Carbamoyl Phosphate': 1, 'Ornithine': 1 },
         produces: 'Citrulline', productColors: { 'Citrulline': CONSTANTS.CITRULLINE_COLOR },
         requiredQuestState: CONSTANTS.QUEST_STATE.STEP_5_MAKE_CITRULLINE,
         advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_6_TALK_TO_USHER_PASSAGE
     });
-    createStation(scene, "CPS1", { x: Math.max(mitoStationOffset, -7), z: 7 }, 0xff0000, {
+    createStation(scene, "CPS1", { x: Math.max(mitoStationXOffset - 1, -7), z: 7 }, 0xff0000, {
         requires: { 'Bicarbonate': 1, 'NH3': 1, 'ATP': 2 },
         produces: 'Carbamoyl Phosphate', productColors: { 'Carbamoyl Phosphate': CONSTANTS.CARB_PHOS_COLOR },
         requiredQuestState: CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS,
         advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_3_COLLECT_CARB_PHOS
     });
-
-    createResource(scene, 'NH3', { x: Math.max(CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5, -13), z: 5 }, CONSTANTS.NH3_COLOR);
-    createResource(scene, 'ATP', { x: Math.max(CONSTANTS.ALCOVE_OPENING_X_PLANE + 1, -10), z: 8 }, CONSTANTS.ATP_COLOR);
+    
+    createResource(scene, 'NH3', { x: CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5, z: CONSTANTS.ALCOVE_Z_END - 0.5 }, CONSTANTS.NH3_COLOR);
+    createResource(scene, 'ATP', { x: CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5, z: CONSTANTS.ALCOVE_Z_START + 0.5 }, CONSTANTS.ATP_COLOR);
     createResource(scene, 'ATP', { x: -4, z: 8 }, CONSTANTS.ATP_COLOR);
 
 
@@ -123,7 +129,9 @@ export function initWorld(scene) {
     createResource(scene, 'Aspartate', { x: 8, z: 8 }, CONSTANTS.ASPARTATE_COLOR);
     createResource(scene, 'ATP', { x: 3, z: 0 }, CONSTANTS.ATP_COLOR);
     createWasteBucket(scene, new THREE.Vector3(13, 0, -8));
-    createKrebsFurnace(scene, new THREE.Vector3(CONSTANTS.DIVIDING_WALL_X, 0, 8));
+    
+    // Krebs Cycle Furnace - Positioned on the dividing wall, facing cytosol
+    createKrebsFurnace(scene, new THREE.Vector3(CONSTANTS.DIVIDING_WALL_X, 0, 7)); // Adjusted Z position slightly
 
     // --- ORNT1 Portal & Barrier ---
     createORNT1Portal(scene);
@@ -167,7 +175,7 @@ export function createResource(scene, name, position, color, userData = {}) {
             position = { x: 0, z: 0 }; // Default to origin
         }
         const initialY = userData.initialY !== undefined ? userData.initialY : 0.6;
-        resource.userData = { ...userData, type: 'resource', name: name, object3D: resource, initialY: initialY };
+        resource.userData = { ...userData, type: 'resource', name: name, object3D: resource, initialY: initialY, mainMesh: resource };
         resource.position.set(position.x, initialY, position.z);
         resource.scale.set(scale, scale, scale);
         resource.castShadow = true;
@@ -182,7 +190,7 @@ export function createResource(scene, name, position, color, userData = {}) {
         scene.add(resource);
         interactiveObjects.push(resource);
         resourceMeshes.push(resource);
-        originalMaterials.set(resource, material.clone());
+        originalMaterials.set(resource, material.clone()); // resource is the mesh itself
         return resource;
     } catch (error) {
         console.error(`Error creating resource ${name}:`, error);
@@ -198,10 +206,10 @@ export function createStation(scene, name, position, color, userData) {
     station.position.set(position.x, 1, position.z); // Y position assumes base is on ground
     station.castShadow = true;
     station.receiveShadow = true;
-    station.userData = { type: 'station', name: name, ...userData };
+    station.userData = { type: 'station', name: name, ...userData, mainMesh: station };
     scene.add(station);
     interactiveObjects.push(station);
-    originalMaterials.set(station, material.clone());
+    originalMaterials.set(station, material.clone()); // station is the mesh itself
     const label = createTextSprite(name, { x: position.x, y: 2.5, z: position.z }, { fontSize: 36, scale: 0.75 });
     scene.add(label);
     return station;
@@ -223,11 +231,12 @@ function createWaterWell(scene, position) {
     const waterMat = new THREE.MeshStandardMaterial({ color: CONSTANTS.WATER_COLOR, transparent: true, opacity: 0.8, emissive: CONSTANTS.WATER_COLOR, emissiveIntensity: 0.3, roughness: 0.1 });
     const waterSurface = new THREE.Mesh(waterGeo, waterMat);
     waterSurface.position.y = 0.1;
+    waterSurface.name = "waterSurface_highlight";
     group.add(waterSurface);
 
-    group.userData = { type: 'source', name: 'Water Well', provides: 'Water', requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2 };
+    group.userData = { type: 'source', name: 'Water Well', provides: 'Water', requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2, mainMesh: waterSurface };
     interactiveObjects.push(group);
-    originalMaterials.set(group, waterMat.clone()); // Highlight based on water
+    originalMaterials.set(waterSurface, waterSurface.material.clone());
     scene.add(group);
     const label = createTextSprite("Water Well", { x: position.x, y: position.y + 0.8, z: position.z }, { scale: 0.5 });
     scene.add(label);
@@ -248,18 +257,19 @@ function createAlchemistsBrazier(scene, position) {
     const brazierMat = new THREE.MeshStandardMaterial({ color: CONSTANTS.BRAZIER_COLOR, metalness: 0.8, roughness: 0.4 });
     const brazierGeo = new THREE.TorusKnotGeometry(0.25, 0.08, 50, 8, 2, 3);
     brazierGeo.scale(1, 0.7, 1);
-    const brazier = new THREE.Mesh(brazierGeo, brazierMat);
-    brazier.position.y = 0.5 + 0.15;
-    brazier.castShadow = true;
-    group.add(brazier);
+    const brazierMesh = new THREE.Mesh(brazierGeo, brazierMat);
+    brazierMesh.position.y = 0.5 + 0.15;
+    brazierMesh.castShadow = true;
+    brazierMesh.name = "brazier_highlight";
+    group.add(brazierMesh);
 
     const emberLight = new THREE.PointLight(CONSTANTS.EMBER_COLOR, 0.5, 1);
     emberLight.position.y = 0.7;
     group.add(emberLight);
 
-    group.userData = { type: 'source', name: 'Alchemist\'s Brazier', provides: 'CO2', requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2 };
+    group.userData = { type: 'source', name: 'Alchemist\'s Brazier', provides: 'CO2', requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2, mainMesh: brazierMesh };
     interactiveObjects.push(group);
-    originalMaterials.set(group, brazierMat.clone());
+    originalMaterials.set(brazierMesh, brazierMesh.material.clone());
     scene.add(group);
     const label = createTextSprite("Alchemist's Brazier", { x: position.x, y: position.y + 1.2, z: position.z }, { scale: 0.5 });
     scene.add(label);
@@ -281,14 +291,15 @@ function createWasteBucket(scene, position) {
     geometry.center();
     geometry.rotateX(Math.PI / 2);
     const material = new THREE.MeshStandardMaterial({ color: 0x888899, metalness: 0.7, roughness: 0.4 });
-    const bucket = new THREE.Mesh(geometry, material);
-    bucket.scale.set(0.8, 0.8, 0.8);
-    bucket.castShadow = true; bucket.receiveShadow = true;
-    bucketGroup.add(bucket);
+    const bucketMesh = new THREE.Mesh(geometry, material);
+    bucketMesh.scale.set(0.8, 0.8, 0.8);
+    bucketMesh.castShadow = true; bucketMesh.receiveShadow = true;
+    bucketMesh.name = "bucket_highlight";
+    bucketGroup.add(bucketMesh);
     scene.add(bucketGroup);
-    bucketGroup.userData = { type: 'wasteBucket', name: 'Waste Receptacle' };
+    bucketGroup.userData = { type: 'wasteBucket', name: 'Waste Receptacle', mainMesh: bucketMesh };
     interactiveObjects.push(bucketGroup);
-    originalMaterials.set(bucketGroup, material.clone()); // Use main material for highlight reference
+    originalMaterials.set(bucketMesh, bucketMesh.material.clone());
     const label = createTextSprite("Waste Receptacle", { x: position.x, y: position.y + 1.2, z: position.z }, { fontSize: 30, scale: 0.6 });
     scene.add(label);
     return bucketGroup;
@@ -296,31 +307,70 @@ function createWasteBucket(scene, position) {
 
 function createKrebsFurnace(scene, position) {
     const furnaceGroup = new THREE.Group();
+    // The `position` argument is the world position for the furnace group's origin.
     furnaceGroup.position.copy(position);
+
+    // Rotate the entire furnace group to make its "front" (local -Z) face global +X (Cytosol)
+    // Default BoxGeometry has its "front" face along +Z.
+    // To make it face +X (cytosol direction), rotate -PI/2 around Y.
+    furnaceGroup.rotation.y = -Math.PI / 2;
+
     const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9 });
-    const baseGeometry = new THREE.BoxGeometry(1.2, 1.5, 1.2);
-    const base = new THREE.Mesh(baseGeometry, baseMaterial);
-    base.position.y = 0.75; // Center of the base
-    base.castShadow = true; base.receiveShadow = true;
-    furnaceGroup.add(base);
+    // Base dimensions (local width, height, depth for BoxGeometry)
+    const baseGeometry = new THREE.BoxGeometry(1.2, 1.5, 1.2); 
+    const baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
+    baseMesh.position.y = 0.75; // Center of the base height (local Y)
+    baseMesh.castShadow = true; baseMesh.receiveShadow = true;
+    baseMesh.name = "furnaceBase_highlight";
+    furnaceGroup.add(baseMesh);
 
     const fireMaterial = new THREE.MeshStandardMaterial({ color: CONSTANTS.EMBER_COLOR, emissive: CONSTANTS.EMBER_COLOR, emissiveIntensity: 0.8, roughness: 0.6 });
-    const fireGeometry = new THREE.BoxGeometry(0.8, 0.6, 0.2);
+    // Firebox dimensions (local width, height, depth)
+    const fireGeometry = new THREE.BoxGeometry(0.8, 0.6, 0.2); 
     const firebox = new THREE.Mesh(fireGeometry, fireMaterial);
-    firebox.position.set(0, 0.5, 0.51); // Relative to furnaceGroup center
+    // Position firebox on the "front" face of the base.
+    // Base local depth is 1.2, so its local +Z face is at local Z = 0.6.
+    // Firebox local depth is 0.2. To place it on the base's +Z face, its center local Z is 0.6 + 0.2/2 = 0.7 (slightly protruding).
+    // Or if the firebox opening is on its own +Z face, and base +Z is the "front":
+    firebox.position.set(0, 0.5, -0.5)                                                 // (0.6 is front face of base, 0.2/2 is half depth of firebox, -0.05 to make it slightly embedded)
     furnaceGroup.add(firebox);
 
+    // Chimney on top
     const chimneyGeometry = new THREE.CylinderGeometry(0.2, 0.15, 0.8);
     const chimney = new THREE.Mesh(chimneyGeometry, baseMaterial);
-    chimney.position.y = 1.5 + 0.4; // Relative to furnaceGroup center
+    const chimneyHeight = 0.8;
+    const baseTopY = 0.75 + 1.5/2; // Base center Y + half base height
+    chimney.position.y = baseTopY + chimneyHeight / 2; // Local Y for chimney
     furnaceGroup.add(chimney);
 
-    furnaceGroup.userData = { type: 'krebsFurnace', name: 'Krebs Cycle Furnace' };
-    scene.add(furnaceGroup);
+    furnaceGroup.userData = { type: 'krebsFurnace', name: 'Krebs Cycle Furnace', mainMesh: baseMesh };
+    scene.add(furnaceGroup); // Add the whole group to the scene
     interactiveObjects.push(furnaceGroup);
-    originalMaterials.set(furnaceGroup, baseMaterial.clone());
+    originalMaterials.set(baseMesh, baseMesh.material.clone());
+    
     const label = createTextSprite("Krebs Cycle Furnace", { x: position.x, y: position.y + 2.4, z: position.z }, { fontSize: 30, scale: 0.6 });
-    scene.add(label);
+    scene.add(label); // Label position is world absolute
+
+    // Create smoke particle system
+    // The chimney's world position needs to be calculated
+    const chimneyWorldPosition = new THREE.Vector3();
+    // Temporarily add chimney to scene to get world position, then re-add to group if needed, or just calculate
+    // Better: calculate based on group's position and rotation and chimney's local position
+    const smokeEmitterPosition = new THREE.Vector3(0, chimney.position.y + chimneyHeight / 2 + 0.1, 0); // Top of chimney, local to group
+    smokeEmitterPosition.applyQuaternion(furnaceGroup.quaternion); // Rotate local offset by group's rotation
+    smokeEmitterPosition.add(furnaceGroup.position); // Add group's world position
+
+    createSimpleParticleSystem(
+        scene, // Add particles directly to the scene
+        40, // count
+        CONSTANTS.SMOKE_COLOR, // color
+        0.08, // size
+        0.4,  // speed
+        3.5,  // lifetime
+        smokeEmitterPosition, // emitterPosition (world)
+        new THREE.Vector3(0.1, 0.3, 0.1) // emissionArea (world-axis aligned for simplicity, or rotate this too)
+    );
+
     return furnaceGroup;
 }
 
@@ -337,7 +387,8 @@ function createORNT1Portal(scene) {
         requires: { 'Citrulline': 1 },
         advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO,
         action: 'transportCitrulline',
-        productColor: CONSTANTS.CITRULLINE_COLOR
+        productColor: CONSTANTS.CITRULLINE_COLOR,
+        mainMesh: ornT1Portal
     };
     scene.add(ornT1Portal);
     interactiveObjects.push(ornT1Portal);
@@ -353,7 +404,7 @@ function createORNT1Portal(scene) {
     portalBarrier.rotation.y = Math.PI / 2;
     portalBarrier.name = "PortalBarrier";
     scene.add(portalBarrier);
-    addCollidableWall(portalBarrier); // Add barrier to collidables
+    addCollidableWall(portalBarrier);
 }
 
 export function removePortalBarrierFromWorld(scene) {
@@ -392,18 +443,24 @@ function addMitoCristae(scene) {
         let xPos = CONSTANTS.MIN_X + CONSTANTS.MITO_WIDTH * (0.3 + i * 0.18) + (Math.random()-0.5) * 1.5;
         let zPos = (Math.random() - 0.5) * (CONSTANTS.MAX_Z - CONSTANTS.MIN_Z) * 0.7;
 
-        const alcoveXMin = CONSTANTS.MIN_X - 1;
-        const alcoveXMax = CONSTANTS.ALCOVE_OPENING_X_PLANE + 1;
-        const alcoveZMin = CONSTANTS.ALCOVE_Z_START - 1;
-        const alcoveZMax = CONSTANTS.ALCOVE_Z_END + 1;
+        const alcoveXMin = CONSTANTS.MIN_X - 1; 
+        const alcoveXMax = CONSTANTS.ALCOVE_OPENING_X_PLANE + 1; 
+        const alcoveZMin = CONSTANTS.ALCOVE_Z_START - 1; 
+        const alcoveZMax = CONSTANTS.ALCOVE_Z_END + 1; 
 
         if (xPos > alcoveXMin && xPos < alcoveXMax && zPos > alcoveZMin && zPos < alcoveZMax) {
-            xPos = Math.max(xPos, alcoveXMax + 0.5);
-            if (Math.random() < 0.5) zPos = CONSTANTS.MIN_Z + cristaeLength/2 + 1; else zPos = CONSTANTS.MAX_Z - cristaeLength/2 - 1;
+            if (Math.random() < 0.5) { 
+                 xPos = CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5 + Math.random() * 2;
+            } else { 
+                zPos = (Math.random() < 0.5) ? (CONSTANTS.MIN_Z + cristaeLength/2 + 1) : (CONSTANTS.MAX_Z - cristaeLength/2 - 1);
+            }
         }
-        if (xPos > CONSTANTS.DIVIDING_WALL_X - 2 && xPos < CONSTANTS.DIVIDING_WALL_X + 2 && zPos > CONSTANTS.PORTAL_WALL_CENTER_Z - CONSTANTS.PORTAL_GAP_WIDTH && zPos < CONSTANTS.PORTAL_WALL_CENTER_Z + CONSTANTS.PORTAL_GAP_WIDTH) {
-            continue;
+        if (xPos > CONSTANTS.DIVIDING_WALL_X - (cristaeDepth/2 + 1) && xPos < CONSTANTS.DIVIDING_WALL_X + (cristaeDepth/2 + 1) &&
+            zPos > CONSTANTS.PORTAL_WALL_CENTER_Z - (CONSTANTS.PORTAL_GAP_WIDTH/2 + cristaeLength/2) &&
+            zPos < CONSTANTS.PORTAL_WALL_CENTER_Z + (CONSTANTS.PORTAL_GAP_WIDTH/2 + cristaeLength/2)) {
+            continue; 
         }
+
 
         const cristaeGeo = new THREE.BoxGeometry(cristaeDepth, cristaeHeight, cristaeLength);
         const crista = new THREE.Mesh(cristaeGeo, cristaeMat);
@@ -428,7 +485,6 @@ function addCytoVesicles(scene) {
     }
 }
 
-// Function to update resource hover animation
 export function updateResourceHover(elapsedTime) {
     const hoverSpeed = 2;
     const hoverAmount = 0.2;
@@ -454,9 +510,8 @@ export function removeResourceFromWorld(resourceObject) {
     index = resourceMeshes.indexOf(resourceObject);
     if (index > -1) resourceMeshes.splice(index, 1);
 
-    originalMaterials.delete(resourceObject);
+    originalMaterials.delete(resourceObject.userData.mainMesh || resourceObject);
 
-    // Dispose geometry and material
     if (resourceObject.geometry) resourceObject.geometry.dispose();
     if (resourceObject.material) {
         if (Array.isArray(resourceObject.material)) {

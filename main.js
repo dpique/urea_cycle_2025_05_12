@@ -62,7 +62,7 @@ export function setPlayerLocation(location) { gameState.playerLocation = locatio
 
 const canvasElement = document.getElementById('gameCanvas');
 initScene(canvasElement);
-initUIManager();
+initUIManager(); // Initializes UI element references
 initPlayer(scene);
 initWorld(scene);
 initNPCs(scene);
@@ -70,6 +70,11 @@ initQuests();
 
 updateInventoryUI(gameState.inventory);
 updateQuestUI(gameState.currentQuest);
+
+// Initial instructions
+setTimeout(() => {
+    showFeedback("Welcome to Metabolon RPG! Use W/A/S/D or Arrow Keys to move. Press E to interact.", 6000);
+}, 1000);
 
 
 const playerBoundingBox = new THREE.Box3();
@@ -89,6 +94,7 @@ function checkPlayerCollision(nextPlayerPos) {
 document.addEventListener('keydown', (event) => {
     const key = event.key.toLowerCase();
     if (key === 'e' && getClosestInteractiveObject() && !gameState.isUserInteracting) {
+        // Check if major UI elements are hidden before allowing interaction
         if (dialogueBox.classList.contains('hidden') && realityRiverUI.classList.contains('hidden')) {
             interactWithObject(getClosestInteractiveObject(), scene);
         }
@@ -99,30 +105,32 @@ const clock = new THREE.Clock();
 
 function animate() {
     requestAnimationFrame(animate);
-    const delta = Math.min(clock.getDelta(), 0.1);
+    const delta = Math.min(clock.getDelta(), 0.1); // Cap delta to prevent large jumps
     const elapsedTime = clock.getElapsedTime();
 
     updatePlayer(delta, gameState.isUserInteracting, checkPlayerCollision);
     updateNPCs(delta, elapsedTime);
     updateSimpleParticleSystems(delta);
     updateResourceHover(elapsedTime);
-    updateInteraction(scene);
+    updateInteraction(scene); // This will handle highlighting
 
-    if (!getPortalBarrier()) {
+    // Player location update based on portal passage (if barrier is down)
+    if (!getPortalBarrier()) { // Check if portal barrier is removed
         const currentX = player.position.x;
         const prevLocation = getPlayerLocation();
         if (currentX > CONSTANTS.DIVIDING_WALL_X + CONSTANTS.PLAYER_RADIUS && prevLocation === 'mitochondria') {
             setPlayerLocation('cytosol');
-            showFeedback("You are entering the Cytosol", 3500);
+            showFeedback("You are entering the Cytosol", 3000);
         } else if (currentX < CONSTANTS.DIVIDING_WALL_X - CONSTANTS.PLAYER_RADIUS && prevLocation === 'cytosol') {
             setPlayerLocation('mitochondria');
-            showFeedback("You are entering the Mitochondria", 3500);
+            showFeedback("You are entering the Mitochondria", 3000);
         }
     }
     
     renderer.render(scene, camera);
 }
 
-getAudioContext();
+// Initialize audio context on first user gesture (implicitly handled by interaction sounds)
+getAudioContext(); 
 animate();
-console.log("Metabolon RPG Initialized (v32 - UI & Feedback Polish).");
+console.log("Metabolon RPG Initialized (v33 - Highlighting, NPC Pace, Alcove, Text, Instructions, Feedback Polish).");

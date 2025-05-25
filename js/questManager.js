@@ -28,7 +28,7 @@ export const ureaCycleQuestData = {
         [CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL]: "Permission granted! Use the ORNT1 Portal with Citrulline to activate it and transport to the Cytosol.",
         [CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO]: "In the Cytosol: Collect the transported Citrulline, plus Aspartate (1) and ATP (1).",
         [CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY]: `Find ${CONSTANTS.NPC_NAMES.DONKEY} in the Cytosol to make Argininosuccinate.`,
-        [CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN]: `Take Argininosuccinate to ${CONSTANTS.NPC_NAMES.ASLAN} to cleave it. Collect Arginine and Fumarate.`,
+        [CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN]: `Take Argininosuccinate to ${CONSTANTS.NPC_NAMES.ASLAN} to cleave it.`,
         [CONSTANTS.QUEST_STATE.STEP_11_FURNACE_FUMARATE]: "Gather Arginine and Fumarate. Then, feed the Fumarate to the Krebs Cycle Furnace.",
         [CONSTANTS.QUEST_STATE.STEP_12_TALK_TO_ARGUS]: `Bring Arginine to ${CONSTANTS.NPC_NAMES.ARGUS} to produce Urea and Ornithine.`,
         [CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA]: "Dispose of the toxic Urea in the Waste Receptacle. Return Ornithine to the Usher.",
