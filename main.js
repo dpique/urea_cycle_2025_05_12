@@ -73,7 +73,7 @@ updateQuestUI(gameState.currentQuest);
 
 // Initial instructions
 setTimeout(() => {
-    showFeedback("Welcome to Metabolon RPG! Use W/A/S/D or Arrow Keys to move. Press E to interact.", 6000);
+    showFeedback("Welcome to Metabolon! Use W/A/S/D or Arrow Keys to move. Press E to interact.", 6000);
 }, 1000);
 
 
