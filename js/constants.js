@@ -12,6 +12,7 @@ export const BRAZIER_COLOR = 0xB87333;
 export const EMBER_COLOR = 0xFF4500;
 export const SMOKE_COLOR = 0x888888;
 export const BICARBONATE_COLOR = 0xADD8E6;
+export const CAVA_SHRINE_CRYSTAL_COLOR = 0x7FFFD4; // Aquamarine for CAVA crystal
 
 // Resource Colors
 export const CARB_PHOS_COLOR = 0xff3333;
@@ -42,14 +43,14 @@ export const PORTAL_WALL_X = DIVIDING_WALL_X;
 export const PORTAL_WALL_CENTER_Z = 0;
 
 // Alcove Dimensions - EXPANDED
-export const ALCOVE_DEPTH = 5; // Was 3
-export const ALCOVE_WIDTH = 7; // Was 4
+export const ALCOVE_DEPTH = 5; 
+export const ALCOVE_WIDTH = 7; 
 export const ALCOVE_Z_CENTER = 0;
 export const ALCOVE_Z_START = ALCOVE_Z_CENTER - ALCOVE_WIDTH / 2;
 export const ALCOVE_Z_END = ALCOVE_Z_CENTER + ALCOVE_WIDTH / 2;
-export const ALCOVE_INTERIOR_BACK_X = MIN_X + WALL_THICKNESS / 2; // Adjusted for wall thickness
+export const ALCOVE_INTERIOR_BACK_X = MIN_X + WALL_THICKNESS / 2; 
 export const ALCOVE_OPENING_X_PLANE = MIN_X + WALL_THICKNESS / 2 + ALCOVE_DEPTH;
-export const CAVE_SLOPE_DROP = 1.0; // How much the cave floor drops vertically
+export const CAVE_SLOPE_DROP = 1.0; 
 
 // --- Player Constants ---
 export const PLAYER_SPEED = 5.0;
@@ -66,7 +67,7 @@ export const PLAYER_TOTAL_HEIGHT = PLAYER_LEG_HEIGHT + PLAYER_BODY_HEIGHT + PLAY
 
 
 // --- Interaction Constants ---
-export const INTERACTION_RADIUS_SQ = 2.0 * 2.0; // Squared for cheaper distance checks
+export const INTERACTION_RADIUS_SQ = 2.0 * 2.0; 
 
 // --- Quest States ---
 export const QUEST_STATE = Object.freeze({
@@ -75,17 +76,17 @@ export const QUEST_STATE = Object.freeze({
     STEP_0B_MAKE_BICARBONATE: 'STEP_0B_MAKE_BICARBONATE',
     STEP_0C_COLLECT_BICARBONATE: 'STEP_0C_COLLECT_BICARBONATE',
     STEP_1_GATHER_MITO_REMAINING: 'STEP_1_GATHER_MITO_REMAINING',
-    STEP_2_MAKE_CARB_PHOS: 'STEP_2_MAKE_CARB_PHOS',
+    STEP_2_MAKE_CARB_PHOS: 'STEP_2_MAKE_CARB_PHOS', // Will interact with Casper (CPS1)
     STEP_3_COLLECT_CARB_PHOS: 'STEP_3_COLLECT_CARB_PHOS',
     STEP_4_MEET_USHER: 'STEP_4_MEET_USHER',
-    STEP_5_MAKE_CITRULLINE: 'STEP_5_MAKE_CITRULLINE',
+    STEP_5_MAKE_CITRULLINE: 'STEP_5_MAKE_CITRULLINE', // Will interact with Otis (OTC)
     STEP_6_TALK_TO_USHER_PASSAGE: 'STEP_6_TALK_TO_USHER_PASSAGE',
     STEP_7_OPEN_PORTAL: 'STEP_7_OPEN_PORTAL',
     STEP_8_GATHER_CYTO: 'STEP_8_GATHER_CYTO',
-    STEP_9_TALK_TO_DONKEY: 'STEP_9_TALK_TO_DONKEY', // Was STEP_9_MAKE_ARGSUCC (ASS station)
-    STEP_10_TALK_TO_ASLAN: 'STEP_10_TALK_TO_ASLAN',   // Was STEP_10_CLEAVE_ARGSUCC (ASL station)
+    STEP_9_TALK_TO_DONKEY: 'STEP_9_TALK_TO_DONKEY', 
+    STEP_10_TALK_TO_ASLAN: 'STEP_10_TALK_TO_ASLAN',   
     STEP_11_FURNACE_FUMARATE: 'STEP_11_FURNACE_FUMARATE',
-    STEP_12_TALK_TO_ARGUS: 'STEP_12_TALK_TO_ARGUS',     // Was STEP_12_MAKE_UREA (ARG1 station)
+    STEP_12_TALK_TO_ARGUS: 'STEP_12_TALK_TO_ARGUS',     
     STEP_13_DISPOSE_UREA: 'STEP_13_DISPOSE_UREA',
     STEP_14_RIVER_CHALLENGE: 'STEP_14_RIVER_CHALLENGE',
     COMPLETED: 'COMPLETED'
@@ -96,6 +97,8 @@ export const NPC_NAMES = Object.freeze({
     PROFESSOR_HEPATICUS: "Professor Hepaticus",
     ORNITHINE_USHER: "Ornithine Usher",
     ASLAN: "Aslan, the Chomper (ASL)",
-    DONKEY: "Donkey, the Synthesizer (ASS)", // Or just "Donkey" for simplicity in prompt
-    ARGUS: "Argus, the Finalizer (ARG1)"
+    DONKEY: "Donkey, the Synthesizer (ASS)", 
+    ARGUS: "Argus, the Finalizer (ARG1)",
+    OTIS_OTC: "Otis (OTC)", // New character for Ornithine Transcarbamoylase
+    CASPER_CPS1: "Casper (CPS1)" // New character for Carbamoyl Phosphate Synthetase I
 });

@@ -2,19 +2,21 @@
 import * as THREE from 'three';
 import * as CONSTANTS from './constants.js';
 import { createTextSprite, createSimpleParticleSystem, createLightningBoltGeometry } from './utils.js';
+import { initNPCs as initAllNPCs } from './npcManager.js'; // To access NPC creation for Otis/Casper
 
 export let collidableWalls = [];
 export let wallBoundingBoxes = [];
-export let resourceMeshes = []; // Meshes of resources currently in the world
-export let interactiveObjects = []; // All objects player can interact with
-export let originalMaterials = new Map(); // To store original materials for highlighting
+export let resourceMeshes = []; 
+export let interactiveObjects = []; 
+export let originalMaterials = new Map(); 
 export let portalBarrier = null;
 let caveSlopePlane = null;
+let fixedAlcoveItemPositions = []; // To store positions of well, brazier, CAVA for rock placement
 
 
 function addCollidableWall(wall) {
     collidableWalls.push(wall);
-    wall.updateMatrixWorld(); // Ensure matrix is up to date
+    wall.updateMatrixWorld(); 
     const wallBox = new THREE.Box3().setFromObject(wall);
     wallBoundingBoxes.push(wallBox);
 }
@@ -22,7 +24,7 @@ function addCollidableWall(wall) {
 export function createWall(scene, position, size, rotationY = 0, name = "Wall", material = new THREE.MeshStandardMaterial({ color: CONSTANTS.WALL_GENERAL_COLOR, metalness: 0.2, roughness: 0.9 }), addToCollidables = true) {
     const wallGeometry = new THREE.BoxGeometry(size.x, size.y, size.z);
     const wall = new THREE.Mesh(wallGeometry, material);
-    wall.position.set(position.x, position.y !== undefined ? position.y : CONSTANTS.WALL_HEIGHT / 2, position.z); // Allow custom Y
+    wall.position.set(position.x, position.y !== undefined ? position.y : CONSTANTS.WALL_HEIGHT / 2, position.z); 
     wall.rotation.y = rotationY;
     wall.castShadow = true;
     wall.receiveShadow = true;
@@ -34,24 +36,22 @@ export function createWall(scene, position, size, rotationY = 0, name = "Wall", 
     return wall;
 }
 
-// Helper to get Y position on the cave slope
 function getCaveFloorY(xPos) {
-    if (!caveSlopePlane) return 0.01; // Default if plane not ready
+    if (!caveSlopePlane) return 0.01; 
 
-    const xStartSlope = CONSTANTS.ALCOVE_OPENING_X_PLANE; // Higher X, entrance
-    const xEndSlope = CONSTANTS.ALCOVE_INTERIOR_BACK_X;   // Lower X, deeper
-    const yStart = 0.01; // Ground level at entrance
+    const xStartSlope = CONSTANTS.ALCOVE_OPENING_X_PLANE; 
+    const xEndSlope = CONSTANTS.ALCOVE_INTERIOR_BACK_X;   
+    const yStart = 0.01; 
     
-    // Ensure xPos is within the slope's X range
     const clampedX = Math.max(xEndSlope, Math.min(xStartSlope, xPos));
-
-    const ratio = (clampedX - xStartSlope) / (xEndSlope - xStartSlope);
+    const ratio = (xEndSlope - xStartSlope === 0) ? 0 : (clampedX - xStartSlope) / (xEndSlope - xStartSlope); // Avoid division by zero
     return yStart + ratio * (-CONSTANTS.CAVE_SLOPE_DROP);
 }
 
 
 export function initWorld(scene) {
-    // Ground & Zones
+    fixedAlcoveItemPositions = []; // Clear for re-initialization if any
+
     const groundMaterial = new THREE.MeshStandardMaterial({ color: CONSTANTS.CYTO_PRIMARY_COLOR, metalness: 0.1, roughness: 0.9 });
     const groundGeometry = new THREE.PlaneGeometry(CONSTANTS.TOTAL_WIDTH, CONSTANTS.TOTAL_DEPTH);
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -70,20 +70,38 @@ export function initWorld(scene) {
     mitochondriaZoneMesh.receiveShadow = true;
     scene.add(mitochondriaZoneMesh);
 
-    // Create Cave Area First
+    // --- Create ALCOVE ITEMS FIRST to get their positions for rock avoidance ---
+    const cavaShrineX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + 1.2;
+    const cavaShrineY = getCaveFloorY(cavaShrineX);
+    createCavaShrine(scene, { x: cavaShrineX, yBase: cavaShrineY, z: CONSTANTS.ALCOVE_Z_CENTER });
+    fixedAlcoveItemPositions.push({ x: cavaShrineX, z: CONSTANTS.ALCOVE_Z_CENTER, radius: 1.8 });
+
+
+    const wellX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + CONSTANTS.ALCOVE_DEPTH / 2;
+    const wellZ = CONSTANTS.ALCOVE_Z_START + 1.2;
+    const wellY = getCaveFloorY(wellX);
+    createWaterWell(scene, new THREE.Vector3(wellX, wellY, wellZ));
+    fixedAlcoveItemPositions.push({ x: wellX, z: wellZ, radius: 1.5 });
+
+
+    const brazierX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + CONSTANTS.ALCOVE_DEPTH / 2 + 0.5; // Slightly more to the right
+    const brazierZ = CONSTANTS.ALCOVE_Z_END - 1.2;
+    const brazierY = getCaveFloorY(brazierX);
+    createAlchemistsBrazier(scene, new THREE.Vector3(brazierX, brazierY, brazierZ));
+    fixedAlcoveItemPositions.push({ x: brazierX, z: brazierZ, radius: 1.5 });
+
+    // Now create cave area, which will place rocks avoiding fixed items
     createCaveArea(scene);
 
 
-    // Alcove Walls - adjusted to be taller and potentially sit lower to intersect slope
     const alcoveWallMaterial = new THREE.MeshStandardMaterial({ color: CONSTANTS.ROCK_COLOR, metalness: 0.1, roughness: 0.8 });
     const alcoveWallHeight = CONSTANTS.WALL_HEIGHT + CONSTANTS.CAVE_SLOPE_DROP;
     const alcoveWallBaseY = (CONSTANTS.WALL_HEIGHT / 2) - (CONSTANTS.CAVE_SLOPE_DROP / 2);
 
     createWall(scene, { x: CONSTANTS.MIN_X, y: alcoveWallBaseY, z: CONSTANTS.ALCOVE_Z_CENTER }, { x: CONSTANTS.WALL_THICKNESS, y: alcoveWallHeight, z: CONSTANTS.ALCOVE_WIDTH }, 0, "Alcove_Back", alcoveWallMaterial);
-    createWall(scene, { x: CONSTANTS.MIN_X + CONSTANTS.WALL_THICKNESS/2 + CONSTANTS.ALCOVE_DEPTH / 2, y: alcoveWallBaseY, z: CONSTANTS.ALCOVE_Z_START - CONSTANTS.WALL_THICKNESS/2 }, { x: CONSTANTS.ALCOVE_DEPTH + CONSTANTS.WALL_THICKNESS, y: alcoveWallHeight, z: CONSTANTS.WALL_THICKNESS }, 0, "Alcove_Side_South", alcoveWallMaterial); // Extended length to cover edge
-    createWall(scene, { x: CONSTANTS.MIN_X + CONSTANTS.WALL_THICKNESS/2 + CONSTANTS.ALCOVE_DEPTH / 2, y: alcoveWallBaseY, z: CONSTANTS.ALCOVE_Z_END + CONSTANTS.WALL_THICKNESS/2 }, { x: CONSTANTS.ALCOVE_DEPTH + CONSTANTS.WALL_THICKNESS, y: alcoveWallHeight, z: CONSTANTS.WALL_THICKNESS }, 0, "Alcove_Side_North", alcoveWallMaterial); // Extended length
+    createWall(scene, { x: CONSTANTS.MIN_X + CONSTANTS.WALL_THICKNESS/2 + CONSTANTS.ALCOVE_DEPTH / 2, y: alcoveWallBaseY, z: CONSTANTS.ALCOVE_Z_START - CONSTANTS.WALL_THICKNESS/2 }, { x: CONSTANTS.ALCOVE_DEPTH + CONSTANTS.WALL_THICKNESS, y: alcoveWallHeight, z: CONSTANTS.WALL_THICKNESS }, 0, "Alcove_Side_South", alcoveWallMaterial);
+    createWall(scene, { x: CONSTANTS.MIN_X + CONSTANTS.WALL_THICKNESS/2 + CONSTANTS.ALCOVE_DEPTH / 2, y: alcoveWallBaseY, z: CONSTANTS.ALCOVE_Z_END + CONSTANTS.WALL_THICKNESS/2 }, { x: CONSTANTS.ALCOVE_DEPTH + CONSTANTS.WALL_THICKNESS, y: alcoveWallHeight, z: CONSTANTS.WALL_THICKNESS }, 0, "Alcove_Side_North", alcoveWallMaterial);
 
-    // Outer Walls adjusted for Alcove (these are standard height)
     const leftWallSeg1Len = CONSTANTS.ALCOVE_Z_START - CONSTANTS.MIN_Z - CONSTANTS.WALL_THICKNESS/2;
     if (leftWallSeg1Len > 0.1) createWall(scene, { x: CONSTANTS.ALCOVE_OPENING_X_PLANE, y: CONSTANTS.WALL_HEIGHT/2, z: CONSTANTS.MIN_Z + leftWallSeg1Len / 2 }, { x: CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: leftWallSeg1Len });
     const leftWallSeg2Len = CONSTANTS.MAX_Z - CONSTANTS.ALCOVE_Z_END - CONSTANTS.WALL_THICKNESS/2;
@@ -93,7 +111,6 @@ export function initWorld(scene) {
     createWall(scene, { x: (CONSTANTS.MIN_X + CONSTANTS.MAX_X)/2, y: CONSTANTS.WALL_HEIGHT/2, z: CONSTANTS.MIN_Z }, { x: CONSTANTS.TOTAL_WIDTH - CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "Outer_Bottom");
     createWall(scene, { x: (CONSTANTS.MIN_X + CONSTANTS.MAX_X)/2, y: CONSTANTS.WALL_HEIGHT/2, z: CONSTANTS.MAX_Z }, { x: CONSTANTS.TOTAL_WIDTH - CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "Outer_Top");
 
-    // Dividing Wall
     const gapStartZ = CONSTANTS.PORTAL_WALL_CENTER_Z - CONSTANTS.PORTAL_GAP_WIDTH / 2;
     const gapEndZ = CONSTANTS.PORTAL_WALL_CENTER_Z + CONSTANTS.PORTAL_GAP_WIDTH / 2;
     const divWall1Len = gapStartZ - CONSTANTS.MIN_Z;
@@ -101,7 +118,6 @@ export function initWorld(scene) {
     const divWall2Len = CONSTANTS.MAX_Z - gapEndZ;
     if (divWall2Len > 0.1) createWall(scene, { x: CONSTANTS.DIVIDING_WALL_X, y: CONSTANTS.WALL_HEIGHT/2, z: gapEndZ + divWall2Len / 2 }, { x: CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: divWall2Len }, 0, "Dividing_Wall_Top");
 
-    // Internal Mito Walls
     const internalWallLength = CONSTANTS.MITO_WIDTH * 0.3;
     const internalWallCenterX = CONSTANTS.MIN_X + CONSTANTS.MITO_WIDTH * 0.7;
     if (internalWallCenterX - internalWallLength/2 > CONSTANTS.ALCOVE_OPENING_X_PLANE + 1) {
@@ -110,54 +126,18 @@ export function initWorld(scene) {
     }
     addMitoCristae(scene); 
     addCytoVesicles(scene); 
-
-    // --- Create ALCOVE ITEMS (Sources & CAVA Shrine station) ---
-    // Positions need to be on the sloped floor
-    const cavaShrineX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + 1.2;
-    const cavaShrineY = getCaveFloorY(cavaShrineX);
-    createStation(scene, "CAVA Shrine", { x: cavaShrineX, yBase: cavaShrineY, z: CONSTANTS.ALCOVE_Z_CENTER }, CONSTANTS.MITO_SECONDARY_COLOR, {
-        requires: { 'Water': 1, 'CO2': 1 },
-        produces: 'Bicarbonate',
-        productColors: { 'Bicarbonate': CONSTANTS.BICARBONATE_COLOR },
-        requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE,
-        advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE
-    });
-
-    const wellX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + CONSTANTS.ALCOVE_DEPTH / 2;
-    const wellZ = CONSTANTS.ALCOVE_Z_START + 1.2;
-    const wellY = getCaveFloorY(wellX);
-    createWaterWell(scene, new THREE.Vector3(wellX, wellY, wellZ));
-
-    const brazierX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + CONSTANTS.ALCOVE_DEPTH / 2 + 0.5;
-    const brazierZ = CONSTANTS.ALCOVE_Z_END - 1.2;
-    const brazierY = getCaveFloorY(brazierX);
-    createAlchemistsBrazier(scene, new THREE.Vector3(brazierX, brazierY, brazierZ));
-
-
-    // --- Create MITO STATIONS (non-NPC) & Resources ---
-    const mitoStationXOffset = CONSTANTS.ALCOVE_OPENING_X_PLANE + 2.5; // These are on flat ground
-    createStation(scene, "OTC", { x: Math.max(mitoStationXOffset, -10), z: -5 }, 0xff4500, {
-        requires: { 'Carbamoyl Phosphate': 1, 'Ornithine': 1 },
-        produces: 'Citrulline', productColors: { 'Citrulline': CONSTANTS.CITRULLINE_COLOR },
-        requiredQuestState: CONSTANTS.QUEST_STATE.STEP_5_MAKE_CITRULLINE,
-        advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_6_TALK_TO_USHER_PASSAGE
-    });
-    createStation(scene, "CPS1", { x: Math.max(mitoStationXOffset - 1, -7), z: 7 }, 0xff0000, {
-        requires: { 'Bicarbonate': 1, 'NH3': 1, 'ATP': 2 },
-        produces: 'Carbamoyl Phosphate', productColors: { 'Carbamoyl Phosphate': CONSTANTS.CARB_PHOS_COLOR },
-        requiredQuestState: CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS,
-        advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_3_COLLECT_CARB_PHOS
-    });
     
+    // Otis and Casper are now NPCs, their creation is handled in npcManager.js, called by main.js
+    // We just note their intended positions here if npcManager needs them, but they're already created.
+    // The positions for Otis and Casper were already passed to npcManager.
+
     createResource(scene, 'NH3', { x: CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5, z: CONSTANTS.ALCOVE_Z_END - 0.5 }, CONSTANTS.NH3_COLOR, {initialY: 0.6});
     createResource(scene, 'ATP', { x: CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5, z: CONSTANTS.ALCOVE_Z_START + 0.5 }, CONSTANTS.ATP_COLOR, {initialY: 0.6});
     createResource(scene, 'ATP', { x: -4, z: 8 }, CONSTANTS.ATP_COLOR, {initialY: 0.6});
 
-
-    // --- Create CYTOSOL Resources & Static Objects ---
     createResource(scene, 'Aspartate', { x: 8, z: 8 }, CONSTANTS.ASPARTATE_COLOR, {initialY: 0.6});
     createResource(scene, 'ATP', { x: 3, z: 0 }, CONSTANTS.ATP_COLOR, {initialY: 0.6});
-    createWasteBucket(scene, new THREE.Vector3(13, 0.01, -8)); // yBase becomes base level for bucket
+    createWasteBucket(scene, new THREE.Vector3(13, 0.01, -8)); 
     
     createKrebsFurnace(scene, new THREE.Vector3(CONSTANTS.DIVIDING_WALL_X, 0.01, 7)); 
 
@@ -170,7 +150,6 @@ function createCaveArea(scene) {
         roughness: 0.9,
         metalness: 0.1,
     });
-    // Plane extends from ALCOVE_INTERIOR_BACK_X to ALCOVE_OPENING_X_PLANE
     const slopeLength = CONSTANTS.ALCOVE_DEPTH;
     const slopeWidth = CONSTANTS.ALCOVE_WIDTH;
 
@@ -178,54 +157,63 @@ function createCaveArea(scene) {
         new THREE.PlaneGeometry(slopeLength, slopeWidth),
         caveFloorMat
     );
-
-    // Position the center of the plane
-    // Center X is midpoint between ALCOVE_INTERIOR_BACK_X and ALCOVE_OPENING_X_PLANE
     const centerX = (CONSTANTS.ALCOVE_INTERIOR_BACK_X + CONSTANTS.ALCOVE_OPENING_X_PLANE) / 2;
-    // Center Y is midpoint of the slope drop, relative to ground
     const centerY = 0.01 - (CONSTANTS.CAVE_SLOPE_DROP / 2);
     caveSlopePlane.position.set(centerX, centerY, CONSTANTS.ALCOVE_Z_CENTER);
-
-    // Rotate plane:
-    // Angle of rotation around Z axis (local X of plane becomes world Z)
-    // Then rotate around local Y of plane (now world X-axis) to create the slope
-    caveSlopePlane.rotation.x = -Math.PI / 2; // Lay it flat first (plane's normal points up)
-
-    // Calculate angle for slope
-    // Rise is CAVE_SLOPE_DROP, Run is slopeLength (ALCOVE_DEPTH)
+    caveSlopePlane.rotation.x = -Math.PI / 2; 
     const slopeAngle = Math.atan(CONSTANTS.CAVE_SLOPE_DROP / slopeLength);
-    caveSlopePlane.rotation.y = slopeAngle; // Rotate around its local Y (which is world X)
-
+    caveSlopePlane.rotation.y = slopeAngle; 
     caveSlopePlane.receiveShadow = true;
     scene.add(caveSlopePlane);
 
-    // Add some rock decorations
     const rockMat = new THREE.MeshStandardMaterial({ color: CONSTANTS.ROCK_COLOR, roughness: 0.9 });
-    for (let i = 0; i < 10; i++) {
-        const size = Math.random() * 0.5 + 0.4;
-        const rockGeo = new THREE.DodecahedronGeometry(size, 0); // More jagged
-        const rock = new THREE.Mesh(rockGeo, rockMat);
+    const numRocks = 15; // Increased rock count for better cave feel
+    let attempts = 0; // To prevent infinite loop if space is too tight
+    for (let i = 0; i < numRocks && attempts < numRocks * 5; i++) {
+        const size = Math.random() * 0.6 + 0.3; // Slightly larger rocks possible
+        const rockGeo = new THREE.DodecahedronGeometry(size, 0); 
         
-        let rockX, rockY, rockZ;
-        if (i < 5) { // Around entrance
-            rockX = CONSTANTS.ALCOVE_OPENING_X_PLANE + (Math.random() - 0.7) * 2;
-            rockZ = CONSTANTS.ALCOVE_Z_CENTER + (Math.random() - 0.5) * (CONSTANTS.ALCOVE_WIDTH + 1);
-        } else { // Deeper in cave
-            rockX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + Math.random() * (CONSTANTS.ALCOVE_DEPTH * 0.7);
-            rockZ = CONSTANTS.ALCOVE_Z_CENTER + (Math.random() - 0.5) * CONSTANTS.ALCOVE_WIDTH * 0.8;
-        }
-        rockY = getCaveFloorY(rockX) + size * 0.3; // Place on slope, slightly embedded
+        let rockX, rockZ, tooClose;
+        let placementAttempts = 0;
+        do {
+            tooClose = false;
+            // Randomly place within the broader alcove/cave region
+            rockX = CONSTANTS.MIN_X + Math.random() * (CONSTANTS.ALCOVE_DEPTH + 2) - 1; // Spread wider
+            rockZ = CONSTANTS.ALCOVE_Z_CENTER + (Math.random() - 0.5) * (CONSTANTS.ALCOVE_WIDTH + 2); // Spread wider
 
-        rock.position.set(rockX, rockY, rockZ);
-        rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-        rock.castShadow = true;
-        rock.receiveShadow = true;
-        scene.add(rock);
+            // Ensure it's generally within the visual cave boundaries
+            if (rockX > CONSTANTS.ALCOVE_OPENING_X_PLANE +1 || rockX < CONSTANTS.MIN_X -1 || rockZ > CONSTANTS.ALCOVE_Z_END +1 || rockZ < CONSTANTS.ALCOVE_Z_START -1) {
+                tooClose = true; // Treat as too close if outside general cave bounds for simplicity
+                placementAttempts++;
+                continue;
+            }
+
+            for (const itemPos of fixedAlcoveItemPositions) {
+                const distSq = (rockX - itemPos.x)**2 + (rockZ - itemPos.z)**2;
+                // Check against item's radius + rock's effective radius (size)
+                if (distSq < (itemPos.radius + size)**2) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            placementAttempts++;
+            attempts++;
+        } while (tooClose && placementAttempts < 10); // Try a few times to place each rock
+
+        if (!tooClose) {
+            const rockY = getCaveFloorY(rockX) + size * 0.2; // Embed slightly more
+            const rock = new THREE.Mesh(rockGeo, rockMat);
+            rock.position.set(rockX, rockY, rockZ);
+            rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            rock.castShadow = true;
+            rock.receiveShadow = true;
+            scene.add(rock);
+        } else {
+            i--; // Decrement i to ensure we try to place numRocks
+        }
     }
 }
 
-
-// Specific creation functions for world objects
 export function createResource(scene, name, position, color, userData = {}) {
     try {
         let geometry;
@@ -261,9 +249,8 @@ export function createResource(scene, name, position, color, userData = {}) {
             console.error(`Invalid position for resource ${name}:`, position);
             position = { x: 0, z: 0 }; 
         }
-        // Use yBase if provided (for sloped surfaces), otherwise use fixed hover height.
-        const baseResourceY = position.yBase !== undefined ? position.yBase : 0.01; // yBase is ground level
-        const hoverOffset = 0.6; // How much it hovers above its base Y
+        const baseResourceY = position.yBase !== undefined ? position.yBase : 0.01; 
+        const hoverOffset = 0.6; 
         const initialY = userData.initialY !== undefined ? userData.initialY : (baseResourceY + hoverOffset);
         
         resource.userData = { ...userData, type: 'resource', name: name, object3D: resource, initialY: initialY, baseLevelY: baseResourceY, mainMesh: resource };
@@ -289,66 +276,120 @@ export function createResource(scene, name, position, color, userData = {}) {
     }
 }
 
-
-export function createStation(scene, name, position, color, userData) {
-    const geometry = new THREE.BoxGeometry(1, 1.2, 1); // Slightly shorter station
-    const material = new THREE.MeshStandardMaterial({ color: color, roughness: 0.7, metalness: 0.3 });
-    const station = new THREE.Mesh(geometry, material);
-    
-    // Use yBase for ground level if provided (sloped cave), else use flat ground 0.01
+// This function is now primarily for the CAVA shrine, as OTC/CPS1 are NPCs
+function createCavaShrine(scene, position) {
+    const group = new THREE.Group();
     const stationBaseY = position.yBase !== undefined ? position.yBase : 0.01;
-    const stationHeight = 1.2; // Matches geometry
-    station.position.set(position.x, stationBaseY + stationHeight / 2, position.z);
-    
-    station.castShadow = true;
-    station.receiveShadow = true;
-    station.userData = { type: 'station', name: name, ...userData, mainMesh: station };
-    scene.add(station);
-    interactiveObjects.push(station);
-    originalMaterials.set(station, material.clone()); 
-    const label = createTextSprite(name, { x: position.x, y: stationBaseY + stationHeight + 0.5, z: position.z }, { fontSize: 36, scale: 0.75 });
+    group.position.set(position.x, stationBaseY, position.z);
+
+    const pedestalMat = new THREE.MeshStandardMaterial({ color: CONSTANTS.ROCK_COLOR, roughness: 0.8 });
+    const pedestalHeight = 0.8;
+    const pedestalGeo = new THREE.CylinderGeometry(0.6, 0.8, pedestalHeight, 12);
+    const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
+    pedestal.position.y = pedestalHeight / 2;
+    pedestal.castShadow = true; pedestal.receiveShadow = true;
+    group.add(pedestal);
+
+    const crystalMat = new THREE.MeshStandardMaterial({
+        color: CONSTANTS.CAVA_SHRINE_CRYSTAL_COLOR,
+        emissive: CONSTANTS.CAVA_SHRINE_CRYSTAL_COLOR,
+        emissiveIntensity: 0.5,
+        transparent: true,
+        opacity: 0.85,
+        roughness: 0.2
+    });
+    const crystalGeo = new THREE.OctahedronGeometry(0.45, 0);
+    const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+    crystal.position.y = pedestalHeight + 0.35;
+    crystal.castShadow = true;
+    crystal.name = "cava_crystal_highlight"; // Main highlight mesh
+    group.add(crystal);
+
+    const light = new THREE.PointLight(CONSTANTS.CAVA_SHRINE_CRYSTAL_COLOR, 0.7, 3);
+    light.position.y = crystal.position.y;
+    group.add(light);
+
+    group.userData = {
+        type: 'station', // Still a station for interaction logic
+        name: "CAVA Shrine",
+        mainMesh: crystal, // Highlight the crystal
+        requires: { 'Water': 1, 'CO2': 1 },
+        produces: 'Bicarbonate',
+        productColors: { 'Bicarbonate': CONSTANTS.BICARBONATE_COLOR },
+        requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE,
+        advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE
+    };
+    scene.add(group);
+    interactiveObjects.push(group);
+    originalMaterials.set(crystal, crystal.material.clone());
+    const label = createTextSprite("CAVA Shrine", { x: position.x, y: stationBaseY + pedestalHeight + 0.9, z: position.z }, { fontSize: 36, scale: 0.65 });
     scene.add(label);
-    return station;
+    return group;
 }
 
-function createWaterWell(scene, position) { // position is base (ground) of well
+
+function createWaterWell(scene, position) {
     const group = new THREE.Group();
-    group.position.copy(position); // This position is now the ground level from getCaveFloorY
-    const rockMat = new THREE.MeshStandardMaterial({ color: CONSTANTS.ROCK_COLOR, roughness: 0.9 });
-    for (let i = 0; i < 5; i++) {
-        const size = Math.random() * 0.4 + 0.3;
-        const rockGeo = new THREE.SphereGeometry(size, 5, 4);
-        const rock = new THREE.Mesh(rockGeo, rockMat);
-        rock.position.set((Math.random() - 0.5) * 0.6, size * 0.3 - 0.1, (Math.random() - 0.5) * 0.6);
-        rock.castShadow = true; rock.receiveShadow = true;
-        group.add(rock);
-    }
-    const waterGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
-    const waterMat = new THREE.MeshStandardMaterial({ color: CONSTANTS.WATER_COLOR, transparent: true, opacity: 0.8, emissive: CONSTANTS.WATER_COLOR, emissiveIntensity: 0.3, roughness: 0.1 });
+    group.position.copy(position); 
+    const stoneMat = new THREE.MeshStandardMaterial({ color: CONSTANTS.ROCK_COLOR, roughness: 0.9 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 }); // SaddleBrown
+
+    // Well base (cylinder)
+    const baseRadius = 0.5;
+    const baseHeight = 0.7;
+    const wellBaseGeo = new THREE.CylinderGeometry(baseRadius, baseRadius, baseHeight, 16);
+    const wellBase = new THREE.Mesh(wellBaseGeo, stoneMat);
+    wellBase.position.y = baseHeight / 2;
+    wellBase.castShadow = true; wellBase.receiveShadow = true;
+    group.add(wellBase);
+
+    // Water surface inside
+    const waterGeo = new THREE.CylinderGeometry(baseRadius * 0.85, baseRadius * 0.85, 0.1, 16);
+    const waterMat = new THREE.MeshStandardMaterial({ color: CONSTANTS.WATER_COLOR, transparent: true, opacity: 0.8, emissive: CONSTANTS.WATER_COLOR, emissiveIntensity: 0.2, roughness: 0.1 });
     const waterSurface = new THREE.Mesh(waterGeo, waterMat);
-    waterSurface.position.y = 0.1; // Relative to group's Y (which is ground level)
+    waterSurface.position.y = baseHeight * 0.7; // Water level
     waterSurface.name = "waterSurface_highlight";
     group.add(waterSurface);
+
+    // Wooden posts
+    const postHeight = 1.2;
+    const postRadius = 0.08;
+    const postGeo = new THREE.CylinderGeometry(postRadius, postRadius, postHeight, 8);
+    const post1 = new THREE.Mesh(postGeo, woodMat);
+    post1.position.set(baseRadius * 0.8, baseHeight + postHeight / 2 - 0.1, 0);
+    post1.castShadow = true;
+    group.add(post1);
+    const post2 = post1.clone();
+    post2.position.x = -baseRadius * 0.8;
+    group.add(post2);
+
+    // Roof
+    const roofSize = baseRadius * 2.5;
+    const roofGeo = new THREE.ConeGeometry(roofSize / 2, 0.5, 4, 1);
+    const roof = new THREE.Mesh(roofGeo, woodMat);
+    roof.position.y = baseHeight + postHeight - 0.1 + 0.25; // Top of posts + half roof height
+    roof.rotation.y = Math.PI / 4; // Align flat sides
+    roof.castShadow = true;
+    group.add(roof);
 
     group.userData = { type: 'source', name: 'Water Well', provides: 'Water', requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2, mainMesh: waterSurface };
     interactiveObjects.push(group);
     originalMaterials.set(waterSurface, waterSurface.material.clone());
     scene.add(group);
-    const label = createTextSprite("Water Well", { x: position.x, y: position.y + 0.8, z: position.z }, { scale: 0.5 });
+    const label = createTextSprite("Water Well", { x: position.x, y: position.y + baseHeight + postHeight + 0.4, z: position.z }, { scale: 0.5 });
     scene.add(label);
-    // Particle system emitter needs to be relative to the group's world position
-    const particleEmitterPos = position.clone().add(new THREE.Vector3(0, 0.2, 0));
-    createSimpleParticleSystem(scene, 20, 0xffffff, 0.03, 0.2, 2, particleEmitterPos, new THREE.Vector3(0.3, 0.1, 0.3));
+    const particleEmitterPos = position.clone().add(new THREE.Vector3(0, baseHeight * 0.7 + 0.1, 0)); // From water surface
+    createSimpleParticleSystem(scene, 20, 0xeeeeff, 0.02, 0.15, 2.5, particleEmitterPos, new THREE.Vector3(baseRadius*0.7, 0.05, baseRadius*0.7));
     return group;
 }
 
-function createAlchemistsBrazier(scene, position) { // position is base of brazier
+function createAlchemistsBrazier(scene, position) { 
     const group = new THREE.Group();
-    group.position.copy(position); // This is ground level from getCaveFloorY
+    group.position.copy(position); 
     const pedestalMat = new THREE.MeshStandardMaterial({ color: CONSTANTS.ROCK_COLOR, roughness: 0.8 });
     const pedestalGeo = new THREE.CylinderGeometry(0.3, 0.4, 0.5, 12);
     const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
-    pedestal.position.y = 0.25; // Relative to group's Y
+    pedestal.position.y = 0.25; 
     pedestal.castShadow = true; pedestal.receiveShadow = true;
     group.add(pedestal);
 
@@ -356,29 +397,29 @@ function createAlchemistsBrazier(scene, position) { // position is base of brazi
     const brazierGeo = new THREE.TorusKnotGeometry(0.25, 0.08, 50, 8, 2, 3);
     brazierGeo.scale(1, 0.7, 1);
     const brazierMesh = new THREE.Mesh(brazierGeo, brazierMat);
-    brazierMesh.position.y = 0.5 + 0.15; // Relative to group's Y
+    brazierMesh.position.y = 0.5 + 0.15; 
     brazierMesh.castShadow = true;
     brazierMesh.name = "brazier_highlight";
     group.add(brazierMesh);
 
     const emberLight = new THREE.PointLight(CONSTANTS.EMBER_COLOR, 0.5, 1);
-    emberLight.position.y = 0.7; // Relative
+    emberLight.position.y = 0.7; 
     group.add(emberLight);
 
-    group.userData = { type: 'source', name: 'Alchemist\'s Brazier', provides: 'CO2', requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2, mainMesh: brazierMesh };
+    group.userData = { type: 'source', name: 'Fire Pit', provides: 'CO2', requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2, mainMesh: brazierMesh };
     interactiveObjects.push(group);
     originalMaterials.set(brazierMesh, brazierMesh.material.clone());
     scene.add(group);
-    const label = createTextSprite("Alchemist's Brazier", { x: position.x, y: position.y + 1.2, z: position.z }, { scale: 0.5 });
+    const label = createTextSprite("Fire Pit", { x: position.x, y: position.y + 1.2, z: position.z }, { scale: 0.5 });
     scene.add(label);
     const particleEmitterPos = position.clone().add(new THREE.Vector3(0, 0.8, 0));
     createSimpleParticleSystem(scene, 30, CONSTANTS.SMOKE_COLOR, 0.05, 0.3, 3, particleEmitterPos, new THREE.Vector3(0.2, 0.2, 0.2));
     return group;
 }
 
-function createWasteBucket(scene, position) { // position.y is the ground level
+function createWasteBucket(scene, position) { 
     const bucketGroup = new THREE.Group();
-    bucketGroup.position.copy(position); // position.y is now the base level for the bucket
+    bucketGroup.position.copy(position); 
     const kidneyShape = new THREE.Shape();
     kidneyShape.moveTo(0, 0.6);
     kidneyShape.bezierCurveTo(0.5, 0.7, 0.7, 0.4, 0.6, 0);
@@ -392,7 +433,7 @@ function createWasteBucket(scene, position) { // position.y is the ground level
     const material = new THREE.MeshStandardMaterial({ color: 0x888899, metalness: 0.7, roughness: 0.4 });
     const bucketMesh = new THREE.Mesh(geometry, material);
     bucketMesh.scale.set(0.8, 0.8, 0.8);
-    bucketMesh.position.y = 0.5; // Bucket height / 2, relative to group position
+    bucketMesh.position.y = 0.5; 
     bucketMesh.castShadow = true; bucketMesh.receiveShadow = true;
     bucketMesh.name = "bucket_highlight";
     bucketGroup.add(bucketMesh);
@@ -405,15 +446,15 @@ function createWasteBucket(scene, position) { // position.y is the ground level
     return bucketGroup;
 }
 
-function createKrebsFurnace(scene, position) { // position.y is the ground level
+function createKrebsFurnace(scene, position) { 
     const furnaceGroup = new THREE.Group();
-    furnaceGroup.position.copy(position); // position.y is ground level
+    furnaceGroup.position.copy(position); 
     furnaceGroup.rotation.y = -Math.PI / 2;
 
     const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9 });
     const baseGeometry = new THREE.BoxGeometry(1.2, 1.5, 1.2); 
     const baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
-    baseMesh.position.y = 1.5/2; // Relative to group position
+    baseMesh.position.y = 1.5/2; 
     baseMesh.castShadow = true; baseMesh.receiveShadow = true;
     baseMesh.name = "furnaceBase_highlight";
     furnaceGroup.add(baseMesh);
@@ -421,14 +462,14 @@ function createKrebsFurnace(scene, position) { // position.y is the ground level
     const fireMaterial = new THREE.MeshStandardMaterial({ color: CONSTANTS.EMBER_COLOR, emissive: CONSTANTS.EMBER_COLOR, emissiveIntensity: 0.8, roughness: 0.6 });
     const fireGeometry = new THREE.BoxGeometry(0.8, 0.6, 0.2); 
     const firebox = new THREE.Mesh(fireGeometry, fireMaterial);
-    firebox.position.set(0, 0.5, -0.5); // Relative to group
+    firebox.position.set(0, 0.5, -0.5); 
     furnaceGroup.add(firebox);
 
     const chimneyGeometry = new THREE.CylinderGeometry(0.2, 0.15, 0.8);
     const chimney = new THREE.Mesh(chimneyGeometry, baseMaterial);
     const chimneyHeight = 0.8;
-    const baseTopY = 1.5; // Base height, since base is centered at baseHeight/2 relative to group Y.
-    chimney.position.y = baseTopY + chimneyHeight / 2; // Relative to group
+    const baseTopY = 1.5; 
+    chimney.position.y = baseTopY + chimneyHeight / 2; 
     furnaceGroup.add(chimney);
 
     furnaceGroup.userData = { type: 'krebsFurnace', name: 'Krebs Cycle Furnace', mainMesh: baseMesh };
@@ -502,8 +543,6 @@ export function removePortalBarrierFromWorld(scene) {
 
 export function getPortalBarrier() { return portalBarrier; }
 
-
-// Decorative elements
 function addMitoCristae(scene) {
     const cristaeMat = new THREE.MeshStandardMaterial({ color: CONSTANTS.MITO_SECONDARY_COLOR, roughness: 0.9, side:THREE.DoubleSide });
     const cristaeHeight = CONSTANTS.WALL_HEIGHT * 0.6;
@@ -533,10 +572,9 @@ function addMitoCristae(scene) {
             continue; 
         }
 
-
         const cristaeGeo = new THREE.BoxGeometry(cristaeDepth, cristaeHeight, cristaeLength);
         const crista = new THREE.Mesh(cristaeGeo, cristaeMat);
-        crista.position.set(xPos, cristaeHeight / 2, zPos); // Positioned on flat ground
+        crista.position.set(xPos, cristaeHeight / 2, zPos); 
         crista.receiveShadow = true;
         scene.add(crista);
     }
@@ -562,7 +600,6 @@ export function updateResourceHover(elapsedTime) {
     const hoverAmount = 0.2;
     resourceMeshes.forEach((resource, index) => {
         if (resource?.parent && resource.userData?.initialY !== undefined) {
-            // Hover relative to its initial Y, which is already calculated based on baseLevelY + offset
             const yPos = resource.userData.initialY + Math.sin(elapsedTime * hoverSpeed + index * 0.5) * hoverAmount;
             if (!isNaN(yPos)) {
                 resource.position.y = yPos;
