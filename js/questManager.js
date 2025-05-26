@@ -16,7 +16,7 @@ export const ureaCycleQuestData = {
     state: CONSTANTS.QUEST_STATE.NOT_STARTED,
     objectives: {
         [CONSTANTS.QUEST_STATE.NOT_STARTED]: "Talk to Professor Hepaticus.",
-        [CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2]: "Go to the alcove (West Mitochondria). Collect Water from the Well and CO2 from the Brazier.",
+        [CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2]: "Go to the alcove (West Mitochondria). Collect Water from the Well and CO2 from the Fire Pit.",
         [CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE]: "Use the CAVA Shrine in the alcove with Water and CO2 to create Bicarbonate.",
         [CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE]: "Collect the Bicarbonate crystal that formed at the CAVA Shrine.",
         [CONSTANTS.QUEST_STATE.STEP_1_GATHER_MITO_REMAINING]: "Gather NH3 (1) and ATP (2) in Mitochondria. (You have Bicarbonate).",
