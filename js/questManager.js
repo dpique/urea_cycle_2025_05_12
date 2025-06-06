@@ -1,14 +1,14 @@
 // js/questManager.js
 import * as CONSTANTS from './constants.js';
 import {
-    showDialogue, showFeedback, updateQuestUI, // Added updateQuestUI here
+    showDialogue, showFeedback, updateQuestUI,
     showRealityRiverUI, hideRealityRiverUI,
     updateRiverQuestion, updateRiverAnswers,
     updateRiverFeedback, clearRiverFeedback,
     updateRiverProgressUI, disableRiverAnswerButtons
 } from './uiManager.js';
 import { controls } from './sceneSetup.js';
-import { getGameState, setGameState, advanceCurrentQuestStateInMain, setCurrentQuestInMain, getCurrentQuest, getInventory, removeFromInventory } from '../main.js'; // Changed function names for clarity
+import { getGameState, setGameState, advanceCurrentQuestStateInMain, setCurrentQuestInMain, getCurrentQuest, getInventory, removeFromInventory } from '../main.js';
 
 export const ureaCycleQuestData = {
     id: 'ureaCycle',
@@ -24,12 +24,13 @@ export const ureaCycleQuestData = {
         [CONSTANTS.QUEST_STATE.STEP_3_COLLECT_CARB_PHOS]: "Collect the Carbamoyl Phosphate.",
         [CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER]: "Speak with the Ornithine Usher to get some Ornithine.",
         [CONSTANTS.QUEST_STATE.STEP_5_MAKE_CITRULLINE]: "Speak with Otis (OTC) to make Citrulline.",
-        [CONSTANTS.QUEST_STATE.STEP_6_TALK_TO_USHER_PASSAGE]: "Talk to the Ornithine Usher to gain passage.",
-        [CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL]: "Permission granted! Use the ORNT1 Portal with Citrulline to activate it and transport to the Cytosol.",
-        [CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO]: "In the Cytosol: Collect the transported Citrulline, plus Aspartate (1) and ATP (1).",
-        [CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY]: `Find ${CONSTANTS.NPC_NAMES.DONKEY} in the Cytosol to make Argininosuccinate.`,
+        [CONSTANTS.QUEST_STATE.STEP_6_TALK_TO_USHER_PASSAGE]: "Talk to the Ornithine Usher to gain passage across the river bridge.",
+        [CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL]: "Permission granted! Use the ORNT1 Portal on the bridge with Citrulline to activate it and transport to the Cytosol.",
+        [CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO]: "In the Cytosol: Collect the transported Citrulline and ATP (1). Aspartate will come from the Malate-Aspartate Shuttle.",
+        [CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY]: `Find ${CONSTANTS.NPC_NAMES.DONKEY} in the Cytosol to make Argininosuccinate (Needs Citrulline, Aspartate, ATP).`,
         [CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN]: `Take Argininosuccinate to ${CONSTANTS.NPC_NAMES.ASLAN}, and ask him to break it in 2 pieces.`,
-        [CONSTANTS.QUEST_STATE.STEP_11_FURNACE_FUMARATE]: "Gather Arginine and Fumarate. Then, feed the Fumarate to the Krebs Cycle Furnace.",
+        [CONSTANTS.QUEST_STATE.STEP_11_CONVERT_FUMARATE_TO_MALATE]: `Gather Arginine and Fumarate. Take Fumarate to the ${CONSTANTS.NPC_NAMES.FUMARASE_ENZYME} to create Malate. Collect the Malate.`,
+        [CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE]: `Take Malate to the ${CONSTANTS.NPC_NAMES.SHUTTLE_DRIVER} to transport it into the Mitochondria and receive Aspartate in the Cytosol.`,
         [CONSTANTS.QUEST_STATE.STEP_12_TALK_TO_ARGUS]: `Bring Arginine to ${CONSTANTS.NPC_NAMES.ARGUS} to produce Urea and Ornithine.`,
         [CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA]: "Dispose of the toxic Urea in the Waste Receptacle. Return Ornithine to the Usher.",
         [CONSTANTS.QUEST_STATE.STEP_14_RIVER_CHALLENGE]: `Return to ${CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS}... they have a few questions for you.`,
@@ -57,8 +58,8 @@ export function startUreaCycleQuest() {
     const currentQuest = getCurrentQuest();
     if (!currentQuest) {
         const newQuest = { ...ureaCycleQuestData, state: CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2 };
-        setCurrentQuestInMain(newQuest); // This now calls updateQuestUI in main.js
-        showFeedback(`Quest Started: ${newQuest.name}`, 3500); // Slightly longer duration
+        setCurrentQuestInMain(newQuest);
+        showFeedback(`Quest Started: ${newQuest.name}`, 3500);
         return true;
     }
     return false;
@@ -67,21 +68,13 @@ export function startUreaCycleQuest() {
 export function advanceUreaCycleQuest(newState) {
     const currentQuest = getCurrentQuest();
     if (currentQuest && currentQuest.id === ureaCycleQuestData.id && currentQuest.state !== newState) {
-        advanceCurrentQuestStateInMain(newState); // This now calls updateQuestUI in main.js
+        advanceCurrentQuestStateInMain(newState);
         console.log(`Advancing quest ${ureaCycleQuestData.id} from ${currentQuest.state} to ${newState}`);
 
         const objectiveText = ureaCycleQuestData.objectives[newState];
         if (newState === CONSTANTS.QUEST_STATE.COMPLETED) {
             const rewardPoints = ureaCycleQuestData.rewards?.knowledgePoints || 0;
-            showFeedback(`Quest Complete: ${ureaCycleQuestData.name}! +${rewardPoints} KP`, 5000);
-            setTimeout(() => {
-                if (getCurrentQuest()?.state === CONSTANTS.QUEST_STATE.COMPLETED) {
-                    setCurrentQuestInMain(null);
-                }
-            }, 100);
-        } else if (objectiveText) {
-            // This feedback IS the new objective, so it's crucial and should not be suppressed.
-            showFeedback(`Objective: ${objectiveText}`, 3500);
+            showFeedback(`Quest Complete: ${ureaCycleQuestData.name}! +${rewardPoints} KP. Don't forget to speak to Professor Hepaticus for a final word (and a survey option!).`, 6000);
         }
         return true;
     }

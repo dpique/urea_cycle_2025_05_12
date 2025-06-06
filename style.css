@@ -172,14 +172,42 @@ body {
 .subtle-text {
     font-size: 0.8em;
     color: rgba(238, 238, 238, 0.5);
-    position: absolute; /* Positioned relative to ui-container */
-    bottom: 5px;      /* Small margin from the bottom of the ui-container's padding */
-    left: 5px;       /* Small margin from the left of the ui-container's padding */
+    position: absolute; 
+    bottom: 5px;      
+    left: 5px;       
     pointer-events: none;
 }
 
-/* Ensure the dev credit is within ui-container's flow if possible or adjust if needed */
-#ui-container > #devCredit {
-    align-self: flex-start; /* Align to the start of the cross axis (left) */
-    margin-top: auto; /* Pushes it to the bottom of the flex container space */
+#ui-container > #devCredit { /* Target specifically if it's a direct child */
+    align-self: flex-start; 
+    margin-top: auto; 
+}
+
+
+/* Bottom Right Buttons */
+#bottomRightButtons {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    pointer-events: auto; /* Make buttons clickable */
+}
+
+.survey-button {
+    background-color: rgba(50, 50, 80, 0.8);
+    color: #eee;
+    border: 1px solid #779;
+    padding: 6px 10px;
+    margin-top: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8em;
+    text-align: center;
+    min-width: 120px;
+}
+
+.survey-button:hover {
+    background-color: rgba(70, 70, 100, 0.9);
 }

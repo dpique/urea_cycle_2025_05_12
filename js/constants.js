@@ -1,9 +1,10 @@
 // js/constants.js
 
 // --- Scene Style Constants ---
-export const MITO_PRIMARY_COLOR = 0x604040;
-export const MITO_SECONDARY_COLOR = 0x886666;
-export const CYTO_PRIMARY_COLOR = 0x556677;
+export const MITO_PATH_COLOR = 0x9B7653; // Dirt path brown for mito "floor"
+export const GRASS_COLOR = 0x77B053; // Grassy green for general ground
+export const RIVER_COLOR = 0x4682B4; // Steel blue for river
+export const BRIDGE_COLOR = 0x8B4513; // Saddle brown for bridge
 export const WALL_GENERAL_COLOR = 0x999999;
 export const ROCK_COLOR = 0x5A5A5A; // Darker rock for cave
 export const CAVE_FLOOR_COLOR = 0x4A4A4A; // Darker floor for cave
@@ -25,24 +26,38 @@ export const FUMARATE_COLOR = 0xcccccc;
 export const ASPARTATE_COLOR = 0xffaaff;
 export const ATP_COLOR = 0xffffaa;
 export const NH3_COLOR = 0xffaaaa;
+export const MALATE_COLOR = 0x90EE90; // Light green for Malate
 
 
 // --- Layout Constants ---
-export const MIN_X = -15; export const MAX_X = 15;
-export const MIN_Z = -10; export const MAX_Z = 10;
-export const DIVIDING_WALL_X = 0;
+export const MIN_X = -20; export const MAX_X = 20; // Increased world size for more separation
+export const MIN_Z = -15; export const MAX_Z = 15; // Increased world size
+
+export const RIVER_CENTER_X = 0; // River runs along X=0 (north-south)
+export const RIVER_WIDTH = 4.0;  // Width of the river visual
+
+export const BRIDGE_LENGTH = 8.0;  // Length of the bridge (spanning the river, so along X-axis)
+export const BRIDGE_WIDTH = 2.5;   // Width of the bridge path (along Z-axis)
+export const BRIDGE_HEIGHT = 0.5;  // How high the bridge is from ground
+export const BRIDGE_CENTER_X = RIVER_CENTER_X; // Bridge centered on river
+export const BRIDGE_CENTER_Z = 0; // Bridge centered along Z
+
+export const PORTAL_ON_BRIDGE_OFFSET_X = 0; // Portal is in the middle of the bridge length
+
 export const TOTAL_WIDTH = MAX_X - MIN_X;
 export const TOTAL_DEPTH = MAX_Z - MIN_Z;
-export const MITO_WIDTH = DIVIDING_WALL_X - MIN_X;
-export const CYTO_WIDTH = MAX_X - DIVIDING_WALL_X;
 
-export const WALL_HEIGHT = 1.5;
+// Effective "Mitochondria" area ends before river, "Cytosol" starts after
+export const MITO_ZONE_MAX_X = RIVER_CENTER_X - RIVER_WIDTH / 2;
+export const CYTO_ZONE_MIN_X = RIVER_CENTER_X + RIVER_WIDTH / 2;
+export const MITO_WIDTH = MITO_ZONE_MAX_X - MIN_X;
+export const CYTO_WIDTH = MAX_X - CYTO_ZONE_MIN_X;
+
+
+export const WALL_HEIGHT = 1.8; // Slightly taller walls
 export const WALL_THICKNESS = 0.5;
-export const PORTAL_GAP_WIDTH = 3.0;
-export const PORTAL_WALL_X = DIVIDING_WALL_X;
-export const PORTAL_WALL_CENTER_Z = 0;
 
-// Alcove Dimensions - EXPANDED
+// Alcove Dimensions
 export const ALCOVE_DEPTH = 5; 
 export const ALCOVE_WIDTH = 7; 
 export const ALCOVE_Z_CENTER = 0;
@@ -76,16 +91,17 @@ export const QUEST_STATE = Object.freeze({
     STEP_0B_MAKE_BICARBONATE: 'STEP_0B_MAKE_BICARBONATE',
     STEP_0C_COLLECT_BICARBONATE: 'STEP_0C_COLLECT_BICARBONATE',
     STEP_1_GATHER_MITO_REMAINING: 'STEP_1_GATHER_MITO_REMAINING',
-    STEP_2_MAKE_CARB_PHOS: 'STEP_2_MAKE_CARB_PHOS', // Will interact with Casper (CPS1)
+    STEP_2_MAKE_CARB_PHOS: 'STEP_2_MAKE_CARB_PHOS', 
     STEP_3_COLLECT_CARB_PHOS: 'STEP_3_COLLECT_CARB_PHOS',
     STEP_4_MEET_USHER: 'STEP_4_MEET_USHER',
-    STEP_5_MAKE_CITRULLINE: 'STEP_5_MAKE_CITRULLINE', // Will interact with Otis (OTC)
+    STEP_5_MAKE_CITRULLINE: 'STEP_5_MAKE_CITRULLINE', 
     STEP_6_TALK_TO_USHER_PASSAGE: 'STEP_6_TALK_TO_USHER_PASSAGE',
     STEP_7_OPEN_PORTAL: 'STEP_7_OPEN_PORTAL',
-    STEP_8_GATHER_CYTO: 'STEP_8_GATHER_CYTO',
+    STEP_8_GATHER_CYTO: 'STEP_8_GATHER_CYTO', // Collect Citrulline (transported) + ATP. Aspartate comes from shuttle.
     STEP_9_TALK_TO_DONKEY: 'STEP_9_TALK_TO_DONKEY', 
     STEP_10_TALK_TO_ASLAN: 'STEP_10_TALK_TO_ASLAN',   
-    STEP_11_FURNACE_FUMARATE: 'STEP_11_FURNACE_FUMARATE',
+    STEP_11_CONVERT_FUMARATE_TO_MALATE: 'STEP_11_CONVERT_FUMARATE_TO_MALATE', // New: Interact with Fumarase
+    STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE: 'STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE', // New: Interact with Shuttle
     STEP_12_TALK_TO_ARGUS: 'STEP_12_TALK_TO_ARGUS',     
     STEP_13_DISPOSE_UREA: 'STEP_13_DISPOSE_UREA',
     STEP_14_RIVER_CHALLENGE: 'STEP_14_RIVER_CHALLENGE',
@@ -99,6 +115,8 @@ export const NPC_NAMES = Object.freeze({
     ASLAN: "Aslan, the Chomper (ASL)",
     DONKEY: "Donkey, the Synthesizer (ASS)", 
     ARGUS: "Argus, the Finalizer (ARG1)",
-    OTIS_OTC: "Otis (OTC)", // New character for Ornithine Transcarbamoylase
-    CASPER_CPS1: "Casper (CPS1)" // New character for Carbamoyl Phosphate Synthetase I
+    OTIS_OTC: "Otis (OTC)", 
+    CASPER_CPS1: "Casper (CPS1)",
+    FUMARASE_ENZYME: "Fumarase Enzyme", // New NPC
+    SHUTTLE_DRIVER: "Malcolm the Shuttle Driver"   // New NPC
 });

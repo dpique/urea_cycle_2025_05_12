@@ -5,6 +5,7 @@ import { controls } from './sceneSetup.js';
 let dialogueBoxEl, dialogueTextEl, dialogueOptionsEl, inventoryListEl, questNameUIEl, questObjectiveUIEl;
 let realityRiverUIEl, riverQuestionUIEl, riverAnswersUIEl, riverFeedbackUIEl, riverProgressUIEl;
 let interactionPromptEl, interactionTextEl;
+let feedbackButtonEl, preTestSurveyButtonEl, postTestSurveyButtonEl;
 
 export function initUIManager() {
     dialogueBoxEl = document.getElementById('dialogueBox');
@@ -22,6 +23,10 @@ export function initUIManager() {
 
     interactionPromptEl = document.getElementById('interactionPrompt');
     interactionTextEl = document.getElementById('interactionText');
+
+    feedbackButtonEl = document.getElementById('feedbackButton');
+    preTestSurveyButtonEl = document.getElementById('preTestSurveyButton');
+    postTestSurveyButtonEl = document.getElementById('postTestSurveyButton');
 
     const loadingScreen = document.getElementById('loadingScreen');
     if (loadingScreen) loadingScreen.classList.add('hidden');
@@ -132,11 +137,11 @@ export function showFeedback(message, duration = 3500) {
 
 export function showInteractionPrompt(objectName, objectType) {
     if (!interactionPromptEl || !interactionTextEl) return;
-    let actionText = "Interact with";
+    let actionText = "[E] Interact with";
     if (objectType === 'resource') {
-        actionText = "Collect";
+        actionText = "[E] Collect";
     } else if (objectType === 'npc') {
-        actionText = "Talk to";
+        actionText = "[E] Talk to";
     }
     interactionTextEl.textContent = `${actionText} ${objectName}`;
     interactionPromptEl.classList.remove('hidden');

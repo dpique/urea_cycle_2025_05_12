@@ -22,18 +22,20 @@ export function initPlayer(scene) {
     scene.add(player);
 
     const playerBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x0099ff, roughness: 0.6, metalness: 0.2 });
-    const head = new THREE.Mesh(new THREE.SphereGeometry(CONSTANTS.PLAYER_HEAD_HEIGHT / 2, 16, 12), playerBodyMaterial);
+    // RSC-like: fewer segments for head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(CONSTANTS.PLAYER_HEAD_HEIGHT / 2, 8, 6), playerBodyMaterial);
     head.position.y = CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT + CONSTANTS.PLAYER_HEAD_HEIGHT / 2;
     head.castShadow = true;
     player.add(head);
 
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, CONSTANTS.PLAYER_BODY_HEIGHT, 0.3), playerBodyMaterial);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, CONSTANTS.PLAYER_BODY_HEIGHT, 0.3), playerBodyMaterial); // Box is already low-poly
     body.position.y = CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT / 2;
     body.castShadow = true;
     player.add(body);
 
     const playerLimbMaterial = new THREE.MeshStandardMaterial({ color: 0x0077cc, roughness: 0.7 });
-    playerLeftArm = new THREE.Mesh(new THREE.CylinderGeometry(CONSTANTS.PLAYER_LIMB_RADIUS, CONSTANTS.PLAYER_LIMB_RADIUS, CONSTANTS.PLAYER_ARM_LENGTH), playerLimbMaterial);
+    // RSC-like: fewer segments for limbs (e.g., 6 for hexagonal prism)
+    playerLeftArm = new THREE.Mesh(new THREE.CylinderGeometry(CONSTANTS.PLAYER_LIMB_RADIUS, CONSTANTS.PLAYER_LIMB_RADIUS, CONSTANTS.PLAYER_ARM_LENGTH, 6), playerLimbMaterial);
     playerLeftArm.position.set(-0.35, CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT * 0.95, 0);
     playerLeftArm.geometry.translate(0, CONSTANTS.PLAYER_ARM_LENGTH / 2, 0);
     playerLeftArm.rotation.x = Math.PI;
@@ -44,7 +46,8 @@ export function initPlayer(scene) {
     playerRightArm.position.x = 0.35;
     player.add(playerRightArm);
 
-    playerLeftLeg = new THREE.Mesh(new THREE.CylinderGeometry(CONSTANTS.PLAYER_LIMB_RADIUS * 1.2, CONSTANTS.PLAYER_LIMB_RADIUS * 1.1, CONSTANTS.PLAYER_LEG_HEIGHT), playerLimbMaterial);
+    // RSC-like: fewer segments for legs
+    playerLeftLeg = new THREE.Mesh(new THREE.CylinderGeometry(CONSTANTS.PLAYER_LIMB_RADIUS * 1.2, CONSTANTS.PLAYER_LIMB_RADIUS * 1.1, CONSTANTS.PLAYER_LEG_HEIGHT, 6), playerLimbMaterial);
     playerLeftLeg.position.set(-0.15, CONSTANTS.PLAYER_LEG_HEIGHT / 2, 0);
     playerLeftLeg.castShadow = true;
     player.add(playerLeftLeg);
