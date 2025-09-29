@@ -1283,7 +1283,7 @@ function addPhysicalTrails(scene) {
     });
 }
 
-// Create a more natural-looking river with depth - RuneScape style
+// Create a more natural-looking river with animated flow - RuneScape style
 function createImprovedRiver(scene) {
     // River bed (darker, lower) with RuneScape-style tiling
     const riverBedGeometry = new THREE.PlaneGeometry(CONSTANTS.RIVER_WIDTH * 1.5, CONSTANTS.TOTAL_DEPTH * 1.2, 12, 40);
@@ -1335,37 +1335,93 @@ function createImprovedRiver(scene) {
     riverBed.receiveShadow = true;
     scene.add(riverBed);
     
-    // River water surface (semi-transparent) with RuneScape-style tiling
-    const waterSegmentsX = 10;
-    const waterSegmentsZ = 30;
-    const waterGeometry = new THREE.PlaneGeometry(CONSTANTS.RIVER_WIDTH * 0.9, CONSTANTS.TOTAL_DEPTH * 1.2, waterSegmentsX, waterSegmentsZ);
-    const waterPositions = waterGeometry.attributes.position.array;
-    
-    // Add gentle waves to water surface
-    for (let i = 0; i < waterPositions.length; i += 3) {
-        const x = waterPositions[i];
-        const z = waterPositions[i + 1];
-        
-        // Tile-based wave pattern for RuneScape aesthetic
-        const tileWave = Math.sin(Math.floor(x * 4) + z * 0.2) * 0.03;
-        waterPositions[i + 2] = tileWave;
-    }
-    waterGeometry.computeVertexNormals();
-    
-    const waterMaterial = new THREE.MeshStandardMaterial({
-        color: 0x2E7FB5,
+    // Create animated water with shader material
+    const waterShaderMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            time: { value: 0 },
+            flowSpeed: { value: 0.5 },
+            waveHeight: { value: 0.05 },
+            color: { value: new THREE.Color(0x2E7FB5) },
+            opacity: { value: 0.75 }
+        },
+        vertexShader: `
+            uniform float time;
+            uniform float flowSpeed;
+            uniform float waveHeight;
+            varying vec2 vUv;
+            varying float vElevation;
+            
+            void main() {
+                vUv = uv;
+                vec3 pos = position;
+                
+                // Create flowing wave pattern
+                float wave1 = sin(position.y * 4.0 - time * flowSpeed) * 0.5;
+                float wave2 = cos(position.y * 3.0 - time * flowSpeed * 0.8) * 0.3;
+                float wave3 = sin((position.y + position.x * 0.1) * 5.0 - time * flowSpeed * 1.2) * 0.2;
+                
+                // Combine waves with distance from center for realistic flow
+                float distFromCenter = abs(position.x) / 4.0;
+                float flowStrength = 1.0 - distFromCenter;
+                
+                pos.z = (wave1 + wave2 + wave3) * waveHeight * flowStrength;
+                vElevation = pos.z;
+                
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform vec3 color;
+            uniform float opacity;
+            uniform float time;
+            uniform float flowSpeed;
+            varying vec2 vUv;
+            varying float vElevation;
+            
+            void main() {
+                // Create animated foam/highlight pattern
+                float foam = step(0.98, sin((vUv.y * 20.0 - time * flowSpeed) * 3.0) + sin((vUv.x * 10.0 + time * 0.2) * 2.0));
+                
+                // Base water color with depth variation
+                vec3 deepColor = color * 0.6;
+                vec3 shallowColor = color * 1.2;
+                vec3 finalColor = mix(deepColor, shallowColor, vElevation + 0.5);
+                
+                // Add foam highlights
+                finalColor = mix(finalColor, vec3(1.0), foam * 0.3);
+                
+                // Add subtle shimmer
+                float shimmer = sin(vUv.y * 100.0 - time * 2.0) * 0.05 + 0.95;
+                finalColor *= shimmer;
+                
+                gl_FragColor = vec4(finalColor, opacity);
+            }
+        `,
         transparent: true,
-        opacity: 0.75,
-        roughness: 0.2,
-        metalness: 0.1,
-        flatShading: true, // Flat shading
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide,
+        depthWrite: false
     });
     
-    const waterSurface = new THREE.Mesh(waterGeometry, waterMaterial);
+    const waterSegmentsX = 10;
+    const waterSegmentsZ = 40;
+    const waterGeometry = new THREE.PlaneGeometry(CONSTANTS.RIVER_WIDTH * 0.9, CONSTANTS.TOTAL_DEPTH * 1.2, waterSegmentsX, waterSegmentsZ);
+    
+    const waterSurface = new THREE.Mesh(waterGeometry, waterShaderMaterial);
     waterSurface.rotation.x = -Math.PI / 2;
     waterSurface.position.set(CONSTANTS.RIVER_CENTER_X, -0.4, 0);
+    waterSurface.userData.isWater = true;
     scene.add(waterSurface);
+    
+    // Add second water layer for depth
+    const underWaterMaterial = waterShaderMaterial.clone();
+    underWaterMaterial.uniforms.opacity.value = 0.5;
+    underWaterMaterial.uniforms.flowSpeed.value = 0.3;
+    
+    const underWaterSurface = new THREE.Mesh(waterGeometry.clone(), underWaterMaterial);
+    underWaterSurface.rotation.x = -Math.PI / 2;
+    underWaterSurface.position.set(CONSTANTS.RIVER_CENTER_X, -0.6, 0);
+    underWaterSurface.userData.isWater = true;
+    scene.add(underWaterSurface);
     
     // River banks with RuneScape-style rocky edges
     const bankMaterial = new THREE.MeshStandardMaterial({

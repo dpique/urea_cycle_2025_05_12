@@ -7,81 +7,100 @@ export let scene, camera, renderer, controls, ambientLight, directionalLight; //
 export function initScene(canvasElement) {
     scene = new THREE.Scene();
     
-    // Create gradient sky
-    const skyGeometry = new THREE.SphereGeometry(500, 32, 15);
-    const skyMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-            topColor: { value: new THREE.Color(0x0077ff) },
-            bottomColor: { value: new THREE.Color(0xffffff) },
-            offset: { value: 33 },
-            exponent: { value: 0.6 }
-        },
-        vertexShader: `
-            varying vec3 vWorldPosition;
-            void main() {
-                vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-                vWorldPosition = worldPosition.xyz;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-            }
-        `,
-        fragmentShader: `
-            uniform vec3 topColor;
-            uniform vec3 bottomColor;
-            uniform float offset;
-            uniform float exponent;
-            varying vec3 vWorldPosition;
-            void main() {
-                float h = normalize(vWorldPosition + offset).y;
-                gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
-            }
-        `,
-        side: THREE.BackSide
-    });
-    const sky = new THREE.Mesh(skyGeometry, skyMaterial);
-    scene.add(sky);
+    // Create RuneScape-style skybox with proper environment
+    const loader = new THREE.CubeTextureLoader();
     
-    // Add simple clouds
-    const cloudGeometry = new THREE.SphereGeometry(15, 8, 6);
-    const cloudMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0xffffff, 
-        transparent: true, 
-        opacity: 0.6 
-    });
+    // Create procedural sky gradient as fallback
+    const skyCanvas = document.createElement('canvas');
+    skyCanvas.width = 512;
+    skyCanvas.height = 512;
+    const ctx = skyCanvas.getContext('2d');
     
-    for (let i = 0; i < 8; i++) {
-        const cloud = new THREE.Mesh(cloudGeometry, cloudMaterial);
-        cloud.position.set(
-            (Math.random() - 0.5) * 200,
-            30 + Math.random() * 20,
-            (Math.random() - 0.5) * 200
-        );
-        cloud.scale.set(
-            1 + Math.random() * 2,
-            0.5 + Math.random() * 0.5,
-            1 + Math.random() * 2
-        );
-        scene.add(cloud);
+    // Create sky gradient texture
+    const gradient = ctx.createLinearGradient(0, 0, 0, skyCanvas.height);
+    gradient.addColorStop(0, '#87CEEB'); // Sky blue
+    gradient.addColorStop(0.4, '#98D8E8');
+    gradient.addColorStop(0.7, '#B0E0E6'); // Powder blue
+    gradient.addColorStop(1, '#F0E68C'); // Khaki horizon
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, skyCanvas.width, skyCanvas.height);
+    
+    // Add some cloud patterns
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#FFFFFF';
+    for (let i = 0; i < 20; i++) {
+        const x = Math.random() * skyCanvas.width;
+        const y = Math.random() * skyCanvas.height * 0.6;
+        const w = 50 + Math.random() * 100;
+        const h = 20 + Math.random() * 30;
+        ctx.beginPath();
+        ctx.ellipse(x, y, w, h, 0, 0, Math.PI * 2);
+        ctx.fill();
     }
     
-    // Add distant mountains
-    const mountainGeometry = new THREE.ConeGeometry(20, 40, 4);
-    const mountainMaterial = new THREE.MeshLambertMaterial({ color: 0x4a5568 });
+    const skyTexture = new THREE.CanvasTexture(skyCanvas);
+    scene.background = skyTexture;
     
-    for (let i = 0; i < 5; i++) {
-        const mountain = new THREE.Mesh(mountainGeometry, mountainMaterial);
-        const angle = (i / 5) * Math.PI * 2;
-        mountain.position.set(
-            Math.cos(angle) * 150,
-            0,
-            Math.sin(angle) * 150
-        );
-        mountain.scale.set(
-            1 + Math.random() * 0.5,
-            0.8 + Math.random() * 0.4,
-            1 + Math.random() * 0.5
-        );
-        scene.add(mountain);
+    // Create sun
+    const sunGeometry = new THREE.SphereGeometry(5, 16, 16);
+    const sunMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xFFFFAA,
+        emissive: 0xFFFFAA,
+        emissiveIntensity: 1
+    });
+    const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+    sun.position.set(50, 80, -100);
+    scene.add(sun);
+    
+    // Sun glow
+    const glowGeometry = new THREE.SphereGeometry(8, 16, 16);
+    const glowMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xFFFFAA,
+        transparent: true,
+        opacity: 0.3
+    });
+    const sunGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+    sunGlow.position.copy(sun.position);
+    scene.add(sunGlow);
+    
+    // Add volumetric clouds at different heights
+    const cloudGroups = new THREE.Group();
+    for (let layer = 0; layer < 3; layer++) {
+        for (let i = 0; i < 15; i++) {
+            const cloudGroup = new THREE.Group();
+            
+            // Create cloud from multiple spheres for volumetric look
+            const numSpheres = 5 + Math.floor(Math.random() * 5);
+            for (let j = 0; j < numSpheres; j++) {
+                const radius = 8 + Math.random() * 12;
+                const cloudPart = new THREE.Mesh(
+                    new THREE.SphereGeometry(radius, 8, 6),
+                    new THREE.MeshBasicMaterial({ 
+                        color: 0xFFFFFF,
+                        transparent: true,
+                        opacity: 0.4 - layer * 0.1
+                    })
+                );
+                cloudPart.position.set(
+                    (Math.random() - 0.5) * 30,
+                    (Math.random() - 0.5) * 10,
+                    (Math.random() - 0.5) * 20
+                );
+                cloudGroup.add(cloudPart);
+            }
+            
+            cloudGroup.position.set(
+                (Math.random() - 0.5) * 400,
+                60 + layer * 30 + Math.random() * 20,
+                (Math.random() - 0.5) * 400
+            );
+            cloudGroup.userData.driftSpeed = 0.05 + Math.random() * 0.1;
+            cloudGroup.userData.initialX = cloudGroup.position.x;
+            cloudGroups.add(cloudGroup);
+        }
     }
+    scene.add(cloudGroups);
+    scene.userData.cloudGroups = cloudGroups;
 
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 

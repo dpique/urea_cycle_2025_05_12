@@ -569,6 +569,21 @@ function animate() {
     updateResourceHover(elapsedTime);
     updateInteraction(scene);
     
+    // Update animated water
+    scene.traverse((child) => {
+        if (child.userData.isWater && child.material.uniforms) {
+            child.material.uniforms.time.value = elapsedTime;
+        }
+    });
+    
+    // Update cloud drift
+    if (scene.userData.cloudGroups) {
+        scene.userData.cloudGroups.children.forEach((cloud) => {
+            cloud.position.x = cloud.userData.initialX + Math.sin(elapsedTime * cloud.userData.driftSpeed) * 50;
+            cloud.rotation.y = elapsedTime * 0.1;
+        });
+    }
+    
     // Update minimap
     const resources = interactiveObjects.filter(obj => obj.userData.type === 'resource');
     updateMinimap(player, getNPCs(), resources);
