@@ -972,15 +972,15 @@ function createTerrainSection(scene, minX, maxX, width, tilesX, tilesZ, material
 }
 
 function createBackgroundTerrain(scene) {
-    // Create extended terrain that goes beyond the playable area
-    const extendedWidth = CONSTANTS.TOTAL_WIDTH * 3; // 3x wider than playable area
-    const extendedDepth = CONSTANTS.TOTAL_DEPTH * 3; // 3x deeper than playable area
-    const segments = 120;
+    // Create massive extended terrain that reaches to horizon
+    const extendedWidth = 1000; // Massive width to reach horizon
+    const extendedDepth = 1000; // Massive depth to reach horizon
+    const segments = 200;
     
     const backgroundGeometry = new THREE.PlaneGeometry(extendedWidth, extendedDepth, segments, segments);
     const positions = backgroundGeometry.attributes.position;
     
-    // Generate background terrain with larger features
+    // Generate infinite-looking terrain with realistic features
     for (let i = 0; i < positions.count; i++) {
         const x = positions.getX(i);
         const z = positions.getZ(i);
@@ -990,100 +990,107 @@ function createBackgroundTerrain(scene) {
         const maxDist = Math.sqrt((extendedWidth/2) * (extendedWidth/2) + (extendedDepth/2) * (extendedDepth/2));
         const normalizedDist = distFromCenter / maxDist;
         
-        // Create gentle rolling hills for background
+        // Create varied terrain with multiple layers
         let height = 0;
         
-        // Gentle hills in the distance
-        height += Math.sin(x * 0.015) * Math.cos(z * 0.015) * 2;
-        height += Math.sin(x * 0.025 + 2.5) * Math.cos(z * 0.02) * 1.5;
-        height += Math.sin(x * 0.01) * Math.cos(z * 0.012 + 1.2) * 2.5;
+        // Large-scale terrain features
+        height += Math.sin(x * 0.003 + 1.7) * Math.cos(z * 0.004) * 15;
+        height += Math.sin(x * 0.005 + 0.5) * Math.cos(z * 0.003 + 1.2) * 12;
+        height += Math.cos(x * 0.002) * Math.sin(z * 0.0025) * 18;
         
-        // Slightly more variation as we get further from center
-        if (normalizedDist > 0.4) {
-            const distanceBoost = (normalizedDist - 0.4) / 0.6;
-            height += distanceBoost * 3 * (Math.sin(x * 0.008) + Math.cos(z * 0.008));
+        // Medium-scale rolling hills
+        height += Math.sin(x * 0.01) * Math.cos(z * 0.012) * 5;
+        height += Math.sin(x * 0.015 + 2.5) * Math.cos(z * 0.02) * 3;
+        
+        // Small-scale variation for texture
+        height += Math.sin(x * 0.05) * Math.cos(z * 0.04) * 1;
+        height += (Math.random() - 0.5) * 0.5;
+        
+        // Create distant mountain ranges
+        if (normalizedDist > 0.6) {
+            const mountainFactor = (normalizedDist - 0.6) / 0.4;
+            const mountainNoise = Math.sin(x * 0.001) * Math.cos(z * 0.001);
+            height += mountainFactor * 50 * Math.abs(mountainNoise);
             
-            // Small hills at the edges
-            if (normalizedDist > 0.8) {
-                const hillStrength = (normalizedDist - 0.8) / 0.2;
-                height += hillStrength * 4 * Math.pow(Math.sin(x * 0.005) * Math.cos(z * 0.005), 2);
+            // Add peaks
+            if (normalizedDist > 0.8 && mountainNoise > 0.7) {
+                height += mountainFactor * 80 * (mountainNoise - 0.7);
             }
         }
         
-        // Make sure background terrain is lower than playable area boundaries
-        const playableX = Math.abs(x) <= CONSTANTS.MAX_X;
-        const playableZ = Math.abs(z) <= CONSTANTS.MAX_Z;
+        // Smooth transition from playable area
+        const playableX = Math.abs(x) <= CONSTANTS.MAX_X + 10;
+        const playableZ = Math.abs(z) <= CONSTANTS.MAX_Z + 10;
         if (playableX && playableZ) {
-            // Inside playable area - keep it low
-            height *= 0.3;
+            // Smooth blend near playable area
+            const blendX = Math.max(0, (Math.abs(x) - CONSTANTS.MAX_X) / 10);
+            const blendZ = Math.max(0, (Math.abs(z) - CONSTANTS.MAX_Z) / 10);
+            const blendFactor = Math.max(blendX, blendZ);
+            height *= blendFactor;
         }
         
         positions.setY(i, height);
     }
     
+    // Add vertex colors for distance-based coloring
+    const colors = new Float32Array(positions.count * 3);
+    for (let i = 0; i < positions.count; i++) {
+        const x = positions.getX(i);
+        const z = positions.getZ(i);
+        const y = positions.getY(i);
+        
+        const distFromCenter = Math.sqrt(x * x + z * z);
+        const normalizedDist = Math.min(distFromCenter / 300, 1);
+        
+        // Base terrain colors
+        let r = 0.3 + Math.random() * 0.1;
+        let g = 0.5 + Math.random() * 0.1;
+        let b = 0.3 + Math.random() * 0.1;
+        
+        // Height-based coloring
+        if (y > 20) {
+            // Mountain peaks - rocky gray
+            r = 0.5 + (y - 20) / 80 * 0.3;
+            g = 0.5 + (y - 20) / 80 * 0.3;
+            b = 0.55 + (y - 20) / 80 * 0.3;
+        } else if (y > 10) {
+            // Hills - brownish
+            r = 0.45;
+            g = 0.4;
+            b = 0.35;
+        }
+        
+        // Distance fog simulation
+        const fogFactor = normalizedDist * 0.5;
+        r = r + fogFactor * (0.7 - r);
+        g = g + fogFactor * (0.8 - g);
+        b = b + fogFactor * (0.9 - b);
+        
+        colors[i * 3] = r;
+        colors[i * 3 + 1] = g;
+        colors[i * 3 + 2] = b;
+    }
+    
+    backgroundGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     backgroundGeometry.computeVertexNormals();
     
-    // Create gradient material for background terrain
+    // Create material with vertex colors
     const backgroundMaterial = new THREE.MeshStandardMaterial({
-        color: 0x3a5f3a,
-        roughness: 0.9,
-        metalness: 0.1,
-        side: THREE.DoubleSide,
-        fog: true // Ensure fog affects background terrain
+        vertexColors: true,
+        roughness: 0.95,
+        metalness: 0.0,
+        flatShading: true,
+        fog: true
     });
     
     const backgroundTerrain = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
     backgroundTerrain.rotation.x = -Math.PI / 2;
-    backgroundTerrain.position.set(0, -0.5, 0); // Better alignment with main terrain
+    backgroundTerrain.position.set(0, -0.2, 0);
     backgroundTerrain.receiveShadow = true;
     scene.add(backgroundTerrain);
-    
-    // Add distant features like larger mountains
-    addDistantMountains(scene);
 }
 
-function addDistantMountains(scene) {
-    // Create large mountain peaks in the distance
-    const mountainMaterial = new THREE.MeshStandardMaterial({
-        color: 0x4a5568,
-        roughness: 0.95,
-        metalness: 0.05
-    });
-    
-    // Place mountains around the perimeter
-    for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2;
-        const distance = 100 + Math.random() * 50;
-        
-        const mountainGroup = new THREE.Group();
-        
-        // Smaller, gentler hills in the distance
-        const hillGeometry = new THREE.ConeGeometry(15 + Math.random() * 5, 10 + Math.random() * 5, 6);
-        const hill = new THREE.Mesh(hillGeometry, mountainMaterial);
-        hill.position.y = 0;
-        mountainGroup.add(hill);
-        
-        // Small mounds around it
-        for (let j = 0; j < 2; j++) {
-            const moundGeometry = new THREE.SphereGeometry(5 + Math.random() * 3, 6, 4);
-            const mound = new THREE.Mesh(moundGeometry, mountainMaterial);
-            mound.position.set(
-                (Math.random() - 0.5) * 15,
-                -2,
-                (Math.random() - 0.5) * 15
-            );
-            mound.scale.y = 0.4; // Flatten to make it more mound-like
-            mountainGroup.add(mound);
-        }
-        
-        mountainGroup.position.set(
-            Math.cos(angle) * distance,
-            -2,
-            Math.sin(angle) * distance
-        );
-        scene.add(mountainGroup);
-    }
-}
+// Removed addDistantMountains - mountains are now part of the terrain itself
 
 function createNaturalBarriers(scene) {
     // Create invisible collision barriers at the edges
@@ -1335,7 +1342,7 @@ function createImprovedRiver(scene) {
     riverBed.receiveShadow = true;
     scene.add(riverBed);
     
-    // Create animated water with shader material
+    // Create animated water with shader material - more natural flow
     const waterShaderMaterial = new THREE.ShaderMaterial({
         uniforms: {
             time: { value: 0 },
@@ -1350,22 +1357,41 @@ function createImprovedRiver(scene) {
             uniform float waveHeight;
             varying vec2 vUv;
             varying float vElevation;
+            varying float vDistortion;
+            
+            // Simple noise function
+            float noise(vec2 st) {
+                return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+            }
             
             void main() {
                 vUv = uv;
                 vec3 pos = position;
                 
-                // Create flowing wave pattern
-                float wave1 = sin(position.y * 4.0 - time * flowSpeed) * 0.5;
-                float wave2 = cos(position.y * 3.0 - time * flowSpeed * 0.8) * 0.3;
-                float wave3 = sin((position.y + position.x * 0.1) * 5.0 - time * flowSpeed * 1.2) * 0.2;
+                // Create meandering river flow with asymmetry
+                float riverCurve = sin(position.y * 0.15 + 1.3) * 2.5;
+                float meanderOffset = position.x + riverCurve;
                 
-                // Combine waves with distance from center for realistic flow
-                float distFromCenter = abs(position.x) / 4.0;
-                float flowStrength = 1.0 - distFromCenter;
+                // Multiple wave frequencies for natural look
+                float wave1 = sin(position.y * 3.7 - time * flowSpeed + meanderOffset * 0.3) * 0.4;
+                float wave2 = cos(position.y * 2.3 - time * flowSpeed * 0.7 + position.x * 0.5) * 0.3;
+                float wave3 = sin((position.y + meanderOffset * 0.2) * 5.2 - time * flowSpeed * 1.1) * 0.2;
+                float wave4 = cos(position.y * 7.1 - time * flowSpeed * 1.5) * 0.15;
                 
-                pos.z = (wave1 + wave2 + wave3) * waveHeight * flowStrength;
+                // Add turbulence based on position
+                float turbulence = noise(vec2(position.y * 0.5, time * 0.1)) * 0.3;
+                float edgeTurbulence = noise(vec2(position.x * 2.0, position.y * 0.3 + time * 0.2)) * 0.4;
+                
+                // Asymmetric flow strength - stronger on one side
+                float asymmetry = (position.x + 3.0) / 6.0;
+                float distFromCenter = abs(position.x) / 4.0 + noise(vec2(position.y * 0.1, 0.0)) * 0.3;
+                float flowStrength = (1.0 - distFromCenter) * (0.7 + asymmetry * 0.3);
+                
+                // Combine all wave components
+                float totalWave = wave1 + wave2 + wave3 + wave4 + turbulence;
+                pos.z = totalWave * waveHeight * flowStrength + edgeTurbulence * 0.02;
                 vElevation = pos.z;
+                vDistortion = turbulence + edgeTurbulence;
                 
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
             }
@@ -1377,24 +1403,40 @@ function createImprovedRiver(scene) {
             uniform float flowSpeed;
             varying vec2 vUv;
             varying float vElevation;
+            varying float vDistortion;
+            
+            float noise(vec2 st) {
+                return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+            }
             
             void main() {
-                // Create animated foam/highlight pattern
-                float foam = step(0.98, sin((vUv.y * 20.0 - time * flowSpeed) * 3.0) + sin((vUv.x * 10.0 + time * 0.2) * 2.0));
+                // Create animated foam with irregular patterns
+                float foam1 = step(0.97, sin((vUv.y * 18.0 - time * flowSpeed) * 3.2 + vDistortion * 5.0));
+                float foam2 = step(0.98, sin((vUv.x * 12.0 + vUv.y * 8.0 + time * 0.3) * 2.5));
+                float foam = max(foam1, foam2) * (0.5 + noise(vUv * 10.0) * 0.5);
                 
-                // Base water color with depth variation
-                vec3 deepColor = color * 0.6;
-                vec3 shallowColor = color * 1.2;
-                vec3 finalColor = mix(deepColor, shallowColor, vElevation + 0.5);
+                // Base water color with natural variation
+                vec3 deepColor = color * (0.5 + vDistortion * 0.2);
+                vec3 shallowColor = color * (1.2 + noise(vUv * 5.0) * 0.3);
+                vec3 mudColor = vec3(0.4, 0.35, 0.3);
+                
+                // Mix colors based on depth and position
+                float depthMix = clamp(vElevation + 0.5 + vDistortion * 0.3, 0.0, 1.0);
+                vec3 finalColor = mix(deepColor, shallowColor, depthMix);
+                
+                // Add muddy edges
+                float edgeFactor = smoothstep(0.7, 0.9, abs(vUv.x - 0.5) * 2.0);
+                finalColor = mix(finalColor, mudColor, edgeFactor * 0.3);
                 
                 // Add foam highlights
-                finalColor = mix(finalColor, vec3(1.0), foam * 0.3);
+                finalColor = mix(finalColor, vec3(0.9, 0.95, 1.0), foam * 0.4);
                 
-                // Add subtle shimmer
-                float shimmer = sin(vUv.y * 100.0 - time * 2.0) * 0.05 + 0.95;
+                // Natural shimmer with variation
+                float shimmer = 0.9 + sin(vUv.y * 80.0 - time * 1.5 + vUv.x * 30.0) * 0.05 
+                              + sin(vUv.x * 60.0 + time) * 0.03;
                 finalColor *= shimmer;
                 
-                gl_FragColor = vec4(finalColor, opacity);
+                gl_FragColor = vec4(finalColor, opacity * (0.7 + depthMix * 0.3));
             }
         `,
         transparent: true,

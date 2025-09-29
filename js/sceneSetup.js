@@ -126,8 +126,8 @@ export function initScene(canvasElement) {
 
     scene.add(directionalLight);
 
-    // Fog - adjusted for seamless landscape with distant mountains
-    scene.fog = new THREE.Fog(0x87CEEB, 30, 200);
+    // Fog - adjusted for infinite terrain horizon
+    scene.fog = new THREE.Fog(0x87CEEB, 50, 400);
 
 
     // OrbitControls
