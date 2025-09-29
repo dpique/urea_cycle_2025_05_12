@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import * as CONSTANTS from './constants.js';
 import { createTextSprite, createSimpleParticleSystem, createLightningBoltGeometry } from './utils.js';
+import { createRiverWithFlow } from './riverHelper.js';
 // Removed initNPCs import from here, NPCs are created in npcManager.js
 
 export let collidableWalls = [];
@@ -842,8 +843,8 @@ function createTerrain(scene) {
     // Create cytosol terrain (east of river)
     createTerrainSection(scene, CONSTANTS.CYTO_ZONE_MIN_X, CONSTANTS.MAX_X, cytoWidth, tilesX, tilesZ, terrainMaterial, 'cyto');
     
-    // Keep the improved river
-    createImprovedRiver(scene);
+    // Keep the improved river with north-south flow
+    createRiverWithFlow(scene, CONSTANTS);
     
     // Create background terrain
     createBackgroundTerrain(scene);
@@ -1290,7 +1291,8 @@ function addPhysicalTrails(scene) {
     });
 }
 
-// Create a more natural-looking river with animated flow - RuneScape style
+// Old river function - replaced by createRiverWithFlow from riverHelper.js
+/*
 function createImprovedRiver(scene) {
     // River bed (darker, lower) with RuneScape-style tiling
     const riverBedGeometry = new THREE.PlaneGeometry(CONSTANTS.RIVER_WIDTH * 1.5, CONSTANTS.TOTAL_DEPTH * 1.2, 12, 40);
@@ -1346,13 +1348,13 @@ function createImprovedRiver(scene) {
     const waterShaderMaterial = new THREE.ShaderMaterial({
         uniforms: {
             time: { value: 0 },
-            flowSpeed: { value: 0.5 },
-            waveHeight: { value: 0.05 },
+            flowSpeed: { value: 0.3 }, // Slower flow speed
+            waveHeight: { value: 0.03 }, // Gentler waves
             color: { value: new THREE.Color(0x2E7FB5) },
             opacity: { value: 0.75 }
         },
-        vertexShader: `
-            uniform float time;
+        vertexShader: riverVertexShader,
+        fragmentShader: riverFragmentShader,
             uniform float flowSpeed;
             uniform float waveHeight;
             varying vec2 vUv;
@@ -1596,4 +1598,4 @@ function createImprovedRiver(scene) {
         );
         scene.add(reedGroup);
     }
-}
+}*/
