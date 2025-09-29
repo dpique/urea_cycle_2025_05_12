@@ -516,10 +516,12 @@ function animate() {
             const transitionSpeed = 0.15;
             player.position.y = player.position.y + (targetY - player.position.y) * transitionSpeed;
         } else if (playerX >= platformMinX && playerX <= platformMaxX) {
-            // On main platform - automatically elevate when in bridge area
+            // On main platform - automatically elevate when in bridge area (unless jumping)
             targetY = CONSTANTS.BRIDGE_HEIGHT;
-            const transitionSpeed = 0.15;
-            player.position.y = player.position.y + (targetY - player.position.y) * transitionSpeed;
+            if (!player.userData.verticalVelocity || player.userData.verticalVelocity <= 0) {
+                const transitionSpeed = 0.15;
+                player.position.y = player.position.y + (targetY - player.position.y) * transitionSpeed;
+            }
         }
     } else {
         // Not on bridge - adjust to terrain height
@@ -538,17 +540,27 @@ function animate() {
                 player.userData.verticalVelocity = 0;
             }
         } else {
-            // Smooth terrain following
-            const terrainSpeed = 0.2;
-            player.position.y = player.position.y + (targetY - player.position.y) * terrainSpeed;
-            player.userData.verticalVelocity = 0;
+            // Smooth terrain following (only if not jumping)
+            if (!player.userData.verticalVelocity || player.userData.verticalVelocity <= 0) {
+                const terrainSpeed = 0.2;
+                player.position.y = player.position.y + (targetY - player.position.y) * terrainSpeed;
+            }
         }
     }
 
-    // Apply jump velocity
+    // Apply jump velocity (for both bridge and non-bridge areas)
     if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
         player.position.y += player.userData.verticalVelocity;
         player.userData.verticalVelocity -= 0.02; // Gravity for jumps
+        
+        // Check for landing
+        const currentTerrainHeight = getTerrainHeightAt(player.position.x, player.position.z);
+        const landingHeight = onBridgeArea ? CONSTANTS.BRIDGE_HEIGHT : currentTerrainHeight;
+        
+        if (player.position.y <= landingHeight + 0.01 && player.userData.verticalVelocity < 0) {
+            player.position.y = landingHeight + 0.01;
+            player.userData.verticalVelocity = 0;
+        }
     }
 
     updatePlayer(delta, gameState.isUserInteracting, checkPlayerCollision);

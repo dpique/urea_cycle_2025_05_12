@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import * as CONSTANTS from './constants.js';
 import { createTextSprite } from './utils.js';
-import { interactiveObjects, originalMaterials } from './worldManager.js';
+import { interactiveObjects, originalMaterials, getTerrainHeightAt } from './worldManager.js';
 
 let professorHepaticusNPC, ornithineUsherNPC, aslanNPC, donkeyNPC, argusNPC;
 let otisOTC_NPC, casperCPS1_NPC;
@@ -13,6 +13,12 @@ const npcAnims = {};
 
 export function getNPCs() {
     return npcs;
+}
+
+// Helper function to position NPC group on terrain
+function positionNPCOnTerrain(npcGroup, position) {
+    const terrainHeight = getTerrainHeightAt(position.x, position.z);
+    npcGroup.position.set(position.x, position.y !== undefined && position.y > 0 ? position.y : terrainHeight, position.z);
 }
 
 const professorSwaySpeed = 0.5;
@@ -125,7 +131,7 @@ export function initNPCs(scene) {
 
 function createProfessorHepaticus(scene, position) {
     const professorGroup = new THREE.Group();
-    professorGroup.position.copy(position);
+    positionNPCOnTerrain(professorGroup, position);
     const robeMaterial = new THREE.MeshStandardMaterial({ color: 0x8888cc, roughness: 0.7 });
     const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 1.5, 8), robeMaterial);
     robe.position.y = 0.75; robe.name = "robe"; professorGroup.add(robe);
@@ -180,7 +186,7 @@ function createProfessorHepaticus(scene, position) {
 
 function createOrnithineUsher(scene, position) {
     const usherGroup = new THREE.Group();
-    usherGroup.position.copy(position);
+    positionNPCOnTerrain(usherGroup, position);
 
     const torsoMaterial = new THREE.MeshStandardMaterial({ color: 0x3366cc, roughness: 0.5 });
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.18), torsoMaterial);
@@ -232,7 +238,7 @@ function createOrnithineUsher(scene, position) {
 
 function createAslan(scene, position) {
     const aslanGroup = new THREE.Group();
-    aslanGroup.position.copy(position);
+    positionNPCOnTerrain(aslanGroup, position);
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0xD2B48C, roughness: 0.6 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 1.2), bodyMat);
     body.position.y = 0.6; body.name = "body"; aslanGroup.add(body);
@@ -278,7 +284,7 @@ function createAslan(scene, position) {
 
 function createDonkey(scene, position) {
     const donkeyGroup = new THREE.Group();
-    donkeyGroup.position.copy(position);
+    positionNPCOnTerrain(donkeyGroup, position);
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.7 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 1.0), bodyMat);
     body.position.y = 0.5; body.name = "body"; donkeyGroup.add(body);
@@ -321,7 +327,7 @@ function createDonkey(scene, position) {
 
 function createArgus(scene, position) {
     const argusGroup = new THREE.Group();
-    argusGroup.position.copy(position);
+    positionNPCOnTerrain(argusGroup, position);
     const torsoMat = new THREE.MeshStandardMaterial({ color: 0x4A3B31, roughness: 0.5 });
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), torsoMat);
     torso.position.y = 0.7 + 0.4; torso.name = "body"; argusGroup.add(torso);
@@ -368,7 +374,7 @@ function createArgus(scene, position) {
 
 function createOtisOTC(scene, position) {
     const otisGroup = new THREE.Group();
-    otisGroup.position.copy(position);
+    positionNPCOnTerrain(otisGroup, position);
 
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff8c00, roughness: 0.6 });
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.6, 4, 8), bodyMat);
@@ -421,7 +427,7 @@ function createOtisOTC(scene, position) {
 
 function createCasperCPS1(scene, position) {
     const casperGroup = new THREE.Group();
-    casperGroup.position.copy(position);
+    positionNPCOnTerrain(casperGroup, position);
 
     const ghostMat = new THREE.MeshStandardMaterial({
         color: 0xe0ffff,
@@ -480,7 +486,7 @@ function createCasperCPS1(scene, position) {
 
 function createFumaraseEnzyme(scene, position) {
     const fumaraseGroup = new THREE.Group();
-    fumaraseGroup.position.copy(position);
+    positionNPCOnTerrain(fumaraseGroup, position);
     const enzymeColor = 0x8A2BE2; // BlueViolet
     const bodyMat = new THREE.MeshStandardMaterial({ color: enzymeColor, roughness: 0.5, metalness: 0.3 });
 
@@ -520,8 +526,8 @@ function createFumaraseEnzyme(scene, position) {
 
 function createShuttleDriver(scene, position) {
     const driverGroup = new THREE.Group();
-    driverGroup.position.copy(position);
-    driverGroup.position.y = CONSTANTS.BRIDGE_HEIGHT; // Ensure on bridge level
+    positionNPCOnTerrain(driverGroup, position);
+    // Already at bridge height from position parameter
 
     const uniformColor = 0x4682B4; // SteelBlue (like a bus driver)
     const bodyMat = new THREE.MeshStandardMaterial({ color: uniformColor, roughness: 0.7 });

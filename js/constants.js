@@ -58,8 +58,8 @@ export const WALL_HEIGHT = 1.8; // Slightly taller walls
 export const WALL_THICKNESS = 0.5;
 
 // Alcove Dimensions
-export const ALCOVE_DEPTH = 5; 
-export const ALCOVE_WIDTH = 7; 
+export const ALCOVE_DEPTH = 8; // Enlarged from 5
+export const ALCOVE_WIDTH = 10; // Enlarged from 7 
 export const ALCOVE_Z_CENTER = 0;
 export const ALCOVE_Z_START = ALCOVE_Z_CENTER - ALCOVE_WIDTH / 2;
 export const ALCOVE_Z_END = ALCOVE_Z_CENTER + ALCOVE_WIDTH / 2;
