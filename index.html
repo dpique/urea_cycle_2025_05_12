@@ -28,12 +28,105 @@
             <div id="questLog" class="ui-panel">
                 <h3>Quest: <span id="questName">None</span></h3>
                 <p>Objective: <span id="questObjective"></span></p>
+                <div id="progressBar" class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                    <span id="progressText" class="progress-text">0%</span>
+                </div>
             </div>
         </div>
 
 
         <!-- Centered Panels -->
         <div>
+             <!-- Help Menu -->
+             <div id="helpMenu" class="ui-panel hidden">
+                <h2>Controls & Help</h2>
+                <div class="help-section">
+                    <h3>Movement</h3>
+                    <p><strong>W/A/S/D or Arrow Keys:</strong> Move character</p>
+                    <p><strong>Spacebar:</strong> Jump</p>
+                    <p><strong>Shift (hold):</strong> Run faster</p>
+                </div>
+                <div class="help-section">
+                    <h3>Interaction</h3>
+                    <p><strong>E:</strong> Interact with objects/NPCs</p>
+                    <p><strong>Mouse:</strong> Look around (click and drag)</p>
+                </div>
+                <div class="help-section">
+                    <h3>General</h3>
+                    <p><strong>H:</strong> Toggle this help menu</p>
+                    <p><strong>F5:</strong> Save game</p>
+                    <p><strong>F9:</strong> Load game</p>
+                    <p><strong>M:</strong> Toggle minimap (when available)</p>
+                </div>
+                <div class="help-section">
+                    <h3>Other</h3>
+                    <p><strong>G:</strong> Toggle glossary</p>
+                </div>
+                <button onclick="toggleHelpMenu()">Close (H)</button>
+             </div>
+             
+             <!-- Glossary -->
+             <div id="glossary" class="ui-panel hidden">
+                <h2>Urea Cycle Glossary</h2>
+                <div id="glossaryContent" class="glossary-content">
+                    <h3>Key Terms</h3>
+                    <dl>
+                        <dt>Urea Cycle</dt>
+                        <dd>A series of biochemical reactions that convert toxic ammonia (NH3) to urea for safe excretion. Takes place partly in mitochondria and partly in cytosol.</dd>
+                        
+                        <dt>Mitochondria</dt>
+                        <dd>The "powerhouse" of the cell where the first steps of the urea cycle occur. Contains enzymes CPS1 and OTC.</dd>
+                        
+                        <dt>Cytosol</dt>
+                        <dd>The liquid inside cells (but outside organelles) where the final steps of the urea cycle take place.</dd>
+                        
+                        <dt>Ammonia (NH3)</dt>
+                        <dd>A toxic waste product from protein breakdown that must be converted to urea for safe disposal.</dd>
+                        
+                        <dt>Carbamoyl Phosphate</dt>
+                        <dd>First intermediate in the urea cycle, made from NH3, CO2, and 2 ATP by enzyme CPS1.</dd>
+                        
+                        <dt>Ornithine</dt>
+                        <dd>An amino acid that carries the cycle forward and is regenerated at the end.</dd>
+                        
+                        <dt>Citrulline</dt>
+                        <dd>Product of ornithine + carbamoyl phosphate, transported from mitochondria to cytosol.</dd>
+                        
+                        <dt>Argininosuccinate</dt>
+                        <dd>Intermediate formed from citrulline + aspartate in the cytosol by enzyme ASS.</dd>
+                        
+                        <dt>Arginine</dt>
+                        <dd>Precursor to urea, split by arginase to produce urea and regenerate ornithine.</dd>
+                        
+                        <dt>Fumarate</dt>
+                        <dd>Byproduct that enters the citric acid cycle, converted to malate by fumarase.</dd>
+                        
+                        <dt>Urea</dt>
+                        <dd>Final non-toxic product containing two nitrogen atoms, safely excreted in urine.</dd>
+                    </dl>
+                    
+                    <h3>Key Enzymes</h3>
+                    <dl>
+                        <dt>CPS1 (Carbamoyl Phosphate Synthetase I)</dt>
+                        <dd>First enzyme, combines NH3 + CO2 + 2ATP to make carbamoyl phosphate. Requires N-acetylglutamate.</dd>
+                        
+                        <dt>OTC (Ornithine Transcarbamylase)</dt>
+                        <dd>Combines ornithine + carbamoyl phosphate to make citrulline in mitochondria.</dd>
+                        
+                        <dt>ASS (Argininosuccinate Synthetase)</dt>
+                        <dd>Combines citrulline + aspartate + ATP to make argininosuccinate in cytosol.</dd>
+                        
+                        <dt>ASL (Argininosuccinate Lyase)</dt>
+                        <dd>Splits argininosuccinate into arginine + fumarate.</dd>
+                        
+                        <dt>ARG1 (Arginase)</dt>
+                        <dd>Final enzyme, splits arginine into urea + ornithine.</dd>
+                    </dl>
+                </div>
+                <button onclick="toggleGlossary()">Close (G)</button>
+             </div>
+             
              <!-- Reality River Mini-Game -->
              <div id="realityRiver" class="ui-panel hidden">
                 <h2>Urea Cycle Quiz</h2>
@@ -49,7 +142,7 @@
 
             <!-- Interaction Prompt -->
             <div id="interactionPrompt" class="ui-panel hidden">
-                 [E / Space] <span id="interactionText">Object</span>
+                 <span id="interactionText">Object</span>
             </div>
 
              <!-- Dialogue Box -->
@@ -65,6 +158,12 @@
          <!-- Loading Indicator -->
          <div id="loadingScreen" class="ui-panel">Loading...</div>
 
+         <!-- Minimap -->
+         <div id="minimapContainer" class="minimap-container">
+             <canvas id="minimapCanvas"></canvas>
+             <div id="minimapLabel" class="minimap-label">Map (M to toggle)</div>
+         </div>
+         
          <!-- Bottom Left Text -->
          <div id="devCredit" class="subtle-text">StudyRare 2025 (in development)</div>
 

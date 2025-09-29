@@ -8,31 +8,37 @@ let professorHepaticusNPC, ornithineUsherNPC, aslanNPC, donkeyNPC, argusNPC;
 let otisOTC_NPC, casperCPS1_NPC;
 let fumaraseNPC, shuttleDriverNPC; // New NPCs
 
+const npcs = [];
 const npcAnims = {};
+
+export function getNPCs() {
+    return npcs;
+}
 
 const professorSwaySpeed = 0.5;
 const professorArmSwingSpeed = 1.2;
 const generalNpcPaceLerpFactor = 0.015;
 
 export function initNPCs(scene) {
-    professorHepaticusNPC = createProfessorHepaticus(scene, new THREE.Vector3(CONSTANTS.MIN_X + 3, 0, -8)); // Adjusted for larger world
+    // Spread NPCs throughout the larger world
+    professorHepaticusNPC = createProfessorHepaticus(scene, new THREE.Vector3(CONSTANTS.MIN_X + 10, 0, -8));
     
     // Ornithine Usher on Mitochondria side of the bridge
-    const usherX = CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 - 1.5;
+    const usherX = CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 - 2;
     ornithineUsherNPC = createOrnithineUsher(scene, new THREE.Vector3(usherX, CONSTANTS.BRIDGE_HEIGHT, CONSTANTS.BRIDGE_CENTER_Z));
 
-    // Cytosol NPCs - positions adjusted for larger world and river
-    aslanNPC = createAslan(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 10, 0, 0));
-    donkeyNPC = createDonkey(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 5, 0, 5));
-    argusNPC = createArgus(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 5, 0, -5));
+    // Cytosol NPCs - spread out much more
+    aslanNPC = createAslan(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 25, 0, 15));
+    donkeyNPC = createDonkey(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 10, 0, -15));
+    argusNPC = createArgus(scene, new THREE.Vector3(CONSTANTS.MAX_X - 15, 0, -10));
 
-    const mitoStationXOffset = CONSTANTS.ALCOVE_OPENING_X_PLANE + 2.5;
-    otisOTC_NPC = createOtisOTC(scene, new THREE.Vector3(Math.max(mitoStationXOffset, CONSTANTS.MIN_X + 5), 0, -5));
-    casperCPS1_NPC = createCasperCPS1(scene, new THREE.Vector3(Math.max(mitoStationXOffset - 1, CONSTANTS.MIN_X + 8), 0, 7));
+    // Mitochondria NPCs spread out
+    otisOTC_NPC = createOtisOTC(scene, new THREE.Vector3(CONSTANTS.MIN_X + 20, 0, -10));
+    casperCPS1_NPC = createCasperCPS1(scene, new THREE.Vector3(CONSTANTS.MIN_X + 15, 0, 15));
 
-    // New NPCs
-    fumaraseNPC = createFumaraseEnzyme(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 8, 0, 2)); // Cytosol
-    shuttleDriverNPC = createShuttleDriver(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 1.5, CONSTANTS.BRIDGE_HEIGHT, CONSTANTS.BRIDGE_CENTER_Z + CONSTANTS.BRIDGE_WIDTH/2 + 1)); // Cytosol side, near bridge end
+    // New NPCs - spread out more
+    fumaraseNPC = createFumaraseEnzyme(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 20, 0, 0));
+    shuttleDriverNPC = createShuttleDriver(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 5, CONSTANTS.BRIDGE_HEIGHT, CONSTANTS.BRIDGE_CENTER_Z + CONSTANTS.BRIDGE_WIDTH/2 + 2));
 
 
     npcAnims.professor = {
@@ -65,7 +71,7 @@ export function initNPCs(scene) {
         paceTimer: Math.random() * 4,
         paceInterval: 5 + Math.random() * 3,
         paceRange: 2.0,
-        bounds: { minX: CONSTANTS.CYTO_ZONE_MIN_X + 8, maxX: CONSTANTS.CYTO_ZONE_MIN_X + 12, minZ: -1.5, maxZ: 1.5 }
+        bounds: { minX: CONSTANTS.CYTO_ZONE_MIN_X + 23, maxX: CONSTANTS.CYTO_ZONE_MIN_X + 27, minZ: 13.5, maxZ: 16.5 }
     };
     npcAnims.donkey = {
         group: donkeyNPC,
@@ -74,7 +80,7 @@ export function initNPCs(scene) {
         paceTimer: Math.random() * 4,
         paceInterval: 3.5 + Math.random() * 3,
         paceRange: 2.0,
-        bounds: { minX: CONSTANTS.CYTO_ZONE_MIN_X + 3, maxX: CONSTANTS.CYTO_ZONE_MIN_X + 7, minZ: 3.5, maxZ: 6.5 }
+        bounds: { minX: CONSTANTS.CYTO_ZONE_MIN_X + 8, maxX: CONSTANTS.CYTO_ZONE_MIN_X + 12, minZ: -16.5, maxZ: -13.5 }
     };
     npcAnims.argus = {
         group: argusNPC,
@@ -83,7 +89,7 @@ export function initNPCs(scene) {
         paceTimer: Math.random() * 4,
         paceInterval: 4.5 + Math.random() * 3,
         paceRange: 1.8,
-        bounds: { minX: CONSTANTS.CYTO_ZONE_MIN_X + 3, maxX: CONSTANTS.CYTO_ZONE_MIN_X + 7, minZ: -6.5, maxZ: -3.5 }
+        bounds: { minX: CONSTANTS.MAX_X - 17, maxX: CONSTANTS.MAX_X - 13, minZ: -11.5, maxZ: -8.5 }
     };
     npcAnims.otis = {
         group: otisOTC_NPC,
@@ -168,6 +174,7 @@ function createProfessorHepaticus(scene, position) {
     scene.add(professorGroup);
     interactiveObjects.push(professorGroup);
     originalMaterials.set(robe, robe.material.clone());
+    npcs.push(professorGroup);
     return professorGroup;
 }
 
@@ -219,6 +226,7 @@ function createOrnithineUsher(scene, position) {
     scene.add(usherGroup);
     interactiveObjects.push(usherGroup);
     originalMaterials.set(torso, torso.material.clone());
+    npcs.push(usherGroup);
     return usherGroup;
 }
 
@@ -264,6 +272,7 @@ function createAslan(scene, position) {
     scene.add(aslanGroup);
     interactiveObjects.push(aslanGroup);
     originalMaterials.set(body, bodyMat.clone());
+    npcs.push(aslanGroup);
     return aslanGroup;
 }
 
@@ -306,6 +315,7 @@ function createDonkey(scene, position) {
     scene.add(donkeyGroup);
     interactiveObjects.push(donkeyGroup);
     originalMaterials.set(body, bodyMat.clone());
+    npcs.push(donkeyGroup);
     return donkeyGroup;
 }
 
@@ -352,6 +362,7 @@ function createArgus(scene, position) {
     scene.add(argusGroup);
     interactiveObjects.push(argusGroup);
     originalMaterials.set(torso, torsoMat.clone());
+    npcs.push(argusGroup);
     return argusGroup;
 }
 
@@ -404,6 +415,7 @@ function createOtisOTC(scene, position) {
     scene.add(otisGroup);
     interactiveObjects.push(otisGroup);
     originalMaterials.set(body, bodyMat.clone());
+    npcs.push(otisGroup);
     return otisGroup;
 }
 
@@ -462,6 +474,7 @@ function createCasperCPS1(scene, position) {
     scene.add(casperGroup);
     interactiveObjects.push(casperGroup);
     originalMaterials.set(body, ghostMat.clone());
+    npcs.push(casperGroup);
     return casperGroup;
 }
 
@@ -495,12 +508,13 @@ function createFumaraseEnzyme(scene, position) {
         requires: { 'Fumarate': 1 },
         produces: 'Malate',
         productColors: { 'Malate': CONSTANTS.MALATE_COLOR },
-        advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE
+        advancesQuestTo: CONSTANTS.QUEST_STATE.STEP_11A_COLLECT_MALATE
     };
     fumaraseGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(fumaraseGroup);
     interactiveObjects.push(fumaraseGroup);
     originalMaterials.set(mainBody, bodyMat.clone());
+    npcs.push(fumaraseGroup);
     return fumaraseGroup;
 }
 
@@ -545,6 +559,7 @@ function createShuttleDriver(scene, position) {
     scene.add(driverGroup);
     interactiveObjects.push(driverGroup);
     originalMaterials.set(body, bodyMat.clone());
+    npcs.push(driverGroup);
     return driverGroup;
 }
 

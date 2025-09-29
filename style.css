@@ -59,6 +59,18 @@ body {
     pointer-events: auto; /* Panels themselves are clickable */
     max-width: 300px; /* Limit width */
     box-sizing: border-box; /* Include padding/border in width */
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.ui-panel.fade-out {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.ui-panel.fade-in {
+    opacity: 0;
+    transform: translateY(-10px);
 }
 
 .hidden {
@@ -103,6 +115,36 @@ body {
      min-width: 200px;
 }
 #questName { font-weight: bold; }
+
+/* Progress Bar */
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    margin-top: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50 0%, #66BB6A 100%);
+    border-radius: 10px;
+    width: 0%;
+    transition: width 0.5s ease-in-out;
+}
+
+.progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+}
 
 
 /* Reality River Specifics */
@@ -210,4 +252,144 @@ body {
 
 .survey-button:hover {
     background-color: rgba(70, 70, 100, 0.9);
+}
+
+/* Help Menu Styles */
+#helpMenu {
+    width: 90%;
+    max-width: 400px;
+    background-color: rgba(0, 0, 0, 0.85);
+}
+
+.help-section {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #444;
+}
+
+.help-section:last-of-type {
+    border-bottom: none;
+}
+
+.help-section h3 {
+    color: #ffffaa;
+    margin-bottom: 8px;
+    margin-top: 5px;
+}
+
+.help-section p {
+    margin: 4px 0;
+    font-size: 0.9em;
+}
+
+#helpMenu button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    background-color: #447;
+    border: 1px solid #669;
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#helpMenu button:hover {
+    background-color: #558;
+}
+
+/* Glossary Styles */
+#glossary {
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    background-color: rgba(0, 0, 0, 0.9);
+    overflow: hidden;
+}
+
+#glossary h2 {
+    color: #ffffaa;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+#glossary h3 {
+    color: #ffcc66;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.glossary-content {
+    max-height: calc(80vh - 120px);
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+#glossary dl {
+    margin: 0;
+    padding: 0;
+}
+
+#glossary dt {
+    font-weight: bold;
+    color: #88ccff;
+    margin-top: 12px;
+    margin-bottom: 4px;
+}
+
+#glossary dd {
+    margin-left: 20px;
+    margin-bottom: 8px;
+    color: #ccc;
+    line-height: 1.5;
+}
+
+#glossary button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    background-color: #447;
+    border: 1px solid #669;
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#glossary button:hover {
+    background-color: #558;
+}
+
+/* Minimap Styles */
+.minimap-container {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 200px;
+    height: 200px;
+    background-color: rgba(0, 0, 0, 0.7);
+    border: 2px solid #555;
+    border-radius: 5px;
+    padding: 5px;
+    pointer-events: none;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.minimap-container.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#minimapCanvas {
+    width: 100%;
+    height: 100%;
+    border-radius: 3px;
+}
+
+.minimap-label {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75em;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
 }

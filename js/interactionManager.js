@@ -7,7 +7,7 @@ import { advanceUreaCycleQuest, startRealityRiverChallenge, hasRequiredItems, co
 import { removePortalBarrierFromWorld, createResource, interactiveObjects, originalMaterials, removeResourceFromWorld } from './worldManager.js';
 import { player } from './playerManager.js';
 import { getGameState, setGameState, getCurrentQuest, getInventory, addToInventory, getPlayerLocation, setPlayerLocation } from '../main.js';
-import { createSimpleParticleSystem } from './utils.js';
+import { createSimpleParticleSystem, createCollectionEffect } from './utils.js';
 
 const PRE_SURVEY_LINK = "https://forms.gle/yourpretestsurvey";
 const POST_SURVEY_LINK = "https://forms.gle/yourposttestsurvey";
@@ -18,6 +18,12 @@ const highlightMaterial = new THREE.MeshStandardMaterial({ emissive: 0xffff00, e
 
 function getMeshToHighlight(interactiveObj) {
     if (!interactiveObj) return null;
+    
+    // Check for resourceMesh first (for new resource groups)
+    if (interactiveObj.userData && interactiveObj.userData.resourceMesh) {
+        return interactiveObj.userData.resourceMesh;
+    }
+    
     if (interactiveObj.userData && interactiveObj.userData.mainMesh) {
         return interactiveObj.userData.mainMesh;
     }
@@ -79,6 +85,9 @@ export function updateInteraction(scene) {
                 minDistSq = distSq;
                 foundClosest = obj;
             }
+            
+            // Add quest indicator glow to relevant objects
+            updateQuestIndicator(obj);
         }
     });
 
@@ -98,6 +107,116 @@ export function updateInteraction(scene) {
 
 export function getClosestInteractiveObject() {
     return closestInteractiveObject;
+}
+
+// Visual quest indicators
+const questGlowMaterial = new THREE.MeshStandardMaterial({ 
+    emissive: 0x00ff00, 
+    emissiveIntensity: 0.3, 
+    transparent: true,
+    opacity: 0.8
+});
+
+function updateQuestIndicator(obj) {
+    const currentQuest = getCurrentQuest();
+    if (!currentQuest) return;
+    
+    const meshToGlow = getMeshToHighlight(obj);
+    if (!meshToGlow || !meshToGlow.isMesh) return;
+    
+    // Check if this object is relevant to current quest
+    let isQuestRelevant = false;
+    
+    // Check NPCs
+    if (obj.userData.type === 'npc') {
+        switch (currentQuest.state) {
+            case CONSTANTS.QUEST_STATE.NOT_STARTED:
+                isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS;
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS:
+                isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.CASPER_CPS1;
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER:
+            case CONSTANTS.QUEST_STATE.STEP_6_TALK_TO_USHER_PASSAGE:
+                isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.ORNITHINE_USHER;
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_5_MAKE_CITRULLINE:
+                isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.OTIS_OTC;
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY:
+                isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.DONKEY;
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN:
+                isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.ASLAN;
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_10B_COLLECT_PRODUCTS:
+                isQuestRelevant = obj.userData.name === 'Arginine' || obj.userData.name === 'Fumarate';
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_11_CONVERT_FUMARATE_TO_MALATE:
+                isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.FUMARASE_ENZYME;
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_11A_COLLECT_MALATE:
+                isQuestRelevant = obj.userData.name === 'Malate';
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE:
+                isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.SHUTTLE_DRIVER;
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_12_TALK_TO_ARGUS:
+                isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.ARGUS;
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_14_RIVER_CHALLENGE:
+                isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS;
+                break;
+        }
+    }
+    
+    // Check resources
+    if (obj.userData.type === 'resource') {
+        switch (currentQuest.state) {
+            case CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2:
+                isQuestRelevant = obj.userData.name === 'Water';
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2:
+                isQuestRelevant = obj.userData.name === 'CO2';
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE:
+                isQuestRelevant = obj.userData.name === 'Bicarbonate';
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_1_GATHER_MITO_REMAINING:
+                isQuestRelevant = obj.userData.name === 'NH3' || obj.userData.name === 'ATP';
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_3_COLLECT_CARB_PHOS:
+                isQuestRelevant = obj.userData.name === 'Carbamoyl Phosphate';
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO:
+                isQuestRelevant = obj.userData.name === 'Citrulline' || obj.userData.name === 'ATP';
+                break;
+        }
+    }
+    
+    // Check special objects
+    if (obj.userData.name === 'CAVA Shrine' && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE) {
+        isQuestRelevant = true;
+    }
+    if (obj.userData.name === 'ORNT1 Portal' && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL) {
+        isQuestRelevant = true;
+    }
+    if (obj.userData.name === 'Waste Receptacle' && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA) {
+        isQuestRelevant = true;
+    }
+    
+    // Apply or remove quest glow
+    if (isQuestRelevant && !meshToGlow.userData.hasQuestGlow) {
+        meshToGlow.userData.originalEmissive = meshToGlow.material.emissive ? meshToGlow.material.emissive.clone() : new THREE.Color(0x000000);
+        meshToGlow.userData.originalEmissiveIntensity = meshToGlow.material.emissiveIntensity || 0;
+        meshToGlow.material.emissive = new THREE.Color(0x00ff00);
+        meshToGlow.material.emissiveIntensity = 0.3 * Math.sin(Date.now() * 0.002) + 0.3; // Pulsing effect
+        meshToGlow.userData.hasQuestGlow = true;
+    } else if (!isQuestRelevant && meshToGlow.userData.hasQuestGlow) {
+        meshToGlow.material.emissive = meshToGlow.userData.originalEmissive;
+        meshToGlow.material.emissiveIntensity = meshToGlow.userData.originalEmissiveIntensity;
+        meshToGlow.userData.hasQuestGlow = false;
+    }
 }
 
 
@@ -238,9 +357,9 @@ export function interactWithObject(object, scene) {
                                 createResource(scene, prod, { x: object.position.x + offset - 0.5, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[prod]);
                                 offset += 1.0;
                             });
-                            // Always advance to STEP_11_CONVERT_FUMARATE_TO_MALATE if not already there
-                            if (currentQuest.state !== CONSTANTS.QUEST_STATE.STEP_11_CONVERT_FUMARATE_TO_MALATE) {
-                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_11_CONVERT_FUMARATE_TO_MALATE);
+                            // Advance to collection step
+                            if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN) {
+                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_10B_COLLECT_PRODUCTS);
                             }
                         }},
                         { text: "Not yet."}
@@ -248,7 +367,7 @@ export function interactWithObject(object, scene) {
                 } else {
                     showDialogue("You require Argininosuccinate for my work. It is the substrate upon which I act.", [{text: "I understand."}], setGameInteracting);
                 }
-            } else if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_11_CONVERT_FUMARATE_TO_MALATE && !(hasRequiredItems({Arginine: 1}) && hasRequiredItems({Fumarate: 1}))) {
+            } else if (currentQuest && (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_10B_COLLECT_PRODUCTS || currentQuest.state === CONSTANTS.QUEST_STATE.STEP_11_CONVERT_FUMARATE_TO_MALATE) && !(hasRequiredItems({Arginine: 1}) && hasRequiredItems({Fumarate: 1}))) {
                 if (!hasRequiredItems({Arginine: 1})) {
                     showDialogue("Gather the Arginine I have created. It continues the Urea Cycle.", [{text: "I will."}], setGameInteracting);
                 } else if (!hasRequiredItems({Fumarate: 1})) {
@@ -477,7 +596,10 @@ export function interactWithObject(object, scene) {
         createGameBoySound('collect');
         showFeedback(`Collected ${userData.provides} from the ${userData.name}.`);
 
-        if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2 && hasRequiredItems({ 'Water': 1, 'CO2': 1 })) {
+        // Advance quest based on what was collected
+        if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2 && userData.provides === 'Water') {
+            advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2);
+        } else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2 && userData.provides === 'CO2') {
             advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE);
         }
     }
@@ -491,6 +613,11 @@ export function interactWithObject(object, scene) {
 
         addToInventory(userData.name, 1);
         createGameBoySound('collect');
+        
+        // Add collection effect
+        const resourceColor = userData.color || 0xffffff;
+        createCollectionEffect(scene, object.position, resourceColor, userData.name);
+        
         removeResourceFromWorld(object);
         hideInteractionPrompt();
 
@@ -517,6 +644,19 @@ export function interactWithObject(object, scene) {
                     if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY)) questAdvancedGenericFeedbackSuppressed = true;
                 }
             }
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_10B_COLLECT_PRODUCTS) {
+                if (userData.name === 'Arginine' || userData.name === 'Fumarate') {
+                    specificFeedbackGivenForThisResource = true;
+                    if (hasRequiredItems({'Arginine': 1}) && hasRequiredItems({'Fumarate': 1})) {
+                        showFeedback(`Both Arginine and Fumarate collected!`);
+                        if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_11_CONVERT_FUMARATE_TO_MALATE)) questAdvancedGenericFeedbackSuppressed = true;
+                    } else if (userData.name === 'Arginine' && inventory['Arginine'] >= 1 && !(inventory['Fumarate'] >=1) ) {
+                        showFeedback("Arginine collected. Still need Fumarate.");
+                    } else if (userData.name === 'Fumarate' && inventory['Fumarate'] >= 1 && !(inventory['Arginine'] >=1) ) {
+                        showFeedback("Fumarate collected. Still need Arginine.");
+                    }
+                }
+            }
              else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_11_CONVERT_FUMARATE_TO_MALATE) {
                 specificFeedbackGivenForThisResource = true;
                 if (userData.name === 'Arginine' || userData.name === 'Fumarate') {
@@ -527,9 +667,12 @@ export function interactWithObject(object, scene) {
                     } else if (userData.name === 'Fumarate' && inventory['Fumarate'] >= 1 && !(inventory['Arginine'] >=1) ) {
                         showFeedback("Fumarate collected. Still need Arginine.");
                     }
-                } else if (userData.name === 'Malate' && hasRequiredItems({'Malate': 1})) {
-                     if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE)) questAdvancedGenericFeedbackSuppressed = true;
                 }
+            }
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_11A_COLLECT_MALATE && userData.name === 'Malate') {
+                specificFeedbackGivenForThisResource = true;
+                showFeedback("Malate collected!");
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE)) questAdvancedGenericFeedbackSuppressed = true;
             }
              else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA && (userData.name === 'Urea' || userData.name === 'Ornithine')) {
                 specificFeedbackGivenForThisResource = true;

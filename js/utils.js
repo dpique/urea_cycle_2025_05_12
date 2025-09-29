@@ -102,3 +102,59 @@ export function createLightningBoltGeometry() {
     for (let i = 0; i < points.length - 1; i++) { const p1 = points[i]; const p2 = points[i + 1]; const direction = new THREE.Vector3().subVectors(p2, p1).normalize(); const perpendicular = new THREE.Vector3(-direction.y, direction.x, 0).multiplyScalar(thickness); vertices.push( p1.x + perpendicular.x, p1.y + perpendicular.y, p1.z + thickness, p1.x - perpendicular.x, p1.y - perpendicular.y, p1.z + thickness, p2.x + perpendicular.x, p2.y + perpendicular.y, p2.z + thickness ); vertices.push( p1.x - perpendicular.x, p1.y - perpendicular.y, p1.z + thickness, p2.x - perpendicular.x, p2.y - perpendicular.y, p2.z + thickness, p2.x + perpendicular.x, p2.y + perpendicular.y, p2.z + thickness ); vertices.push( p1.x + perpendicular.x, p1.y + perpendicular.y, p1.z - thickness, p2.x + perpendicular.x, p2.y + perpendicular.y, p2.z - thickness, p1.x - perpendicular.x, p1.y - perpendicular.y, p1.z - thickness ); vertices.push( p2.x + perpendicular.x, p2.y + perpendicular.y, p2.z - thickness, p2.x - perpendicular.x, p2.y - perpendicular.y, p2.z - thickness, p1.x - perpendicular.x, p1.y - perpendicular.y, p1.z - thickness ); vertices.push( p1.x + perpendicular.x, p1.y + perpendicular.y, p1.z + thickness, p2.x + perpendicular.x, p2.y + perpendicular.y, p2.z + thickness, p1.x + perpendicular.x, p1.y + perpendicular.y, p1.z - thickness ); vertices.push( p2.x + perpendicular.x, p2.y + perpendicular.y, p2.z + thickness, p2.x + perpendicular.x, p2.y + perpendicular.y, p2.z - thickness, p1.x + perpendicular.x, p1.y + perpendicular.y, p1.z - thickness ); vertices.push( p1.x - perpendicular.x, p1.y - perpendicular.y, p1.z + thickness, p1.x - perpendicular.x, p1.y - perpendicular.y, p1.z - thickness, p2.x - perpendicular.x, p2.y - perpendicular.y, p2.z + thickness ); vertices.push( p1.x - perpendicular.x, p1.y - perpendicular.y, p1.z - thickness, p2.x - perpendicular.x, p2.y - perpendicular.y, p2.z - thickness, p2.x - perpendicular.x, p2.y - perpendicular.y, p2.z + thickness ); }
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.computeVertexNormals(); return geometry;
 }
+
+// Collection Effect - creates a burst of particles and floating text
+export function createCollectionEffect(scene, position, color, itemName) {
+    // Create particle burst
+    const burstParticles = createSimpleParticleSystem(
+        scene, 
+        20,  // count
+        color, 
+        0.15,  // size
+        3.0,   // speed
+        1.0,   // lifetime
+        position,
+        new THREE.Vector3(0.2, 0.2, 0.2)  // emission area
+    );
+    
+    // Create floating text sprite
+    const textSprite = createTextSprite(
+        `+${itemName}`,
+        new THREE.Vector3(position.x, position.y + 1, position.z),
+        { 
+            fontSize: 36,
+            scale: 2.0,
+            textColor: `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 1.0)`
+        }
+    );
+    scene.add(textSprite);
+    
+    // Animate text floating up and fading out
+    let elapsedTime = 0;
+    const animateDuration = 2.0;
+    
+    const animateText = () => {
+        elapsedTime += 0.016; // ~60fps
+        const progress = elapsedTime / animateDuration;
+        
+        if (progress < 1.0) {
+            textSprite.position.y = position.y + 1 + progress * 1.5;
+            textSprite.material.opacity = 1.0 - progress;
+            requestAnimationFrame(animateText);
+        } else {
+            scene.remove(textSprite);
+            textSprite.material.dispose();
+        }
+    };
+    
+    animateText();
+    
+    // Remove burst particles after lifetime
+    setTimeout(() => {
+        scene.remove(burstParticles);
+        burstParticles.geometry.dispose();
+        burstParticles.material.dispose();
+        const index = simpleParticleSystems.indexOf(burstParticles);
+        if (index > -1) simpleParticleSystems.splice(index, 1);
+    }, 1500);
+}

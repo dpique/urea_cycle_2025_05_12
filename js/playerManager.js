@@ -15,10 +15,12 @@ const cameraPositionSmoothFactor = 0.08;
 const cameraTargetSmoothFactor = 0.1;
 
 let playerLeftArm, playerRightArm, playerLeftLeg, playerRightLeg;
+let dustParticles = [];
+let lastFootstepTime = 0;
 
 export function initPlayer(scene) {
     player = new THREE.Group();
-    player.position.set(-5, 0, 0); // Initial position
+    player.position.set(-10, 0, -5); // Initial position away from bridge
     scene.add(player);
 
     const playerBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x0099ff, roughness: 0.6, metalness: 0.2 });
@@ -56,6 +58,9 @@ export function initPlayer(scene) {
     playerRightLeg.position.x = 0.15;
     player.add(playerRightLeg);
 
+    // Remove the custom shadow plane - relying on actual shadows instead
+    // The square shadow was creating visual artifacts
+
     // Initial camera position
     const playerWorldPos = new THREE.Vector3();
     player.getWorldPosition(playerWorldPos);
@@ -76,6 +81,25 @@ export function initPlayer(scene) {
     return player;
 }
 
+function createDustParticle(position) {
+    const geometry = new THREE.SphereGeometry(0.05, 4, 4);
+    const material = new THREE.MeshBasicMaterial({ 
+        color: 0x8b7355, 
+        transparent: true, 
+        opacity: 0.6 
+    });
+    const particle = new THREE.Mesh(geometry, material);
+    particle.position.copy(position);
+    particle.position.y = 0.1;
+    particle.userData.velocity = new THREE.Vector3(
+        (Math.random() - 0.5) * 0.02,
+        Math.random() * 0.03,
+        (Math.random() - 0.5) * 0.02
+    );
+    particle.userData.life = 1.0;
+    return particle;
+}
+
 export function updatePlayer(delta, isUserInteracting, checkCollisionCallback) {
     if (!player) return;
 
@@ -91,9 +115,15 @@ export function updatePlayer(delta, isUserInteracting, checkCollisionCallback) {
     playerVelocity.set(0, 0, 0);
     const moveDirection = new THREE.Vector3(0,0,0);
     const playerIsMoving = moveX !== 0 || moveZ !== 0;
+    
+    // Check if running (Shift key)
+    const isRunning = keysPressed['shift'];
+    const currentSpeed = isRunning ? CONSTANTS.PLAYER_SPEED * 1.5 : CONSTANTS.PLAYER_SPEED;
 
     if (playerIsMoving) {
-        walkCycleTime += delta;
+        // Speed up walk cycle when running
+        const animationSpeed = isRunning ? 1.5 : 1.0;
+        walkCycleTime += delta * animationSpeed;
         if (walkCycleTime > CONSTANTS.PLAYER_WALK_CYCLE_DURATION) {
             walkCycleTime -= CONSTANTS.PLAYER_WALK_CYCLE_DURATION;
         }
@@ -114,7 +144,7 @@ export function updatePlayer(delta, isUserInteracting, checkCollisionCallback) {
         cameraRight.crossVectors(upVector, cameraForward).normalize();
 
         moveDirection.addScaledVector(cameraForward, moveZ).addScaledVector(cameraRight, moveX).normalize();
-        playerVelocity.copy(moveDirection).multiplyScalar(CONSTANTS.PLAYER_SPEED * delta);
+        playerVelocity.copy(moveDirection).multiplyScalar(currentSpeed * delta);
 
         const currentPos = player.position.clone();
         const nextPosX = currentPos.clone().add(new THREE.Vector3(playerVelocity.x, 0, 0));
@@ -135,6 +165,15 @@ export function updatePlayer(delta, isUserInteracting, checkCollisionCallback) {
         if (moveDirection.lengthSq() > 0.001) {
             targetQuaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), moveDirection);
             player.quaternion.slerp(targetQuaternion, 0.2);
+        }
+        
+        // Create dust particles when walking
+        const currentTime = Date.now();
+        if (currentTime - lastFootstepTime > 200) { // Every 200ms
+            const dustParticle = createDustParticle(player.position);
+            player.parent.add(dustParticle); // Add to scene
+            dustParticles.push(dustParticle);
+            lastFootstepTime = currentTime;
         }
     } else {
         walkCycleTime = 0;
@@ -160,4 +199,25 @@ export function updatePlayer(delta, isUserInteracting, checkCollisionCallback) {
         controls.target.copy(cameraTargetLookAt); // Snap if major UI is open
     }
     controls.update(delta);
+    
+    // Update dust particles
+    for (let i = dustParticles.length - 1; i >= 0; i--) {
+        const particle = dustParticles[i];
+        particle.userData.life -= delta * 2;
+        
+        if (particle.userData.life <= 0) {
+            if (particle.parent) particle.parent.remove(particle);
+            if (particle.geometry) particle.geometry.dispose();
+            if (particle.material) particle.material.dispose();
+            dustParticles.splice(i, 1);
+        } else {
+            particle.position.add(particle.userData.velocity);
+            particle.userData.velocity.y -= delta * 0.05; // gravity
+            particle.material.opacity = particle.userData.life * 0.6;
+            const scale = particle.userData.life;
+            particle.scale.set(scale, scale, scale);
+        }
+    }
+    
+    // Shadow handling removed - using actual shadows from lighting
 }

@@ -53,14 +53,8 @@ function getCaveFloorY(xPos) {
 export function initWorld(scene) {
     fixedAlcoveItemPositions = [];
 
-    // Main Ground (Grass)
-    const groundMaterial = new THREE.MeshStandardMaterial({ color: CONSTANTS.GRASS_COLOR, metalness: 0.1, roughness: 0.9 });
-    const groundGeometry = new THREE.PlaneGeometry(CONSTANTS.TOTAL_WIDTH, CONSTANTS.TOTAL_DEPTH);
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.set(0, 0, 0);
-    ground.receiveShadow = true;
-    scene.add(ground);
+    // Create terrain with height variations instead of flat ground
+    createTerrain(scene);
 
     // Mitochondria "Path" Area (West of River)
     const mitoPathMaterial = new THREE.MeshStandardMaterial({ color: CONSTANTS.MITO_PATH_COLOR, metalness: 0.2, roughness: 0.7 });
@@ -74,42 +68,80 @@ export function initWorld(scene) {
     mitoPathMesh.receiveShadow = true;
     scene.add(mitoPathMesh);
 
-    // River Visual
-    const riverMaterial = new THREE.MeshStandardMaterial({
-        color: CONSTANTS.RIVER_COLOR,
-        transparent: true,
-        opacity: 0.85,
-        roughness: 0.1,
-        metalness: 0.2,
-        side: THREE.DoubleSide
-    });
-    // riverMaterial.normalMap = new THREE.TextureLoader().load('path/to/your/water_normal.jpg'); // Optional: for wave effect
-    // riverMaterial.normalScale = new THREE.Vector2(0.3, 0.3);
-    const riverMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(CONSTANTS.RIVER_WIDTH, CONSTANTS.TOTAL_DEPTH * 1.2), // Slightly longer than world
-        riverMaterial
-    );
-    riverMesh.rotation.x = -Math.PI / 2;
-    riverMesh.position.set(CONSTANTS.RIVER_CENTER_X, -0.1, 0); // Slightly below ground for depth
-    scene.add(riverMesh);
+    // Create improved river with depth and natural look
+    createImprovedRiver(scene);
 
-    // Bridge
+    // Create bridge with smooth ramps
     const bridgeMaterial = new THREE.MeshStandardMaterial({ color: CONSTANTS.BRIDGE_COLOR, roughness: 0.8 });
+    
+    // Main bridge platform
     bridgeMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(CONSTANTS.BRIDGE_LENGTH, CONSTANTS.BRIDGE_HEIGHT, CONSTANTS.BRIDGE_WIDTH), // Length along X, Width along Z
+        new THREE.BoxGeometry(CONSTANTS.BRIDGE_LENGTH, CONSTANTS.BRIDGE_HEIGHT * 0.3, CONSTANTS.BRIDGE_WIDTH),
         bridgeMaterial
     );
-    bridgeMesh.position.set(CONSTANTS.BRIDGE_CENTER_X, CONSTANTS.BRIDGE_HEIGHT / 2 - 0.05, CONSTANTS.BRIDGE_CENTER_Z); // Center of river, path width
+    bridgeMesh.position.set(CONSTANTS.BRIDGE_CENTER_X, CONSTANTS.BRIDGE_HEIGHT - CONSTANTS.BRIDGE_HEIGHT * 0.15, CONSTANTS.BRIDGE_CENTER_Z);
     bridgeMesh.castShadow = true;
     bridgeMesh.receiveShadow = true;
     scene.add(bridgeMesh);
-    // Make bridge surface collidable (as a flat box slightly elevated)
-    const bridgeCollider = new THREE.Mesh(
-        new THREE.BoxGeometry(CONSTANTS.BRIDGE_LENGTH, 0.1, CONSTANTS.BRIDGE_WIDTH),
-        new THREE.MeshBasicMaterial({transparent: true, opacity: 0, depthWrite: false}) // Invisible
+    
+    // Ramp parameters
+    const rampLength = 4.0;
+    const rampHeight = CONSTANTS.BRIDGE_HEIGHT;
+    
+    // West ramp (mitochondria side)
+    const westRampGeometry = new THREE.BoxGeometry(rampLength, CONSTANTS.BRIDGE_HEIGHT * 0.3, CONSTANTS.BRIDGE_WIDTH);
+    const westRamp = new THREE.Mesh(westRampGeometry, bridgeMaterial);
+    westRamp.position.set(
+        CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2 - rampLength/2, 
+        rampHeight/2, 
+        CONSTANTS.BRIDGE_CENTER_Z
     );
-    bridgeCollider.position.set(CONSTANTS.BRIDGE_CENTER_X, CONSTANTS.BRIDGE_HEIGHT - 0.05, CONSTANTS.BRIDGE_CENTER_Z);
-    addCollidableWall(bridgeCollider);
+    westRamp.rotation.z = Math.atan(rampHeight / rampLength);
+    westRamp.castShadow = true;
+    westRamp.receiveShadow = true;
+    scene.add(westRamp);
+    
+    // East ramp (cytosol side)
+    const eastRampGeometry = new THREE.BoxGeometry(rampLength, CONSTANTS.BRIDGE_HEIGHT * 0.3, CONSTANTS.BRIDGE_WIDTH);
+    const eastRamp = new THREE.Mesh(eastRampGeometry, bridgeMaterial);
+    eastRamp.position.set(
+        CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2 + rampLength/2, 
+        rampHeight/2, 
+        CONSTANTS.BRIDGE_CENTER_Z
+    );
+    eastRamp.rotation.z = -Math.atan(rampHeight / rampLength);
+    eastRamp.castShadow = true;
+    eastRamp.receiveShadow = true;
+    scene.add(eastRamp);
+    
+    // Create separate collision boxes for ramps to make them walkable
+    // West ramp collision
+    const westRampCollider = new THREE.Mesh(
+        new THREE.BoxGeometry(rampLength, rampHeight * 2, CONSTANTS.BRIDGE_WIDTH),
+        new THREE.MeshBasicMaterial({transparent: true, opacity: 0, depthWrite: false})
+    );
+    westRampCollider.position.set(
+        CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2 - rampLength/2,
+        0,
+        CONSTANTS.BRIDGE_CENTER_Z
+    );
+    westRampCollider.rotation.z = Math.atan(rampHeight / rampLength);
+    scene.add(westRampCollider);
+    
+    // East ramp collision
+    const eastRampCollider = new THREE.Mesh(
+        new THREE.BoxGeometry(rampLength, rampHeight * 2, CONSTANTS.BRIDGE_WIDTH),
+        new THREE.MeshBasicMaterial({transparent: true, opacity: 0, depthWrite: false})
+    );
+    eastRampCollider.position.set(
+        CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2 + rampLength/2,
+        0,
+        CONSTANTS.BRIDGE_CENTER_Z
+    );
+    eastRampCollider.rotation.z = -Math.atan(rampHeight / rampLength);
+    scene.add(eastRampCollider);
+    
+    // Note: Bridge platform doesn't need collision - player walks on it naturally
 
 
     // --- Create ALCOVE ITEMS FIRST to get their positions for rock avoidance ---
@@ -139,38 +171,58 @@ export function initWorld(scene) {
     const alcoveWallHeight = CONSTANTS.WALL_HEIGHT + CONSTANTS.CAVE_SLOPE_DROP;
     const alcoveWallBaseY = (CONSTANTS.WALL_HEIGHT / 2) - (CONSTANTS.CAVE_SLOPE_DROP / 2);
 
+    // Create alcove walls with an entrance
     createWall(scene, { x: CONSTANTS.MIN_X, y: alcoveWallBaseY, z: CONSTANTS.ALCOVE_Z_CENTER }, { x: CONSTANTS.WALL_THICKNESS, y: alcoveWallHeight, z: CONSTANTS.ALCOVE_WIDTH }, 0, "Alcove_Back", alcoveWallMaterial);
     createWall(scene, { x: CONSTANTS.MIN_X + CONSTANTS.WALL_THICKNESS/2 + CONSTANTS.ALCOVE_DEPTH / 2, y: alcoveWallBaseY, z: CONSTANTS.ALCOVE_Z_START - CONSTANTS.WALL_THICKNESS/2 }, { x: CONSTANTS.ALCOVE_DEPTH + CONSTANTS.WALL_THICKNESS, y: alcoveWallHeight, z: CONSTANTS.WALL_THICKNESS }, 0, "Alcove_Side_South", alcoveWallMaterial);
     createWall(scene, { x: CONSTANTS.MIN_X + CONSTANTS.WALL_THICKNESS/2 + CONSTANTS.ALCOVE_DEPTH / 2, y: alcoveWallBaseY, z: CONSTANTS.ALCOVE_Z_END + CONSTANTS.WALL_THICKNESS/2 }, { x: CONSTANTS.ALCOVE_DEPTH + CONSTANTS.WALL_THICKNESS, y: alcoveWallHeight, z: CONSTANTS.WALL_THICKNESS }, 0, "Alcove_Side_North", alcoveWallMaterial);
-
-    const leftWallSeg1Len = CONSTANTS.ALCOVE_Z_START - CONSTANTS.MIN_Z - CONSTANTS.WALL_THICKNESS/2;
-    if (leftWallSeg1Len > 0.1) createWall(scene, { x: CONSTANTS.ALCOVE_OPENING_X_PLANE, y: CONSTANTS.WALL_HEIGHT/2, z: CONSTANTS.MIN_Z + leftWallSeg1Len / 2 }, { x: CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: leftWallSeg1Len });
-    const leftWallSeg2Len = CONSTANTS.MAX_Z - CONSTANTS.ALCOVE_Z_END - CONSTANTS.WALL_THICKNESS/2;
-    if (leftWallSeg2Len > 0.1) createWall(scene, { x: CONSTANTS.ALCOVE_OPENING_X_PLANE, y: CONSTANTS.WALL_HEIGHT/2, z: CONSTANTS.ALCOVE_Z_END + CONSTANTS.WALL_THICKNESS/2 + leftWallSeg2Len / 2 }, { x: CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: leftWallSeg2Len });
-
-    // Outer Walls
-    createWall(scene, { x: CONSTANTS.MAX_X + CONSTANTS.WALL_THICKNESS/2, y: CONSTANTS.WALL_HEIGHT/2, z: 0 }, { x: CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.TOTAL_DEPTH + 2*CONSTANTS.WALL_THICKNESS }, 0, "Outer_East");
-    createWall(scene, { x: (CONSTANTS.MIN_X - CONSTANTS.WALL_THICKNESS/2 + CONSTANTS.ALCOVE_OPENING_X_PLANE)/2 , y: CONSTANTS.WALL_HEIGHT/2, z: CONSTANTS.MIN_Z - CONSTANTS.WALL_THICKNESS/2 }, { x: (CONSTANTS.ALCOVE_OPENING_X_PLANE - (CONSTANTS.MIN_X-CONSTANTS.WALL_THICKNESS)), y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "Outer_South_WestPart");
-    createWall(scene, { x: (CONSTANTS.MIN_X - CONSTANTS.WALL_THICKNESS/2 + CONSTANTS.ALCOVE_OPENING_X_PLANE)/2 , y: CONSTANTS.WALL_HEIGHT/2, z: CONSTANTS.MAX_Z + CONSTANTS.WALL_THICKNESS/2 }, { x: (CONSTANTS.ALCOVE_OPENING_X_PLANE - (CONSTANTS.MIN_X-CONSTANTS.WALL_THICKNESS)), y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "Outer_North_WestPart");
     
-    createWall(scene, { x: (CONSTANTS.CYTO_ZONE_MIN_X + CONSTANTS.WALL_THICKNESS/2 + CONSTANTS.MAX_X)/2 , y: CONSTANTS.WALL_HEIGHT/2, z: CONSTANTS.MIN_Z - CONSTANTS.WALL_THICKNESS/2 }, { x: (CONSTANTS.MAX_X - (CONSTANTS.CYTO_ZONE_MIN_X+CONSTANTS.WALL_THICKNESS/2)), y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "Outer_South_EastPart");
-    createWall(scene, { x: (CONSTANTS.CYTO_ZONE_MIN_X + CONSTANTS.WALL_THICKNESS/2 + CONSTANTS.MAX_X)/2 , y: CONSTANTS.WALL_HEIGHT/2, z: CONSTANTS.MAX_Z + CONSTANTS.WALL_THICKNESS/2 }, { x: (CONSTANTS.MAX_X - (CONSTANTS.CYTO_ZONE_MIN_X+CONSTANTS.WALL_THICKNESS/2)), y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "Outer_North_EastPart");
+    // Alcove is open for easy access - no front wall needed
+
+    // Create walls with gap for Professor's Study entrance at z=-8
+    const professorStudyZ = -8;
+    const studyEntranceWidth = 3; // Width of gap for professor's area
+    
+    // Wall segment 1: From MIN_Z to just before Professor's study
+    const seg1EndZ = professorStudyZ - studyEntranceWidth/2;
+    const leftWallSeg1Len = seg1EndZ - CONSTANTS.MIN_Z;
+    if (leftWallSeg1Len > 0.1) {
+        createWall(scene, 
+            { x: CONSTANTS.ALCOVE_OPENING_X_PLANE, y: CONSTANTS.WALL_HEIGHT/2, z: CONSTANTS.MIN_Z + leftWallSeg1Len / 2 }, 
+            { x: CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: leftWallSeg1Len }
+        );
+    }
+    
+    // Wall segment 2: From after Professor's study to alcove start
+    const seg2StartZ = professorStudyZ + studyEntranceWidth/2;
+    const seg2EndZ = CONSTANTS.ALCOVE_Z_START - CONSTANTS.WALL_THICKNESS/2;
+    const leftWallSeg2Len = seg2EndZ - seg2StartZ;
+    if (leftWallSeg2Len > 0.1) {
+        createWall(scene, 
+            { x: CONSTANTS.ALCOVE_OPENING_X_PLANE, y: CONSTANTS.WALL_HEIGHT/2, z: seg2StartZ + leftWallSeg2Len / 2 }, 
+            { x: CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: leftWallSeg2Len }
+        );
+    }
+    
+    // Wall segment 3: From alcove end to MAX_Z
+    const leftWallSeg3Len = CONSTANTS.MAX_Z - CONSTANTS.ALCOVE_Z_END - CONSTANTS.WALL_THICKNESS/2;
+    if (leftWallSeg3Len > 0.1) {
+        createWall(scene, 
+            { x: CONSTANTS.ALCOVE_OPENING_X_PLANE, y: CONSTANTS.WALL_HEIGHT/2, z: CONSTANTS.ALCOVE_Z_END + CONSTANTS.WALL_THICKNESS/2 + leftWallSeg3Len / 2 }, 
+            { x: CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: leftWallSeg3Len }
+        );
+    }
+
+    // Create natural terrain barriers instead of walls
+    createNaturalBarriers(scene);
+    
+    // Add environmental details
+    addEnvironmentalDetails(scene);
+    
+    // Add physical trails
+    addPhysicalTrails(scene);
 
 
-    // Walls guiding to the bridge on Mitochondria side (West of River)
-    const mitoBridgeApproachWallX = CONSTANTS.MITO_ZONE_MAX_X - CONSTANTS.WALL_THICKNESS / 2;
-    const bridgeApproachWallLengthMito = (CONSTANTS.TOTAL_DEPTH - CONSTANTS.BRIDGE_WIDTH) / 2 - CONSTANTS.WALL_THICKNESS / 2;
-    if (bridgeApproachWallLengthMito > 0.1) {
-        createWall(scene, { x: mitoBridgeApproachWallX, y: CONSTANTS.WALL_HEIGHT / 2, z: CONSTANTS.MIN_Z + bridgeApproachWallLengthMito / 2 }, { x: CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: bridgeApproachWallLengthMito });
-        createWall(scene, { x: mitoBridgeApproachWallX, y: CONSTANTS.WALL_HEIGHT / 2, z: CONSTANTS.MAX_Z - bridgeApproachWallLengthMito / 2 }, { x: CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: bridgeApproachWallLengthMito });
-    }
-    // Walls guiding to the bridge on Cytosol side (East of River)
-    const cytoBridgeApproachWallX = CONSTANTS.CYTO_ZONE_MIN_X + CONSTANTS.WALL_THICKNESS / 2;
-    const bridgeApproachWallLengthCyto = (CONSTANTS.TOTAL_DEPTH - CONSTANTS.BRIDGE_WIDTH) / 2 - CONSTANTS.WALL_THICKNESS / 2;
-    if (bridgeApproachWallLengthCyto > 0.1) {
-        createWall(scene, { x: cytoBridgeApproachWallX, y: CONSTANTS.WALL_HEIGHT / 2, z: CONSTANTS.MIN_Z + bridgeApproachWallLengthCyto / 2 }, { x: CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: bridgeApproachWallLengthCyto });
-        createWall(scene, { x: cytoBridgeApproachWallX, y: CONSTANTS.WALL_HEIGHT / 2, z: CONSTANTS.MAX_Z - bridgeApproachWallLengthCyto / 2 }, { x: CONSTANTS.WALL_THICKNESS, y: CONSTANTS.WALL_HEIGHT, z: bridgeApproachWallLengthCyto });
-    }
+    // Removed river walls - no longer needed with wider river
 
 
     const internalWallLength = CONSTANTS.MITO_WIDTH * 0.3;
@@ -179,18 +231,21 @@ export function initWorld(scene) {
         createWall(scene, { x: internalWallCenterX, y: CONSTANTS.WALL_HEIGHT/2, z: -4 }, { x: internalWallLength, y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "H_Mito_Internal_1", alcoveWallMaterial);
         createWall(scene, { x: internalWallCenterX, y: CONSTANTS.WALL_HEIGHT/2, z: 4 }, { x: internalWallLength, y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "H_Mito_Internal_2", alcoveWallMaterial);
     }
+    // Create Professor Hepaticus's Study area
+    createProfessorStudyArea(scene);
+    
     addMitoCristae(scene);
     addCytoVesicles(scene);
 
     createResource(scene, 'NH3', { x: CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5, z: CONSTANTS.ALCOVE_Z_END - 0.5 }, CONSTANTS.NH3_COLOR, {initialY: getCaveFloorY(CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5) + 0.6});
     createResource(scene, 'ATP', { x: CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5, z: CONSTANTS.ALCOVE_Z_START + 0.5 }, CONSTANTS.ATP_COLOR, {initialY: getCaveFloorY(CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5) + 0.6});
-    createResource(scene, 'ATP', { x: -10, z: 8 }, CONSTANTS.ATP_COLOR, {initialY: 0.6}); // Mito ATP
+    createResource(scene, 'ATP', { x: CONSTANTS.MIN_X + 25, z: 12 }, CONSTANTS.ATP_COLOR, {initialY: 0.6}); // Mito ATP
 
-    // ATP in Cytosol
-    createResource(scene, 'ATP', { x: CONSTANTS.CYTO_ZONE_MIN_X + 3, z: 0 }, CONSTANTS.ATP_COLOR, {initialY: 0.6});
+    // ATP in Cytosol - spread out more
+    createResource(scene, 'ATP', { x: CONSTANTS.CYTO_ZONE_MIN_X + 10, z: -8 }, CONSTANTS.ATP_COLOR, {initialY: 0.6});
     // Aspartate is no longer a free pickup, it comes from the shuttle
 
-    createWasteBucket(scene, new THREE.Vector3(CONSTANTS.MAX_X - 2, 0.01, - (CONSTANTS.MAX_Z - 2) )); // Cytosol, far corner
+    createWasteBucket(scene, new THREE.Vector3(CONSTANTS.MAX_X - 5, 0.01, CONSTANTS.MAX_Z - 5)); // Cytosol, far corner
 
     // NPC placement for Fumarase and Shuttle Driver will be handled by npcManager using constants
     // Example: Fumarase in Cytosol near Aslan, Shuttle near bridge Cytosol side.
@@ -258,6 +313,43 @@ function createCaveArea(scene) {
     });
 }
 
+function createProfessorStudyArea(scene) {
+    // Professor Hepaticus is at (CONSTANTS.MIN_X + 10, 0, -8), which is (-30, 0, -8)
+    // We've created a gap in the wall for access, so just add some study decorations
+    const professorX = CONSTANTS.MIN_X + 10;
+    const professorZ = -8;
+    
+    // Add some study decorations in the area
+    const bookshelfMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x4a3829,
+        roughness: 0.9
+    });
+    
+    // Bookshelf against the back wall
+    const bookshelf = new THREE.Mesh(
+        new THREE.BoxGeometry(3, 2, 0.3),
+        bookshelfMaterial
+    );
+    bookshelf.position.set(CONSTANTS.MIN_X + 0.2, 1, professorZ);
+    scene.add(bookshelf);
+    
+    // Small desk
+    const deskMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x5c4033,
+        roughness: 0.8
+    });
+    const desk = new THREE.Mesh(
+        new THREE.BoxGeometry(1.5, 0.8, 1),
+        deskMaterial
+    );
+    desk.position.set(professorX - 1, 0.4, professorZ);
+    scene.add(desk);
+    
+    // Add a warm light in the study area
+    const studyLight = new THREE.PointLight(0xffcc88, 0.5, 8);
+    studyLight.position.set(professorX, 2.5, professorZ);
+    scene.add(studyLight);
+}
 
 export function createResource(scene, name, position, color, userData = {}) {
     try {
@@ -315,11 +407,31 @@ export function createResource(scene, name, position, color, userData = {}) {
             resource.rotation.y = Math.random() * Math.PI * 2;
         }
 
-        scene.add(resource);
-        interactiveObjects.push(resource);
-        resourceMeshes.push(resource);
+        // Create a group to hold both resource and label
+        const resourceGroup = new THREE.Group();
+        resourceGroup.position.set(resource.position.x, resource.position.y, resource.position.z);
+        resource.position.set(0, 0, 0);
+        resourceGroup.add(resource);
+        
+        // Add label above the resource
+        const label = createTextSprite(name, { x: 0, y: 0.8, z: 0 }, { 
+            fontSize: 32, 
+            scale: 0.5, 
+            textColor: 'rgba(255, 255, 255, 0.9)' 
+        });
+        resourceGroup.add(label);
+        
+        // Update userData to point to the group
+        resourceGroup.userData = resource.userData;
+        resourceGroup.userData.object3D = resourceGroup;
+        resourceGroup.userData.resourceMesh = resource;
+        resourceGroup.userData.label = label;
+        
+        scene.add(resourceGroup);
+        interactiveObjects.push(resourceGroup);
+        resourceMeshes.push(resourceGroup);
         originalMaterials.set(resource, material.clone());
-        return resource;
+        return resourceGroup;
     } catch (error) {
         console.error(`Error creating resource ${name}:`, error);
         return null;
@@ -451,7 +563,7 @@ function createAlchemistsBrazier(scene, position) {
     emberLight.position.y = 0.7;
     group.add(emberLight);
 
-    group.userData = { type: 'source', name: 'Fire Pit', provides: 'CO2', requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2, mainMesh: brazierMesh };
+    group.userData = { type: 'source', name: 'Fire Pit', provides: 'CO2', requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2, mainMesh: brazierMesh };
     interactiveObjects.push(group);
     originalMaterials.set(brazierMesh, brazierMesh.material.clone());
     scene.add(group);
@@ -574,6 +686,54 @@ export function removePortalBarrierFromWorld(scene) {
 
 export function getPortalBarrier() { return portalBarrier; }
 
+// Get terrain height at a specific position
+export function getTerrainHeightAt(x, z) {
+    // Check if in cave/alcove area first
+    if (x >= CONSTANTS.MIN_X && x <= CONSTANTS.ALCOVE_OPENING_X_PLANE &&
+        z >= CONSTANTS.ALCOVE_Z_START && z <= CONSTANTS.ALCOVE_Z_END) {
+        return getCaveFloorY(x);
+    }
+    
+    // Base terrain height calculation (matching the terrain generation)
+    const worldX = x;
+    const worldZ = z;
+    
+    // Distance from center calculations
+    const distFromCenterX = Math.abs(worldX) / (CONSTANTS.TOTAL_WIDTH / 2);
+    const distFromCenterZ = Math.abs(worldZ) / (CONSTANTS.TOTAL_DEPTH / 2);
+    const distFromEdge = Math.max(distFromCenterX, distFromCenterZ);
+    
+    // Base terrain height - matching the gentler terrain generation
+    let height = 0;
+    
+    // Very subtle rolling hills
+    height += Math.sin(worldX * 0.03) * Math.cos(worldZ * 0.03) * 0.5;
+    height += Math.sin(worldX * 0.07 + 1.5) * Math.cos(worldZ * 0.05) * 0.3;
+    height += Math.sin(worldX * 0.015) * Math.sin(worldZ * 0.015) * 0.4;
+    
+    // Very slight biome adjustments
+    if (worldX < CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH) {
+        // Mitochondria area - very slightly elevated
+        height += 0.2;
+    } else if (worldX > CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH) {
+        // Cytosol area - almost flat
+        height += 0.1;
+    } else {
+        // River valley - slightly depressed
+        height -= 0.5;
+    }
+    
+    // Very gentle edge slopes
+    if (distFromEdge > 0.85) {
+        const edgeStrength = (distFromEdge - 0.85) / 0.15;
+        const smoothEdge = edgeStrength * edgeStrength;
+        height += smoothEdge * 1.5;
+        height += smoothEdge * Math.sin(worldX * 0.1) * Math.cos(worldZ * 0.1) * 0.2;
+    }
+    
+    return height * 0.1; // Scale down to match world scale
+}
+
 function addMitoCristae(scene) {
     const cristaeMat = new THREE.MeshStandardMaterial({ color: CONSTANTS.MITO_PATH_COLOR, roughness: 0.9, side:THREE.DoubleSide });
     const cristaeHeight = CONSTANTS.WALL_HEIGHT * 0.6;
@@ -664,4 +824,513 @@ export function removeResourceFromWorld(resourceObject) {
             resourceObject.material.dispose();
         }
     }
+}
+
+// New terrain system with rolling hills and seamless boundaries
+function createTerrain(scene) {
+    // Create the main playable terrain
+    const segments = 80;
+    const geometry = new THREE.PlaneGeometry(CONSTANTS.TOTAL_WIDTH, CONSTANTS.TOTAL_DEPTH, segments, segments);
+    
+    // Create height variation with rolling hills
+    const vertices = geometry.attributes.position.array;
+    for (let i = 0; i < vertices.length; i += 3) {
+        const x = vertices[i];
+        const z = vertices[i + 1];
+        
+        // Distance from center for boundary elevation
+        const distFromCenterX = Math.abs(x) / (CONSTANTS.TOTAL_WIDTH / 2);
+        const distFromCenterZ = Math.abs(z) / (CONSTANTS.TOTAL_DEPTH / 2);
+        const distFromEdge = Math.max(distFromCenterX, distFromCenterZ);
+        
+        // Base terrain height - much gentler like RuneScape
+        let height = 0;
+        
+        // Very subtle rolling hills
+        height += Math.sin(x * 0.03) * Math.cos(z * 0.03) * 0.5;
+        height += Math.sin(x * 0.07 + 1.5) * Math.cos(z * 0.05) * 0.3;
+        height += Math.sin(x * 0.015) * Math.sin(z * 0.015) * 0.4;
+        
+        // Very slight biome adjustments
+        if (x < CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH) {
+            // Mitochondria area - very slightly elevated
+            height += 0.2;
+        } else if (x > CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH) {
+            // Cytosol area - almost flat
+            height += 0.1;
+        } else {
+            // River valley - slightly depressed
+            height -= 0.5;
+        }
+        
+        // Very gentle edge slopes for natural boundaries
+        if (distFromEdge > 0.85) {
+            // Far edge - gentle rise
+            const edgeStrength = (distFromEdge - 0.85) / 0.15;
+            const smoothEdge = edgeStrength * edgeStrength;
+            height += smoothEdge * 1.5; // Much gentler rise
+            
+            // Tiny variation
+            height += smoothEdge * Math.sin(x * 0.1) * Math.cos(z * 0.1) * 0.2;
+        }
+        
+        // Ensure terrain stays grounded (no negative heights except in river)
+        if (x < CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH || 
+            x > CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH) {
+            height = Math.max(height, 0);
+        }
+        
+        vertices[i + 2] = height;
+    }
+    
+    geometry.computeVertexNormals();
+    
+    // Create terrain material with better shading
+    const terrainMaterial = new THREE.MeshStandardMaterial({
+        roughness: 0.85,
+        metalness: 0.05,
+        vertexColors: true,
+        flatShading: false // Smooth shading for better terrain look
+    });
+    
+    // Add vertex colors for biome variation
+    const colors = new Float32Array(vertices.length);
+    for (let i = 0; i < vertices.length; i += 3) {
+        const x = vertices[i];
+        const z = vertices[i + 1];
+        const height = vertices[i + 2];
+        
+        // Base color based on biome with better RuneScape-style colors
+        let r, g, b;
+        if (x < CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH) {
+            // Mitochondria - sandy brown
+            r = 0.76; g = 0.64; b = 0.42;
+        } else if (x > CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH) {
+            // Cytosol - grassy green  
+            r = 0.35; g = 0.62; b = 0.31;
+        } else {
+            // Near river - darker grass/mud
+            r = 0.31; g = 0.44; b = 0.28;
+        }
+        
+        // Add variation based on position
+        const noise = Math.sin(x * 0.1) * Math.cos(z * 0.1) * 0.1;
+        r = Math.min(1, Math.max(0, r + noise));
+        g = Math.min(1, Math.max(0, g + noise));
+        b = Math.min(1, Math.max(0, b + noise));
+        
+        // Subtle shading based on height
+        const heightShade = 1 - Math.min(Math.max(height - 2, 0) / 8, 0.2);
+        colors[i] = r * heightShade;
+        colors[i + 1] = g * heightShade;
+        colors[i + 2] = b * heightShade;
+    }
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    const terrain = new THREE.Mesh(geometry, terrainMaterial);
+    terrain.rotation.x = -Math.PI / 2;
+    terrain.position.set(0, 0, 0);
+    terrain.receiveShadow = true;
+    scene.add(terrain);
+    
+    // Create background terrain that extends beyond playable area
+    createBackgroundTerrain(scene);
+}
+
+function createBackgroundTerrain(scene) {
+    // Create extended terrain that goes beyond the playable area
+    const extendedWidth = CONSTANTS.TOTAL_WIDTH * 3; // 3x wider than playable area
+    const extendedDepth = CONSTANTS.TOTAL_DEPTH * 3; // 3x deeper than playable area
+    const segments = 120;
+    
+    const backgroundGeometry = new THREE.PlaneGeometry(extendedWidth, extendedDepth, segments, segments);
+    const positions = backgroundGeometry.attributes.position;
+    
+    // Generate background terrain with larger features
+    for (let i = 0; i < positions.count; i++) {
+        const x = positions.getX(i);
+        const z = positions.getZ(i);
+        
+        // Distance from center of world
+        const distFromCenter = Math.sqrt(x * x + z * z);
+        const maxDist = Math.sqrt((extendedWidth/2) * (extendedWidth/2) + (extendedDepth/2) * (extendedDepth/2));
+        const normalizedDist = distFromCenter / maxDist;
+        
+        // Create gentle rolling hills for background
+        let height = 0;
+        
+        // Gentle hills in the distance
+        height += Math.sin(x * 0.015) * Math.cos(z * 0.015) * 2;
+        height += Math.sin(x * 0.025 + 2.5) * Math.cos(z * 0.02) * 1.5;
+        height += Math.sin(x * 0.01) * Math.cos(z * 0.012 + 1.2) * 2.5;
+        
+        // Slightly more variation as we get further from center
+        if (normalizedDist > 0.4) {
+            const distanceBoost = (normalizedDist - 0.4) / 0.6;
+            height += distanceBoost * 3 * (Math.sin(x * 0.008) + Math.cos(z * 0.008));
+            
+            // Small hills at the edges
+            if (normalizedDist > 0.8) {
+                const hillStrength = (normalizedDist - 0.8) / 0.2;
+                height += hillStrength * 4 * Math.pow(Math.sin(x * 0.005) * Math.cos(z * 0.005), 2);
+            }
+        }
+        
+        // Make sure background terrain is lower than playable area boundaries
+        const playableX = Math.abs(x) <= CONSTANTS.MAX_X;
+        const playableZ = Math.abs(z) <= CONSTANTS.MAX_Z;
+        if (playableX && playableZ) {
+            // Inside playable area - keep it low
+            height *= 0.3;
+        }
+        
+        positions.setY(i, height);
+    }
+    
+    backgroundGeometry.computeVertexNormals();
+    
+    // Create gradient material for background terrain
+    const backgroundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x3a5f3a,
+        roughness: 0.9,
+        metalness: 0.1,
+        side: THREE.DoubleSide,
+        fog: true // Ensure fog affects background terrain
+    });
+    
+    const backgroundTerrain = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
+    backgroundTerrain.rotation.x = -Math.PI / 2;
+    backgroundTerrain.position.set(0, -0.5, 0); // Better alignment with main terrain
+    backgroundTerrain.receiveShadow = true;
+    scene.add(backgroundTerrain);
+    
+    // Add distant features like larger mountains
+    addDistantMountains(scene);
+}
+
+function addDistantMountains(scene) {
+    // Create large mountain peaks in the distance
+    const mountainMaterial = new THREE.MeshStandardMaterial({
+        color: 0x4a5568,
+        roughness: 0.95,
+        metalness: 0.05
+    });
+    
+    // Place mountains around the perimeter
+    for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const distance = 100 + Math.random() * 50;
+        
+        const mountainGroup = new THREE.Group();
+        
+        // Smaller, gentler hills in the distance
+        const hillGeometry = new THREE.ConeGeometry(15 + Math.random() * 5, 10 + Math.random() * 5, 6);
+        const hill = new THREE.Mesh(hillGeometry, mountainMaterial);
+        hill.position.y = 0;
+        mountainGroup.add(hill);
+        
+        // Small mounds around it
+        for (let j = 0; j < 2; j++) {
+            const moundGeometry = new THREE.SphereGeometry(5 + Math.random() * 3, 6, 4);
+            const mound = new THREE.Mesh(moundGeometry, mountainMaterial);
+            mound.position.set(
+                (Math.random() - 0.5) * 15,
+                -2,
+                (Math.random() - 0.5) * 15
+            );
+            mound.scale.y = 0.4; // Flatten to make it more mound-like
+            mountainGroup.add(mound);
+        }
+        
+        mountainGroup.position.set(
+            Math.cos(angle) * distance,
+            -2,
+            Math.sin(angle) * distance
+        );
+        scene.add(mountainGroup);
+    }
+}
+
+function createNaturalBarriers(scene) {
+    // Create invisible collision barriers at the edges
+    // Players will be stopped by the steep terrain elevation, not visible walls
+    
+    // Create invisible barriers for collision detection only
+    const barrierMaterial = new THREE.MeshBasicMaterial({ 
+        visible: false // Invisible barriers
+    });
+    
+    // West barrier
+    const westBarrier = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 20, CONSTANTS.TOTAL_DEPTH),
+        barrierMaterial
+    );
+    westBarrier.position.set(CONSTANTS.MIN_X - 0.5, 10, 0);
+    scene.add(westBarrier);
+    wallBoundingBoxes.push(new THREE.Box3().setFromObject(westBarrier));
+    
+    // East barrier
+    const eastBarrier = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 20, CONSTANTS.TOTAL_DEPTH),
+        barrierMaterial
+    );
+    eastBarrier.position.set(CONSTANTS.MAX_X + 0.5, 10, 0);
+    scene.add(eastBarrier);
+    wallBoundingBoxes.push(new THREE.Box3().setFromObject(eastBarrier));
+    
+    // North barrier
+    const northBarrier = new THREE.Mesh(
+        new THREE.BoxGeometry(CONSTANTS.TOTAL_WIDTH, 20, 1),
+        barrierMaterial
+    );
+    northBarrier.position.set(0, 10, CONSTANTS.MAX_Z + 0.5);
+    scene.add(northBarrier);
+    wallBoundingBoxes.push(new THREE.Box3().setFromObject(northBarrier));
+    
+    // South barrier
+    const southBarrier = new THREE.Mesh(
+        new THREE.BoxGeometry(CONSTANTS.TOTAL_WIDTH, 20, 1),
+        barrierMaterial
+    );
+    southBarrier.position.set(0, 10, CONSTANTS.MIN_Z - 0.5);
+    scene.add(southBarrier);
+    wallBoundingBoxes.push(new THREE.Box3().setFromObject(southBarrier));
+}
+
+function addEnvironmentalDetails(scene) {
+    // Add trees in cytosol area
+    for (let i = 0; i < 15; i++) {
+        const x = CONSTANTS.CYTO_ZONE_MIN_X + 5 + Math.random() * (CONSTANTS.MAX_X - CONSTANTS.CYTO_ZONE_MIN_X - 10);
+        const z = CONSTANTS.MIN_Z + 5 + Math.random() * (CONSTANTS.TOTAL_DEPTH - 10);
+        createTree(scene, x, z);
+    }
+    
+    // Add rocks and boulders
+    for (let i = 0; i < 20; i++) {
+        const x = CONSTANTS.MIN_X + Math.random() * CONSTANTS.TOTAL_WIDTH;
+        const z = CONSTANTS.MIN_Z + Math.random() * CONSTANTS.TOTAL_DEPTH;
+        // Avoid placing in river
+        if (Math.abs(x - CONSTANTS.RIVER_CENTER_X) > CONSTANTS.RIVER_WIDTH) {
+            createRock(scene, x, z);
+        }
+    }
+    
+    // Add crystals in mitochondria area
+    for (let i = 0; i < 10; i++) {
+        const x = CONSTANTS.MIN_X + 5 + Math.random() * (CONSTANTS.MITO_ZONE_MAX_X - CONSTANTS.MIN_X - 10);
+        const z = CONSTANTS.MIN_Z + 5 + Math.random() * (CONSTANTS.TOTAL_DEPTH - 10);
+        createCrystal(scene, x, z);
+    }
+}
+
+function createTree(scene, x, z) {
+    const treeGroup = new THREE.Group();
+    
+    // Trunk
+    const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 3, 6);
+    const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x4a3c28 });
+    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    trunk.position.y = 1.5;
+    trunk.castShadow = true;
+    treeGroup.add(trunk);
+    
+    // Foliage
+    const foliageGeometry = new THREE.ConeGeometry(2, 4, 8);
+    const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x2d5016 });
+    const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+    foliage.position.y = 4.5;
+    foliage.castShadow = true;
+    treeGroup.add(foliage);
+    
+    treeGroup.position.set(x, 0, z);
+    scene.add(treeGroup);
+}
+
+function createRock(scene, x, z) {
+    const rockGeometry = new THREE.DodecahedronGeometry(0.5 + Math.random() * 0.5, 0);
+    const rockMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x5a5a5a,
+        roughness: 0.9 
+    });
+    const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+    rock.position.set(x, Math.random() * 0.3, z);
+    rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    rock.castShadow = true;
+    scene.add(rock);
+}
+
+function createCrystal(scene, x, z) {
+    const crystalGeometry = new THREE.OctahedronGeometry(0.3, 0);
+    const crystalMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x7fffd4,
+        emissive: 0x7fffd4,
+        emissiveIntensity: 0.2,
+        roughness: 0.2,
+        metalness: 0.8
+    });
+    const crystal = new THREE.Mesh(crystalGeometry, crystalMaterial);
+    crystal.position.set(x, 0.3, z);
+    crystal.rotation.y = Math.random() * Math.PI;
+    scene.add(crystal);
+}
+
+function addPhysicalTrails(scene) {
+    // Create trail material
+    const trailMaterial = new THREE.MeshBasicMaterial({
+        color: 0xc4a57b, // Sandy brown color
+        transparent: true,
+        opacity: 0.6
+    });
+    
+    // Define trail segments matching minimap trails
+    const trailSegments = [
+        // Mitochondria trails
+        { from: { x: CONSTANTS.MIN_X + 10, z: -8 }, to: { x: CONSTANTS.MIN_X + 15, z: 15 } }, // Prof to Casper
+        { from: { x: CONSTANTS.MIN_X + 15, z: 15 }, to: { x: CONSTANTS.MIN_X + 20, z: -10 } }, // Casper to Otis
+        { from: { x: CONSTANTS.MIN_X + 20, z: -10 }, to: { x: CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2 - 2, z: 0 } }, // Otis to Usher
+        
+        // Bridge approach trails
+        { from: { x: CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2 - 6, z: 0 }, to: { x: CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2, z: 0 } }, // To bridge west
+        { from: { x: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2, z: 0 }, to: { x: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2 + 6, z: 0 } }, // From bridge east
+        
+        // Cytosol trails
+        { from: { x: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2 + 6, z: 0 }, to: { x: CONSTANTS.CYTO_ZONE_MIN_X + 10, z: -15 } }, // Bridge to Donkey
+        { from: { x: CONSTANTS.CYTO_ZONE_MIN_X + 10, z: -15 }, to: { x: CONSTANTS.CYTO_ZONE_MIN_X + 25, z: 15 } }, // Donkey to Aslan
+        { from: { x: CONSTANTS.CYTO_ZONE_MIN_X + 25, z: 15 }, to: { x: CONSTANTS.CYTO_ZONE_MIN_X + 20, z: 0 } }, // Aslan to Fumarase
+        { from: { x: CONSTANTS.CYTO_ZONE_MIN_X + 20, z: 0 }, to: { x: CONSTANTS.CYTO_ZONE_MIN_X + 5, z: CONSTANTS.BRIDGE_CENTER_Z + 2 } }, // Fumarase to Shuttle
+        { from: { x: CONSTANTS.CYTO_ZONE_MIN_X + 5, z: CONSTANTS.BRIDGE_CENTER_Z + 2 }, to: { x: CONSTANTS.MAX_X - 15, z: -10 } }, // Shuttle to Argus
+        { from: { x: CONSTANTS.MAX_X - 15, z: -10 }, to: { x: CONSTANTS.MAX_X - 5, z: CONSTANTS.MAX_Z - 5 } } // Argus to Waste
+    ];
+    
+    const trailWidth = 1.5;
+    
+    trailSegments.forEach(segment => {
+        const dx = segment.to.x - segment.from.x;
+        const dz = segment.to.z - segment.from.z;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        const angle = Math.atan2(dz, dx);
+        
+        // Create trail plane
+        const trailGeometry = new THREE.PlaneGeometry(distance, trailWidth);
+        const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+        
+        // Position and rotate trail
+        trail.position.set(
+            (segment.from.x + segment.to.x) / 2,
+            0.02, // Slightly above ground
+            (segment.from.z + segment.to.z) / 2
+        );
+        trail.rotation.x = -Math.PI / 2; // Lay flat
+        trail.rotation.z = -angle; // Orient along path
+        trail.receiveShadow = true;
+        
+        scene.add(trail);
+        
+        // Add some stones along the trail for visual interest
+        const numStones = Math.floor(distance / 3);
+        for (let i = 0; i < numStones; i++) {
+            const t = (i + 0.5) / numStones;
+            const stoneX = segment.from.x + dx * t + (Math.random() - 0.5) * trailWidth;
+            const stoneZ = segment.from.z + dz * t + (Math.random() - 0.5) * trailWidth;
+            
+            const stoneGeometry = new THREE.SphereGeometry(0.1 + Math.random() * 0.1, 4, 3);
+            const stoneMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x808080,
+                roughness: 0.9
+            });
+            const stone = new THREE.Mesh(stoneGeometry, stoneMaterial);
+            stone.position.set(stoneX, 0.05, stoneZ);
+            stone.castShadow = true;
+            scene.add(stone);
+        }
+    });
+}
+
+// Create a more natural-looking river with depth
+function createImprovedRiver(scene) {
+    // River bed (darker, lower)
+    const riverBedGeometry = new THREE.PlaneGeometry(CONSTANTS.RIVER_WIDTH * 1.2, CONSTANTS.TOTAL_DEPTH * 1.2, 20, 40);
+    const riverBedPositions = riverBedGeometry.attributes.position.array;
+    
+    // Add depth variation to river bed
+    for (let i = 0; i < riverBedPositions.length; i += 3) {
+        const x = riverBedPositions[i];
+        const z = riverBedPositions[i + 1];
+        
+        // Create river bed depth with center being deeper
+        const distFromCenter = Math.abs(x) / (CONSTANTS.RIVER_WIDTH * 0.6);
+        const depthFactor = 1 - Math.min(distFromCenter, 1);
+        
+        // Add some noise for natural look
+        const noise = Math.sin(z * 0.1) * Math.cos(x * 0.15) * 0.2;
+        
+        riverBedPositions[i + 2] = -1.5 * depthFactor + noise;
+    }
+    riverBedGeometry.computeVertexNormals();
+    
+    const riverBedMaterial = new THREE.MeshStandardMaterial({
+        color: 0x1a3a52,
+        roughness: 0.9,
+        metalness: 0.1
+    });
+    
+    const riverBed = new THREE.Mesh(riverBedGeometry, riverBedMaterial);
+    riverBed.rotation.x = -Math.PI / 2;
+    riverBed.position.set(CONSTANTS.RIVER_CENTER_X, -0.5, 0);
+    riverBed.receiveShadow = true;
+    scene.add(riverBed);
+    
+    // River water surface (semi-transparent)
+    const waterGeometry = new THREE.PlaneGeometry(CONSTANTS.RIVER_WIDTH, CONSTANTS.TOTAL_DEPTH * 1.2, 10, 20);
+    const waterPositions = waterGeometry.attributes.position.array;
+    
+    // Add gentle waves to water surface
+    for (let i = 0; i < waterPositions.length; i += 3) {
+        const x = waterPositions[i];
+        const z = waterPositions[i + 1];
+        
+        // Gentle wave pattern
+        waterPositions[i + 2] = Math.sin(x * 0.5) * Math.cos(z * 0.3) * 0.05;
+    }
+    waterGeometry.computeVertexNormals();
+    
+    const waterMaterial = new THREE.MeshStandardMaterial({
+        color: CONSTANTS.RIVER_COLOR,
+        transparent: true,
+        opacity: 0.7,
+        roughness: 0.1,
+        metalness: 0.3,
+        side: THREE.DoubleSide
+    });
+    
+    const waterSurface = new THREE.Mesh(waterGeometry, waterMaterial);
+    waterSurface.rotation.x = -Math.PI / 2;
+    waterSurface.position.set(CONSTANTS.RIVER_CENTER_X, -0.3, 0);
+    scene.add(waterSurface);
+    
+    // River banks (raised edges)
+    const bankMaterial = new THREE.MeshStandardMaterial({
+        color: 0x654321,
+        roughness: 0.9
+    });
+    
+    // West bank
+    const westBank = new THREE.Mesh(
+        new THREE.BoxGeometry(2, 0.5, CONSTANTS.TOTAL_DEPTH * 1.2),
+        bankMaterial
+    );
+    westBank.position.set(CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH/2 - 1, 0.25, 0);
+    westBank.receiveShadow = true;
+    westBank.castShadow = true;
+    scene.add(westBank);
+    
+    // East bank
+    const eastBank = new THREE.Mesh(
+        new THREE.BoxGeometry(2, 0.5, CONSTANTS.TOTAL_DEPTH * 1.2),
+        bankMaterial
+    );
+    eastBank.position.set(CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH/2 + 1, 0.25, 0);
+    eastBank.receiveShadow = true;
+    eastBank.castShadow = true;
+    scene.add(eastBank);
 }

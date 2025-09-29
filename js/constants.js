@@ -30,11 +30,11 @@ export const MALATE_COLOR = 0x90EE90; // Light green for Malate
 
 
 // --- Layout Constants ---
-export const MIN_X = -20; export const MAX_X = 20; // Increased world size for more separation
-export const MIN_Z = -15; export const MAX_Z = 15; // Increased world size
+export const MIN_X = -40; export const MAX_X = 40; // Much larger world for exploration
+export const MIN_Z = -30; export const MAX_Z = 30; // Much larger world
 
 export const RIVER_CENTER_X = 0; // River runs along X=0 (north-south)
-export const RIVER_WIDTH = 4.0;  // Width of the river visual
+export const RIVER_WIDTH = 8.0;  // Width of the river visual - wider to prevent jumping
 
 export const BRIDGE_LENGTH = 8.0;  // Length of the bridge (spanning the river, so along X-axis)
 export const BRIDGE_WIDTH = 2.5;   // Width of the bridge path (along Z-axis)
@@ -88,6 +88,7 @@ export const INTERACTION_RADIUS_SQ = 2.0 * 2.0;
 export const QUEST_STATE = Object.freeze({
     NOT_STARTED: 'NOT_STARTED',
     STEP_0_GATHER_WATER_CO2: 'STEP_0_GATHER_WATER_CO2',
+    STEP_0A_GATHER_CO2: 'STEP_0A_GATHER_CO2',
     STEP_0B_MAKE_BICARBONATE: 'STEP_0B_MAKE_BICARBONATE',
     STEP_0C_COLLECT_BICARBONATE: 'STEP_0C_COLLECT_BICARBONATE',
     STEP_1_GATHER_MITO_REMAINING: 'STEP_1_GATHER_MITO_REMAINING',
@@ -99,9 +100,11 @@ export const QUEST_STATE = Object.freeze({
     STEP_7_OPEN_PORTAL: 'STEP_7_OPEN_PORTAL',
     STEP_8_GATHER_CYTO: 'STEP_8_GATHER_CYTO', // Collect Citrulline (transported) + ATP. Aspartate comes from shuttle.
     STEP_9_TALK_TO_DONKEY: 'STEP_9_TALK_TO_DONKEY', 
-    STEP_10_TALK_TO_ASLAN: 'STEP_10_TALK_TO_ASLAN',   
-    STEP_11_CONVERT_FUMARATE_TO_MALATE: 'STEP_11_CONVERT_FUMARATE_TO_MALATE', // New: Interact with Fumarase
-    STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE: 'STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE', // New: Interact with Shuttle
+    STEP_10_TALK_TO_ASLAN: 'STEP_10_TALK_TO_ASLAN',
+    STEP_10B_COLLECT_PRODUCTS: 'STEP_10B_COLLECT_PRODUCTS', // Collect Arginine and Fumarate
+    STEP_11_CONVERT_FUMARATE_TO_MALATE: 'STEP_11_CONVERT_FUMARATE_TO_MALATE', // Take Fumarate to Fumarase
+    STEP_11A_COLLECT_MALATE: 'STEP_11A_COLLECT_MALATE', // Collect the Malate
+    STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE: 'STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE', // Take Malate to Shuttle
     STEP_12_TALK_TO_ARGUS: 'STEP_12_TALK_TO_ARGUS',     
     STEP_13_DISPOSE_UREA: 'STEP_13_DISPOSE_UREA',
     STEP_14_RIVER_CHALLENGE: 'STEP_14_RIVER_CHALLENGE',
