@@ -229,7 +229,7 @@ export function updateMinimap(player, npcs, resources) {
     // Draw rotating North indicator
     minimapCtx.save();
     minimapCtx.translate(centerX, centerY);
-    minimapCtx.rotate(-playerRotation);  // Rotate opposite to show where north is
+    minimapCtx.rotate(playerRotation);  // Rotate opposite to show where north is
     
     // North arrow at edge of minimap
     minimapCtx.fillStyle = '#FF0000';
