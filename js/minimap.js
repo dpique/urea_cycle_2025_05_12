@@ -1,4 +1,3 @@
-// js/minimap.js
 import * as THREE from 'three';
 import * as CONSTANTS from './constants.js';
 
@@ -46,26 +45,65 @@ export function updateMinimap(player, npcs, resources) {
     const centerX = 95; // Center of minimap
     const centerY = 95;
     
-    // Get player rotation
-    const playerRotation = player.rotation.y;
+    // Get player rotation by calculating from forward vector
+    const forward = new THREE.Vector3(0, 0, 1);
+    forward.applyQuaternion(player.quaternion);
+    const playerRotation = Math.atan2(forward.x, forward.z);
     
-    // Helper function to convert world coords to minimap coords (centered on player and rotated)
+    // Helper function to convert world coords to minimap coords (player-centric rotation)
     const worldToMinimap = (worldX, worldZ) => {
         const relativeX = worldX - player.position.x;
         const relativeZ = worldZ - player.position.z;
         
-        // Rotate coordinates based on player's facing direction
-        const cos = Math.cos(-playerRotation);
-        const sin = Math.sin(-playerRotation);
+        // Rotate world around player so player always faces up
+        const cos = Math.cos(playerRotation);
+        const sin = Math.sin(playerRotation);
+        
+        // Perform the rotation
         const rotatedX = relativeX * cos - relativeZ * sin;
         const rotatedZ = relativeX * sin + relativeZ * cos;
         
         return {
-            x: centerX + rotatedX * scale,
-            y: centerY + rotatedZ * scale
+            x: centerX - rotatedX * scale, // <--- CHANGE IS HERE! Negate rotatedX
+            y: centerY - rotatedZ * scale
         };
     };
     
+    // --- START LOGGING BLOCK ---
+    console.log("------------------- Minimap Update Logs -------------------");
+    console.log(`Player World Position: X=${player.position.x.toFixed(2)}, Z=${player.position.z.toFixed(2)}`);
+    
+    const playerRotationRad = Math.atan2(forward.x, forward.z); // Radian value
+    const playerRotationDeg = THREE.MathUtils.radToDeg(playerRotationRad);
+    console.log(`Player Rotation (rad): ${playerRotationRad.toFixed(2)}, (deg): ${playerRotationDeg.toFixed(2)}`);
+
+    // Log a fixed world point (e.g., CONSTANTS.MIN_X, 0) relative to player at (0,0)
+    // To make this clearer, let's assume a hypothetical fixed point and convert it
+    const fixedWorldPointX = CONSTANTS.MIN_X + 5; // e.g., a point within the Mito zone
+    const fixedWorldPointZ = 0; // e.g., center of the world Z-axis
+    const minimapCoordsFixed = worldToMinimap(fixedWorldPointX, fixedWorldPointZ);
+    console.log(`Fixed World Point (${fixedWorldPointX.toFixed(2)}, ${fixedWorldPointZ.toFixed(2)}) -> Minimap (${minimapCoordsFixed.x.toFixed(2)}, ${minimapCoordsFixed.y.toFixed(2)})`);
+
+    // Log the bridge's start and end points
+    const bridgeStartX = CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2;
+    const bridgeStartZ = CONSTANTS.BRIDGE_CENTER_Z;
+    const bridgeStartMinimap = worldToMinimap(bridgeStartX, bridgeStartZ);
+    console.log(`Bridge Start World (${bridgeStartX.toFixed(2)}, ${bridgeStartZ.toFixed(2)}) -> Minimap (${bridgeStartMinimap.x.toFixed(2)}, ${bridgeStartMinimap.y.toFixed(2)})`);
+    
+    const bridgeEndX = CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2;
+    const bridgeEndMinimap = worldToMinimap(bridgeEndX, bridgeStartZ);
+    console.log(`Bridge End World (${bridgeEndX.toFixed(2)}, ${bridgeStartZ.toFixed(2)}) -> Minimap (${bridgeEndMinimap.x.toFixed(2)}, ${bridgeEndMinimap.y.toFixed(2)})`);
+
+    // Let's also log the world coordinates of the Mitochondria zone max X and Cyto zone min X
+    const mitoZoneMaxX = CONSTANTS.MITO_ZONE_MAX_X;
+    const cytoZoneMinX = CONSTANTS.CYTO_ZONE_MIN_X;
+    const mitoCornerMinimap = worldToMinimap(mitoZoneMaxX, 0); // At center Z
+    const cytoCornerMinimap = worldToMinimap(cytoZoneMinX, 0); // At center Z
+    console.log(`Mito Zone Max X (${mitoZoneMaxX.toFixed(2)}, 0) -> Minimap (${mitoCornerMinimap.x.toFixed(2)}, ${mitoCornerMinimap.y.toFixed(2)})`);
+    console.log(`Cyto Zone Min X (${cytoZoneMinX.toFixed(2)}, 0) -> Minimap (${cytoCornerMinimap.x.toFixed(2)}, ${cytoCornerMinimap.y.toFixed(2)})`);
+    console.log("-----------------------------------------------------------");
+    // --- END LOGGING BLOCK ---
+
     // Save context for rotating zones
     minimapCtx.save();
     
@@ -102,17 +140,21 @@ export function updateMinimap(player, npcs, resources) {
         'rgba(70, 130, 180, 0.5)'
     );
     
-    // Draw bridge
+    // Draw bridge as a rotated rectangle
+    const bridgeCorners = [
+        worldToMinimap(CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2, CONSTANTS.BRIDGE_CENTER_Z - CONSTANTS.BRIDGE_WIDTH/2),
+        worldToMinimap(CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2, CONSTANTS.BRIDGE_CENTER_Z - CONSTANTS.BRIDGE_WIDTH/2),
+        worldToMinimap(CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2, CONSTANTS.BRIDGE_CENTER_Z + CONSTANTS.BRIDGE_WIDTH/2),
+        worldToMinimap(CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2, CONSTANTS.BRIDGE_CENTER_Z + CONSTANTS.BRIDGE_WIDTH/2)
+    ];
     minimapCtx.fillStyle = 'rgba(139, 69, 19, 0.7)'; // Saddle brown
-    const bridgePos = worldToMinimap(CONSTANTS.BRIDGE_CENTER_X, CONSTANTS.BRIDGE_CENTER_Z);
-    const bridgeWidth = CONSTANTS.BRIDGE_LENGTH * scale;
-    const bridgeHeight = CONSTANTS.BRIDGE_WIDTH * scale;
-    minimapCtx.fillRect(
-        bridgePos.x - bridgeWidth/2, 
-        bridgePos.y - bridgeHeight/2, 
-        bridgeWidth, 
-        bridgeHeight
-    );
+    minimapCtx.beginPath();
+    minimapCtx.moveTo(bridgeCorners[0].x, bridgeCorners[0].y);
+    for (let i = 1; i < bridgeCorners.length; i++) {
+            minimapCtx.lineTo(bridgeCorners[i].x, bridgeCorners[i].y);
+    }
+    minimapCtx.closePath();
+    minimapCtx.fill();
     
     // Draw alcove outline
     minimapCtx.strokeStyle = 'rgba(100, 100, 100, 0.5)';
@@ -170,41 +212,39 @@ export function updateMinimap(player, npcs, resources) {
         });
     }
     
-    // Draw player (always at center, always facing up)
-    // Player direction indicator (always pointing up on minimap)
-    minimapCtx.strokeStyle = '#0099FF';
-    minimapCtx.lineWidth = 2;
-    minimapCtx.beginPath();
-    minimapCtx.moveTo(centerX, centerY);
-    minimapCtx.lineTo(centerX, centerY - 8);
-    minimapCtx.stroke();
-    
-    // Player dot
+    // Draw player at center (always pointing up since map rotates)
     minimapCtx.fillStyle = '#0099FF';
     minimapCtx.beginPath();
-    minimapCtx.arc(centerX, centerY, 4, 0, Math.PI * 2);
+    minimapCtx.moveTo(centerX, centerY - 8);
+    minimapCtx.lineTo(centerX - 5, centerY + 4);
+    minimapCtx.lineTo(centerX + 5, centerY + 4);
+    minimapCtx.closePath();
     minimapCtx.fill();
     
-    // Draw compass (N indicator)
+    // Player dot in center
+    minimapCtx.beginPath();
+    minimapCtx.arc(centerX, centerY, 3, 0, Math.PI * 2);
+    minimapCtx.fill();
+    
+    // Draw rotating North indicator
     minimapCtx.save();
     minimapCtx.translate(centerX, centerY);
-    minimapCtx.rotate(-playerRotation);
+    minimapCtx.rotate(-playerRotation);  // Rotate opposite to show where north is
     
-    // North arrow
-    minimapCtx.strokeStyle = '#FF0000';
+    // North arrow at edge of minimap
     minimapCtx.fillStyle = '#FF0000';
+    minimapCtx.strokeStyle = '#FF0000';
     minimapCtx.lineWidth = 2;
     minimapCtx.beginPath();
-    minimapCtx.moveTo(0, -80);
-    minimapCtx.lineTo(-4, -70);
-    minimapCtx.lineTo(4, -70);
+    minimapCtx.moveTo(0, -85);
+    minimapCtx.lineTo(-4, -75);
+    minimapCtx.lineTo(4, -75);
     minimapCtx.closePath();
     minimapCtx.fill();
     
     // N letter
     minimapCtx.font = 'bold 12px Arial';
     minimapCtx.textAlign = 'center';
-    minimapCtx.textBaseline = 'bottom';
     minimapCtx.fillText('N', 0, -70);
     
     minimapCtx.restore();

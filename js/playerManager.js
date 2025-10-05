@@ -163,7 +163,9 @@ export function updatePlayer(delta, isUserInteracting, checkCollisionCallback) {
 
 
         if (moveDirection.lengthSq() > 0.001) {
-            targetQuaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), moveDirection);
+            // Calculate target rotation using atan2 for full 360 degree rotation
+            const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
+            targetQuaternion.setFromAxisAngle(upVector, targetAngle);
             player.quaternion.slerp(targetQuaternion, 0.2);
         }
         
