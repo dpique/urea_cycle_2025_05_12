@@ -17,6 +17,7 @@ Since this is a static web application without a build system, development is st
 ## Architecture
 
 ### File Structure
+
 - `index.html` - Main entry point with UI overlays
 - `main.js` - Game initialization and main loop
 - `style.css` - Styling for UI elements
@@ -33,6 +34,7 @@ Since this is a static web application without a build system, development is st
   - `utils.js` - Utility functions
 
 ### Key Game Flow
+
 1. Player navigates between Mitochondria and Cytosol areas separated by a river
 2. Collects resources (NH3, ATP, etc.) to complete Urea Cycle biochemistry
 3. Interacts with enzyme NPCs (CPS1, OTC, ASL, ASS, ARG1) to transform molecules
@@ -40,6 +42,7 @@ Since this is a static web application without a build system, development is st
 5. Completes quiz challenges to demonstrate understanding
 
 ### Important Patterns
+
 - **State Management**: Central `gameState` object in main.js
 - **Constants**: All magic numbers and strings defined in constants.js
 - **Collision Detection**: Bounding box system for walls and objects
@@ -47,6 +50,7 @@ Since this is a static web application without a build system, development is st
 - **UI Updates**: Centralized through uiManager.js functions
 
 ### Adding New Features
+
 - **New NPCs**: Add to `npcManager.js` and define in `CONSTANTS.NPC_NAMES`
 - **New Resources**: Define colors in constants.js, add spawn logic in worldManager.js
 - **New Quest Steps**: Update `CONSTANTS.QUEST_STATE` and `ureaCycleQuestData`
