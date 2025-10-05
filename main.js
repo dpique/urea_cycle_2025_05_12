@@ -1,16 +1,20 @@
 // main.js
 import * as THREE from 'three';
 import * as CONSTANTS from './js/constants.js';
-import { initScene, scene, camera, renderer, controls } from './js/sceneSetup.js';
-import { initWorld, collidableWalls, wallBoundingBoxes, updateResourceHover, getPortalBarrier, interactiveObjects, getTerrainHeightAt } from './js/worldManager.js';
-import { initPlayer, player, keysPressed as playerKeysPressed, updatePlayer } from './js/playerManager.js';
+import { initScene, scene, camera, renderer } from './js/sceneSetup.js';
+import { initWorld, wallBoundingBoxes, updateResourceHover, getPortalBarrier, interactiveObjects, getTerrainHeightAt } from './js/worldManager.js';
+import { initPlayer, player, updatePlayer } from './js/playerManager.js';
 import { initNPCs, updateNPCs, getNPCs } from './js/npcManager.js';
-import { initUIManager, updateInventoryUI, updateQuestUI, showFeedback, createQuestMarker, updateQuestMarker, hideQuestMarker } from './js/uiManager.js';
-import { initQuests, ureaCycleQuestData, startUreaCycleQuest as startUreaQuestInManager, advanceUreaCycleQuest as advanceUreaQuestInManager } from './js/questManager.js'; // Aliased imports
+import { initUIManager, showFeedback, createQuestMarker, updateQuestMarker, hideQuestMarker } from './js/uiManager.js';
+import { initQuests, startUreaCycleQuest, advanceUreaCycleQuest } from './js/questManager.js';
 import { getAudioContext } from './js/audioManager.js';
 import { updateInteraction, interactWithObject, getClosestInteractiveObject } from './js/interactionManager.js';
 import { updateSimpleParticleSystems } from './js/utils.js';
 import { initMinimap, updateMinimap, toggleMinimap, addToPathHistory } from './js/minimap.js';
+import { getGameState, getCurrentQuest, getPlayerLocation, setPlayerLocation } from './js/gameState.js';
+import { saveGame, loadGame } from './js/persistenceManager.js';
+import { handlePlayerDeath } from './js/gameManager.js';
+import { initCycleDisplay, updateCycleDisplay } from './js/cycleDisplay.js';
 
 export const dialogueBox = document.getElementById('dialogueBox');
 export const realityRiverUI = document.getElementById('realityRiver');
@@ -20,204 +24,6 @@ const PRE_SURVEY_LINK = "https://forms.gle/yourpretestsurvey";
 const POST_SURVEY_LINK = "https://forms.gle/yourposttestsurvey";
 const FEEDBACK_SURVEY_LINK = "https://forms.gle/yourfeedbacksurvey";
 
-
-let gameState = {
-    isUserInteracting: false,
-    inventory: {},
-    currentQuest: null,
-    playerLocation: 'mitochondria',
-    hasPortalPermission: false,
-    startUreaCycleQuest: () => startUreaQuestInManager(), 
-    advanceUreaCycleQuest: (newState) => advanceUreaQuestInManager(newState) 
-};
-
-export function getGameState() { return gameState; }
-export function setGameState(newState) { gameState = { ...gameState, ...newState }; }
-export function getInventory() { return gameState.inventory; }
-export function addToInventory(itemName, quantity = 1) {
-    gameState.inventory[itemName] = (gameState.inventory[itemName] || 0) + quantity;
-    updateInventoryUI(gameState.inventory);
-}
-export function removeFromInventory(itemName, quantity = 1) {
-    if (gameState.inventory[itemName] && gameState.inventory[itemName] >= quantity) {
-        gameState.inventory[itemName] -= quantity;
-        if (gameState.inventory[itemName] === 0) {
-            delete gameState.inventory[itemName];
-        }
-        updateInventoryUI(gameState.inventory);
-        return true;
-    }
-    return false;
-}
-export function getCurrentQuest() { return gameState.currentQuest; }
-
-export function setCurrentQuestInMain(quest) {
-    gameState.currentQuest = quest;
-    updateQuestUI(gameState.currentQuest); 
-}
-
-// Save game functionality
-export function saveGame() {
-    const saveData = {
-        inventory: gameState.inventory,
-        currentQuest: gameState.currentQuest,
-        playerLocation: gameState.playerLocation,
-        hasPortalPermission: gameState.hasPortalPermission,
-        playerPosition: {
-            x: player.position.x,
-            y: player.position.y,
-            z: player.position.z
-        },
-        timestamp: Date.now()
-    };
-    localStorage.setItem('metabolonSaveGame', JSON.stringify(saveData));
-    // Show a subtle save indicator in the corner
-    let saveIndicator = document.getElementById('saveIndicator');
-    if (!saveIndicator) {
-        saveIndicator = document.createElement('div');
-        saveIndicator.id = 'saveIndicator';
-        saveIndicator.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background-color: rgba(0, 0, 0, 0.5);
-            color: #88ff88;
-            padding: 5px 10px;
-            border-radius: 3px;
-            font-size: 0.8em;
-            z-index: 100;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
-        `;
-        document.body.appendChild(saveIndicator);
-    }
-    saveIndicator.textContent = '✓ Saved';
-    saveIndicator.style.opacity = '1';
-    setTimeout(() => {
-        saveIndicator.style.opacity = '0';
-    }, 1000);
-}
-
-export function loadGame() {
-    const savedDataStr = localStorage.getItem('metabolonSaveGame');
-    if (!savedDataStr) {
-        showFeedback('No save game found', 2000);
-        return false;
-    }
-    
-    try {
-        const saveData = JSON.parse(savedDataStr);
-        gameState.inventory = saveData.inventory || {};
-        gameState.currentQuest = saveData.currentQuest || null;
-        gameState.playerLocation = saveData.playerLocation || 'mitochondria';
-        gameState.hasPortalPermission = saveData.hasPortalPermission || false;
-        
-        // Update UI
-        updateInventoryUI(gameState.inventory);
-        updateQuestUI(gameState.currentQuest);
-        
-        // Restore player position
-        if (saveData.playerPosition) {
-            player.position.set(
-                saveData.playerPosition.x,
-                saveData.playerPosition.y,
-                saveData.playerPosition.z
-            );
-        }
-        
-        showFeedback('Game loaded!', 2000);
-        return true;
-    } catch (error) {
-        console.error('Error loading save game:', error);
-        showFeedback('Failed to load save game', 2000);
-        return false;
-    }
-}
-export function advanceCurrentQuestStateInMain(newState) {
-    if (gameState.currentQuest) {
-        gameState.currentQuest.state = newState;
-        updateQuestUI(gameState.currentQuest); 
-    }
-}
-export function getPlayerLocation() { return gameState.playerLocation; }
-export function setPlayerLocation(location) { gameState.playerLocation = location; }
-
-// Death and respawn mechanics
-let isRespawning = false;
-const respawnPosition = new THREE.Vector3(-10, 0, -5); // Default spawn position away from bridge
-
-function handlePlayerDeath(deathReason = "fell") {
-    if (isRespawning) return;
-    
-    isRespawning = true;
-    gameState.isUserInteracting = true; // Freeze player controls
-    
-    // Show death message
-    showDeathScreen(deathReason);
-    
-    // Respawn after 2 seconds
-    setTimeout(() => {
-        player.position.copy(respawnPosition);
-        player.userData.verticalVelocity = 0;
-        hideDeathScreen();
-        gameState.isUserInteracting = false;
-        isRespawning = false;
-        
-        // Context-specific feedback
-        if (deathReason === "river") {
-            showFeedback("The river is too dangerous! Use the bridge to cross.", 3000);
-        } else {
-            showFeedback("Be careful not to fall off the edge!", 3000);
-        }
-    }, 2000);
-}
-
-function showDeathScreen(deathReason = "fell") {
-    let deathScreen = document.getElementById('deathScreen');
-    if (!deathScreen) {
-        deathScreen = document.createElement('div');
-        deathScreen.id = 'deathScreen';
-        deathScreen.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            color: white;
-            font-family: sans-serif;
-        `;
-        document.body.appendChild(deathScreen);
-    }
-    
-    // Update message based on death reason
-    let message = "You fell off the edge!";
-    if (deathReason === "river") {
-        message = "You fell into the river!";
-    }
-    
-    deathScreen.innerHTML = `
-        <h1 style="font-size: 3em; margin-bottom: 20px;">${message}</h1>
-        <p style="font-size: 1.5em;">Respawning...</p>
-    `;
-    
-    deathScreen.style.display = 'flex';
-}
-
-function hideDeathScreen() {
-    const deathScreen = document.getElementById('deathScreen');
-    if (deathScreen) {
-        deathScreen.style.display = 'none';
-    }
-}
-
-
 const canvasElement = document.getElementById('gameCanvas');
 initScene(canvasElement);
 initUIManager(); 
@@ -226,9 +32,7 @@ initWorld(scene);
 initNPCs(scene);
 initQuests();
 initMinimap();
-
-updateInventoryUI(gameState.inventory);
-updateQuestUI(gameState.currentQuest);
+initCycleDisplay();
 
 // Initialize quest marker system
 createQuestMarker();
@@ -265,7 +69,7 @@ setTimeout(() => {
 
 // Auto-save every 30 seconds
 setInterval(() => {
-    if (gameState.currentQuest) {
+    if (getCurrentQuest()) {
         saveGame();
     }
 }, 30000);
@@ -304,6 +108,7 @@ function checkPlayerCollision(nextPlayerPos) {
 
 document.addEventListener('keydown', (event) => {
     const key = event.key.toLowerCase();
+    const gameState = getGameState();
     if (key === 'e' && getClosestInteractiveObject() && !gameState.isUserInteracting) {
         if (dialogueBox.classList.contains('hidden') && realityRiverUI.classList.contains('hidden')) {
             interactWithObject(getClosestInteractiveObject(), scene);
@@ -341,7 +146,7 @@ document.addEventListener('keydown', (event) => {
     // F5 key for manual save
     if (event.key === 'F5' && !gameState.isUserInteracting) {
         event.preventDefault();
-        if (gameState.currentQuest) {
+        if (getCurrentQuest()) {
             saveGame();
         } else {
             showFeedback("Start the quest before saving", 2000);
@@ -371,16 +176,46 @@ function getQuestTargetPosition() {
     let targetNPC = null;
     
     switch(quest.state) {
-        case CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2:
-        case CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2:
-        case CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE:
-        case CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE:
-            // Point to the alcove area where resources are
-            return new THREE.Vector3(CONSTANTS.ALCOVE_OPENING_X_PLANE - 2, 0, CONSTANTS.ALCOVE_Z_CENTER);
-            
-        case CONSTANTS.QUEST_STATE.STEP_1_GATHER_MITO_REMAINING:
-            targetNPC = npcs.find(npc => npc.userData.name === CONSTANTS.NPC_NAMES.CASPER_CPS1);
+        case CONSTANTS.QUEST_STATE.NOT_STARTED:
+            // Point to Professor Hepaticus when quest hasn't started yet
+            targetNPC = npcs.find(npc => npc.userData.name === CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS);
             break;
+            
+        case CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2:
+            // Point to Water Well
+            const waterWell = interactiveObjects.find(obj => obj.userData.name === 'Water Well');
+            return waterWell ? waterWell.position : new THREE.Vector3(CONSTANTS.MIN_X + 4, 0, CONSTANTS.ALCOVE_Z_CENTER - 2);
+            
+        case CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2:
+            // Point to Fire Pit
+            const firePit = interactiveObjects.find(obj => obj.userData.name === 'Fire Pit');
+            return firePit ? firePit.position : new THREE.Vector3(CONSTANTS.MIN_X + 3, 0, CONSTANTS.ALCOVE_Z_CENTER + 3);
+            
+        case CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE:
+            // Point to CAVA Shrine
+            const cavaShrine = interactiveObjects.find(obj => obj.userData.name === 'CAVA Shrine');
+            return cavaShrine ? cavaShrine.position : new THREE.Vector3(CONSTANTS.MIN_X + 7, 0, CONSTANTS.ALCOVE_Z_CENTER);
+            
+        case CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE:
+            // Point to Bicarbonate resource (should be near CAVA Shrine)
+            const bicarbonate = interactiveObjects.find(obj => obj.userData.name === 'Bicarbonate');
+            return bicarbonate ? bicarbonate.position : new THREE.Vector3(CONSTANTS.MIN_X + 7, 0, CONSTANTS.ALCOVE_Z_CENTER - 1.5);
+            
+        case CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3:
+            // Point to NH3 resource
+            const nh3 = interactiveObjects.find(obj => obj.userData.name === 'NH3');
+            return nh3 ? nh3.position : new THREE.Vector3(CONSTANTS.MIN_X + 2, 0, CONSTANTS.MIN_Z + 4);
+            
+        case CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP:
+            // Point to first ATP in mitochondria
+            const firstATP = interactiveObjects.find(obj => obj.userData.name === 'ATP' && obj.position.x < CONSTANTS.RIVER_CENTER_X);
+            return firstATP ? firstATP.position : new THREE.Vector3(CONSTANTS.MIN_X + 12, 0, 8);
+            
+        case CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP:
+            // Point to another ATP in mitochondria (try to find one player hasn't collected)
+            const atpArray = interactiveObjects.filter(obj => obj.userData.name === 'ATP' && obj.position.x < CONSTANTS.RIVER_CENTER_X);
+            const secondATP = atpArray.find(atp => atp.visible) || atpArray[0];
+            return secondATP ? secondATP.position : new THREE.Vector3(CONSTANTS.MIN_X + 25, 0, -18);
             
         case CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS:
             targetNPC = npcs.find(npc => npc.userData.name === CONSTANTS.NPC_NAMES.CASPER_CPS1);
@@ -403,7 +238,21 @@ function getQuestTargetPosition() {
             // Point to portal location on bridge
             return new THREE.Vector3(CONSTANTS.BRIDGE_CENTER_X, CONSTANTS.BRIDGE_HEIGHT + 1, CONSTANTS.BRIDGE_CENTER_Z);
             
-        case CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO:
+        case CONSTANTS.QUEST_STATE.STEP_8_COLLECT_CITRULLINE:
+            // Point to Citrulline on cytosol side of bridge
+            const citrulline = interactiveObjects.find(obj => obj.userData.name === 'Citrulline');
+            return citrulline ? citrulline.position : new THREE.Vector3(CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2 + 0.5, CONSTANTS.BRIDGE_HEIGHT, CONSTANTS.BRIDGE_CENTER_Z + 1);
+            
+        case CONSTANTS.QUEST_STATE.STEP_8A_COLLECT_ATP:
+            // Point to ATP in cytosol
+            const atp = interactiveObjects.find(obj => obj.userData.name === 'ATP' && obj.position.x > CONSTANTS.RIVER_CENTER_X);
+            return atp ? atp.position : new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 15, 0, 0);
+            
+        case CONSTANTS.QUEST_STATE.STEP_8B_GET_ASPARTATE:
+            // Point to Shuttle Driver
+            targetNPC = npcs.find(npc => npc.userData.name === CONSTANTS.NPC_NAMES.SHUTTLE_DRIVER);
+            break;
+            
         case CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY:
             targetNPC = npcs.find(npc => npc.userData.name === CONSTANTS.NPC_NAMES.DONKEY);
             break;
@@ -453,6 +302,7 @@ function animate() {
     requestAnimationFrame(animate);
     const delta = Math.min(clock.getDelta(), 0.1); 
     const elapsedTime = clock.getElapsedTime();
+    const gameState = getGameState();
     
     // Check if player fell off the edge
     if (player.position.y < -2) {
@@ -516,12 +366,10 @@ function animate() {
             const transitionSpeed = 0.15;
             player.position.y = player.position.y + (targetY - player.position.y) * transitionSpeed;
         } else if (playerX >= platformMinX && playerX <= platformMaxX) {
-            // On main platform - automatically elevate when in bridge area (unless jumping)
+            // On main platform - automatically elevate when in bridge area
             targetY = CONSTANTS.BRIDGE_HEIGHT;
-            if (!player.userData.verticalVelocity || player.userData.verticalVelocity <= 0) {
-                const transitionSpeed = 0.15;
-                player.position.y = player.position.y + (targetY - player.position.y) * transitionSpeed;
-            }
+            const transitionSpeed = 0.15;
+            player.position.y = player.position.y + (targetY - player.position.y) * transitionSpeed;
         }
     } else {
         // Not on bridge - adjust to terrain height
@@ -540,27 +388,17 @@ function animate() {
                 player.userData.verticalVelocity = 0;
             }
         } else {
-            // Smooth terrain following (only if not jumping)
-            if (!player.userData.verticalVelocity || player.userData.verticalVelocity <= 0) {
-                const terrainSpeed = 0.2;
-                player.position.y = player.position.y + (targetY - player.position.y) * terrainSpeed;
-            }
+            // Smooth terrain following
+            const terrainSpeed = 0.2;
+            player.position.y = player.position.y + (targetY - player.position.y) * terrainSpeed;
+            player.userData.verticalVelocity = 0;
         }
     }
 
-    // Apply jump velocity (for both bridge and non-bridge areas)
+    // Apply jump velocity
     if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
         player.position.y += player.userData.verticalVelocity;
         player.userData.verticalVelocity -= 0.02; // Gravity for jumps
-        
-        // Check for landing
-        const currentTerrainHeight = getTerrainHeightAt(player.position.x, player.position.z);
-        const landingHeight = onBridgeArea ? CONSTANTS.BRIDGE_HEIGHT : currentTerrainHeight;
-        
-        if (player.position.y <= landingHeight + 0.01 && player.userData.verticalVelocity < 0) {
-            player.position.y = landingHeight + 0.01;
-            player.userData.verticalVelocity = 0;
-        }
     }
 
     updatePlayer(delta, gameState.isUserInteracting, checkPlayerCollision);
@@ -568,21 +406,6 @@ function animate() {
     updateSimpleParticleSystems(delta);
     updateResourceHover(elapsedTime);
     updateInteraction(scene);
-    
-    // Update animated water
-    scene.traverse((child) => {
-        if (child.userData.isWater && child.material.uniforms) {
-            child.material.uniforms.time.value = elapsedTime;
-        }
-    });
-    
-    // Update cloud drift
-    if (scene.userData.cloudGroups) {
-        scene.userData.cloudGroups.children.forEach((cloud) => {
-            cloud.position.x = cloud.userData.initialX + Math.sin(elapsedTime * cloud.userData.driftSpeed) * 50;
-            cloud.rotation.y = elapsedTime * 0.1;
-        });
-    }
     
     // Update minimap
     const resources = interactiveObjects.filter(obj => obj.userData.type === 'resource');
@@ -596,10 +419,16 @@ function animate() {
     // Update quest marker
     const questTarget = getQuestTargetPosition();
     if (questTarget) {
-        updateQuestMarker(questTarget, camera, renderer);
+        // Add vertical offset so arrow hovers above the target
+        const offsetTarget = questTarget.clone();
+        offsetTarget.y += 2.5; // Hover 2.5 units above the actual object
+        updateQuestMarker(offsetTarget, camera, renderer);
     } else {
         hideQuestMarker();
     }
+    
+    // Update cycle display
+    updateCycleDisplay();
 
     // Player location update based on X position relative to river/bridge center
     if (!getPortalBarrier()) { 
@@ -619,4 +448,4 @@ function animate() {
 
 getAudioContext(); 
 animate();
-console.log("Metabolon RPG Initialized (v34 - Spacebar, Art Style, Surveys, Bridge, Outdoor, Fixed Rocks, Pizzazz).");
+console.log("Metabolon RPG Initialized (v35 - Refactored).");

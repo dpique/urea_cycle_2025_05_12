@@ -46,32 +46,61 @@ export function updateMinimap(player, npcs, resources) {
     const centerX = 95; // Center of minimap
     const centerY = 95;
     
-    // Helper function to convert world coords to minimap coords (centered on player)
+    // Get player rotation
+    const playerRotation = player.rotation.y;
+    
+    // Helper function to convert world coords to minimap coords (centered on player and rotated)
     const worldToMinimap = (worldX, worldZ) => {
         const relativeX = worldX - player.position.x;
         const relativeZ = worldZ - player.position.z;
+        
+        // Rotate coordinates based on player's facing direction
+        const cos = Math.cos(-playerRotation);
+        const sin = Math.sin(-playerRotation);
+        const rotatedX = relativeX * cos - relativeZ * sin;
+        const rotatedZ = relativeX * sin + relativeZ * cos;
+        
         return {
-            x: centerX + relativeX * scale,
-            y: centerY + relativeZ * scale
+            x: centerX + rotatedX * scale,
+            y: centerY + rotatedZ * scale
         };
     };
     
-    // Draw zones
-    // Mitochondria zone (left side)
-    minimapCtx.fillStyle = 'rgba(139, 69, 19, 0.3)'; // Brown tint
-    const mitoWidth = (CONSTANTS.MITO_ZONE_MAX_X - CONSTANTS.MIN_X) * scale;
-    minimapCtx.fillRect(5, 5, mitoWidth, 180);
+    // Save context for rotating zones
+    minimapCtx.save();
     
-    // Cytosol zone (right side)
-    minimapCtx.fillStyle = 'rgba(34, 139, 34, 0.3)'; // Green tint
-    const cytoStart = worldToMinimap(CONSTANTS.CYTO_ZONE_MIN_X, 0).x;
-    minimapCtx.fillRect(cytoStart, 5, 190 - cytoStart - 5, 180);
+    // Draw zones as polygons that will rotate with the map
+    // Helper to draw a rotated rectangle zone
+    const drawZone = (x1, z1, x2, z2, color) => {
+        const corners = [
+            worldToMinimap(x1, z1),
+            worldToMinimap(x2, z1),
+            worldToMinimap(x2, z2),
+            worldToMinimap(x1, z2)
+        ];
+        
+        minimapCtx.fillStyle = color;
+        minimapCtx.beginPath();
+        minimapCtx.moveTo(corners[0].x, corners[0].y);
+        for (let i = 1; i < corners.length; i++) {
+            minimapCtx.lineTo(corners[i].x, corners[i].y);
+        }
+        minimapCtx.closePath();
+        minimapCtx.fill();
+    };
+    
+    // Mitochondria zone
+    drawZone(CONSTANTS.MIN_X, -30, CONSTANTS.MITO_ZONE_MAX_X, 30, 'rgba(139, 69, 19, 0.3)');
+    
+    // Cytosol zone
+    drawZone(CONSTANTS.CYTO_ZONE_MIN_X, -30, CONSTANTS.MAX_X, 30, 'rgba(34, 139, 34, 0.3)');
     
     // Draw river
-    minimapCtx.fillStyle = 'rgba(70, 130, 180, 0.5)'; // Steel blue
-    const riverStart = worldToMinimap(CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH/2, 0).x;
-    const riverWidth = CONSTANTS.RIVER_WIDTH * scale;
-    minimapCtx.fillRect(riverStart, 5, riverWidth, 180);
+    drawZone(
+        CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH/2, -30,
+        CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH/2, 30,
+        'rgba(70, 130, 180, 0.5)'
+    );
     
     // Draw bridge
     minimapCtx.fillStyle = 'rgba(139, 69, 19, 0.7)'; // Saddle brown
@@ -88,14 +117,21 @@ export function updateMinimap(player, npcs, resources) {
     // Draw alcove outline
     minimapCtx.strokeStyle = 'rgba(100, 100, 100, 0.5)';
     minimapCtx.lineWidth = 1;
-    const alcoveStart = worldToMinimap(CONSTANTS.MIN_X, CONSTANTS.ALCOVE_Z_START);
-    const alcoveEnd = worldToMinimap(CONSTANTS.ALCOVE_OPENING_X_PLANE, CONSTANTS.ALCOVE_Z_END);
-    minimapCtx.strokeRect(
-        alcoveStart.x,
-        alcoveStart.y,
-        alcoveEnd.x - alcoveStart.x,
-        alcoveEnd.y - alcoveStart.y
-    );
+    const alcoveCorners = [
+        worldToMinimap(CONSTANTS.MIN_X, CONSTANTS.ALCOVE_Z_START),
+        worldToMinimap(CONSTANTS.ALCOVE_OPENING_X_PLANE, CONSTANTS.ALCOVE_Z_START),
+        worldToMinimap(CONSTANTS.ALCOVE_OPENING_X_PLANE, CONSTANTS.ALCOVE_Z_END),
+        worldToMinimap(CONSTANTS.MIN_X, CONSTANTS.ALCOVE_Z_END)
+    ];
+    minimapCtx.beginPath();
+    minimapCtx.moveTo(alcoveCorners[0].x, alcoveCorners[0].y);
+    for (let i = 1; i < alcoveCorners.length; i++) {
+        minimapCtx.lineTo(alcoveCorners[i].x, alcoveCorners[i].y);
+    }
+    minimapCtx.closePath();
+    minimapCtx.stroke();
+    
+    minimapCtx.restore();
     
     // Draw artificial trails connecting key locations
     drawArtificialTrails(minimapCtx, worldToMinimap);
@@ -134,29 +170,44 @@ export function updateMinimap(player, npcs, resources) {
         });
     }
     
-    // Draw player (always on top)
-    const playerPos = worldToMinimap(player.position.x, player.position.z);
-    
-    // Player direction indicator
-    const playerDir = new THREE.Vector3(0, 0, 1);
-    playerDir.applyQuaternion(player.quaternion);
-    const dirLength = 8;
-    
+    // Draw player (always at center, always facing up)
+    // Player direction indicator (always pointing up on minimap)
     minimapCtx.strokeStyle = '#0099FF';
     minimapCtx.lineWidth = 2;
     minimapCtx.beginPath();
-    minimapCtx.moveTo(playerPos.x, playerPos.y);
-    minimapCtx.lineTo(
-        playerPos.x + playerDir.x * dirLength,
-        playerPos.y + playerDir.z * dirLength
-    );
+    minimapCtx.moveTo(centerX, centerY);
+    minimapCtx.lineTo(centerX, centerY - 8);
     minimapCtx.stroke();
     
     // Player dot
     minimapCtx.fillStyle = '#0099FF';
     minimapCtx.beginPath();
-    minimapCtx.arc(playerPos.x, playerPos.y, 4, 0, Math.PI * 2);
+    minimapCtx.arc(centerX, centerY, 4, 0, Math.PI * 2);
     minimapCtx.fill();
+    
+    // Draw compass (N indicator)
+    minimapCtx.save();
+    minimapCtx.translate(centerX, centerY);
+    minimapCtx.rotate(-playerRotation);
+    
+    // North arrow
+    minimapCtx.strokeStyle = '#FF0000';
+    minimapCtx.fillStyle = '#FF0000';
+    minimapCtx.lineWidth = 2;
+    minimapCtx.beginPath();
+    minimapCtx.moveTo(0, -80);
+    minimapCtx.lineTo(-4, -70);
+    minimapCtx.lineTo(4, -70);
+    minimapCtx.closePath();
+    minimapCtx.fill();
+    
+    // N letter
+    minimapCtx.font = 'bold 12px Arial';
+    minimapCtx.textAlign = 'center';
+    minimapCtx.textBaseline = 'bottom';
+    minimapCtx.fillText('N', 0, -70);
+    
+    minimapCtx.restore();
     
     // Border
     minimapCtx.strokeStyle = '#555';

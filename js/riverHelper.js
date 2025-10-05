@@ -1,224 +1,158 @@
-// River creation helper with corrected north-south flow
+// js/riverHelper.js
 import * as THREE from 'three';
-import { riverVertexShader, riverFragmentShader } from './riverShaders.js';
 
-export function createRiverWithFlow(scene, CONSTANTS) {
-    // River bed (darker, lower) with RuneScape-style tiling
-    const riverBedGeometry = new THREE.PlaneGeometry(CONSTANTS.RIVER_WIDTH * 1.5, CONSTANTS.TOTAL_DEPTH * 1.2, 12, 40);
-    riverBedGeometry.computeVertexNormals();
-    
-    const riverBedPositions = riverBedGeometry.attributes.position.array;
-    
-    // Add depth variation to river bed
-    for (let i = 0; i < riverBedPositions.length; i += 3) {
-        const x = riverBedPositions[i];
-        const z = riverBedPositions[i + 1];
+const riverVertexShader = `
+    uniform float time;
+    varying vec2 vUv;
+    varying float vElevation;
+    varying vec3 vNormal;
+
+    void main() {
+        vUv = uv;
+        vec3 pos = position;
         
-        // Create river bed depth with center being deeper
-        const distFromCenter = Math.abs(x) / (CONSTANTS.RIVER_WIDTH * 0.75);
-        const depthFactor = 1 - Math.pow(Math.min(distFromCenter, 1), 2);
+        // Create gentle flowing waves (north-south direction)
+        float wave1 = sin(position.x * 1.0 + time * 0.5) * 0.05;
+        float wave2 = sin(position.x * 2.0 - time * 0.7) * 0.03;
+        float wave3 = sin(position.x * 3.0 + time * 0.3) * 0.02;
         
-        // Add tile-based variation for RuneScape look
-        const tileX = Math.floor(x * 2) / 2;
-        const tileZ = Math.floor(z * 0.5) / 0.5;
-        const tileNoise = Math.sin(tileX * 2) * Math.cos(tileZ) * 0.1;
+        // Flow direction (north-south)
+        float flow = sin(position.y * 0.5 - time * 0.8) * 0.02;
         
-        riverBedPositions[i + 2] = -1.8 * depthFactor + tileNoise - 0.3;
+        pos.z += wave1 + wave2 + wave3 + flow;
+        
+        vElevation = pos.z;
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
     }
-    
-    // Add vertex colors for river bed
-    const riverColors = new Float32Array(riverBedPositions.length);
-    for (let i = 0; i < riverBedPositions.length; i += 3) {
-        const depth = -riverBedPositions[i + 2];
-        const variation = Math.random() * 0.1;
+`;
+
+const riverFragmentShader = `
+    uniform float time;
+    uniform vec3 waterColor;
+    uniform vec3 sunColor;
+    uniform vec3 sunDirection;
+    varying vec2 vUv;
+    varying float vElevation;
+    varying vec3 vNormal;
+
+    void main() {
+        // Base water color with depth variation
+        vec3 deepWater = waterColor * 0.5;
+        vec3 shallowWater = waterColor * 1.2;
         
-        // Darker blue-green for deeper parts
-        riverColors[i] = 0.1 + variation;
-        riverColors[i + 1] = 0.2 + depth * 0.1 + variation;
-        riverColors[i + 2] = 0.3 + depth * 0.15 + variation;
+        // Create animated caustics pattern
+        float caustics1 = sin(vUv.x * 20.0 + time * 0.5) * sin(vUv.y * 20.0 - time * 0.3);
+        float caustics2 = sin(vUv.x * 30.0 - time * 0.7) * sin(vUv.y * 30.0 + time * 0.4);
+        float causticsPattern = (caustics1 + caustics2) * 0.1 + 0.5;
+        
+        // Mix water color based on depth
+        vec3 waterCol = mix(deepWater, shallowWater, causticsPattern);
+        
+        // Add subtle foam at edges
+        float edgeFoam = smoothstep(0.9, 0.95, abs(vUv.x - 0.5) * 2.0);
+        vec3 foamColor = vec3(0.9, 0.95, 1.0) * edgeFoam * 0.5;
+        
+        // Simple fresnel effect for reflectivity
+        float fresnel = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.0);
+        vec3 reflectionColor = sunColor * fresnel * 0.3;
+        
+        // Combine all effects
+        vec3 finalColor = waterCol + foamColor + reflectionColor;
+        
+        gl_FragColor = vec4(finalColor, 0.85);
     }
-    riverBedGeometry.setAttribute('color', new THREE.BufferAttribute(riverColors, 3));
-    riverBedGeometry.computeVertexNormals();
-    
-    const riverBedMaterial = new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.95,
-        metalness: 0.0,
-        flatShading: true // Flat shading for RuneScape look
+`;
+
+export function createRiverWithFlow(scene, constants) {
+    // Create river bed (darker area beneath water)
+    const riverBedGeometry = new THREE.PlaneGeometry(constants.RIVER_WIDTH * 0.8, constants.TOTAL_DEPTH, 1, 1);
+    const riverBedMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x1a1a2e,
+        roughness: 1.0 
     });
-    
     const riverBed = new THREE.Mesh(riverBedGeometry, riverBedMaterial);
     riverBed.rotation.x = -Math.PI / 2;
-    riverBed.position.set(CONSTANTS.RIVER_CENTER_X, -0.8, 0);
-    riverBed.receiveShadow = true;
+    riverBed.position.set(constants.RIVER_CENTER_X, -1.2, 0);
     scene.add(riverBed);
     
-    // Create animated water with shader material
-    const waterShaderMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-            time: { value: 0 },
-            flowSpeed: { value: 0.3 },
-            waveHeight: { value: 0.03 },
-            color: { value: new THREE.Color(0x2E7FB5) },
-            opacity: { value: 0.75 }
-        },
+    // Create river banks
+    createRiverBanks(scene, constants);
+    
+    // Create water surface
+    const waterGeometry = new THREE.PlaneGeometry(constants.RIVER_WIDTH * 0.9, constants.TOTAL_DEPTH, 30, 50);
+
+    const waterMaterial = new THREE.ShaderMaterial({
         vertexShader: riverVertexShader,
         fragmentShader: riverFragmentShader,
+        uniforms: {
+            time: { value: 0.0 },
+            waterColor: { value: new THREE.Color(0x2980b9) },
+            sunColor: { value: new THREE.Color(0xFFFFFF) },
+            sunDirection: { value: new THREE.Vector3(0.7, 0.7, 0.7) },
+        },
         transparent: true,
         side: THREE.DoubleSide,
-        depthWrite: false
+    });
+
+    const riverMesh = new THREE.Mesh(waterGeometry, waterMaterial);
+    riverMesh.rotation.x = -Math.PI / 2;
+    riverMesh.position.set(constants.RIVER_CENTER_X, -0.5, 0);
+    scene.add(riverMesh);
+
+    // Animate the river
+    function animateRiver() {
+        waterMaterial.uniforms.time.value += 0.01;
+        requestAnimationFrame(animateRiver);
+    }
+    animateRiver();
+}
+
+function createRiverBanks(scene, constants) {
+    const bankMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x8b7355,
+        roughness: 0.9 
     });
     
-    const waterSegmentsX = 10;
-    const waterSegmentsZ = 40;
-    const waterGeometry = new THREE.PlaneGeometry(CONSTANTS.RIVER_WIDTH * 0.9, CONSTANTS.TOTAL_DEPTH * 1.2, waterSegmentsX, waterSegmentsZ);
+    // Create sloped banks on both sides
+    const bankWidth = 2;
+    const bankHeight = 1.5;
     
-    const waterSurface = new THREE.Mesh(waterGeometry, waterShaderMaterial);
-    waterSurface.rotation.x = -Math.PI / 2;
-    waterSurface.position.set(CONSTANTS.RIVER_CENTER_X, -0.4, 0);
-    waterSurface.userData.isWater = true;
-    scene.add(waterSurface);
+    // Left bank
+    const leftBankGeometry = new THREE.BoxGeometry(bankWidth, bankHeight, constants.TOTAL_DEPTH);
+    const leftBank = new THREE.Mesh(leftBankGeometry, bankMaterial);
+    leftBank.position.set(constants.RIVER_CENTER_X - constants.RIVER_WIDTH/2 - bankWidth/2, -bankHeight/2 + 0.2, 0);
+    leftBank.rotation.z = Math.PI / 8; // Slope towards river
+    scene.add(leftBank);
     
-    // Add second water layer for depth
-    const underWaterMaterial = waterShaderMaterial.clone();
-    underWaterMaterial.uniforms.opacity.value = 0.5;
-    underWaterMaterial.uniforms.flowSpeed.value = 0.2;
+    // Right bank
+    const rightBankGeometry = new THREE.BoxGeometry(bankWidth, bankHeight, constants.TOTAL_DEPTH);
+    const rightBank = new THREE.Mesh(rightBankGeometry, bankMaterial);
+    rightBank.position.set(constants.RIVER_CENTER_X + constants.RIVER_WIDTH/2 + bankWidth/2, -bankHeight/2 + 0.2, 0);
+    rightBank.rotation.z = -Math.PI / 8; // Slope towards river
+    scene.add(rightBank);
     
-    const underWaterSurface = new THREE.Mesh(waterGeometry.clone(), underWaterMaterial);
-    underWaterSurface.rotation.x = -Math.PI / 2;
-    underWaterSurface.position.set(CONSTANTS.RIVER_CENTER_X, -0.6, 0);
-    underWaterSurface.userData.isWater = true;
-    scene.add(underWaterSurface);
-    
-    // River banks with RuneScape-style rocky edges
-    const bankMaterial = new THREE.MeshStandardMaterial({
-        color: 0x5A4A3A,
-        roughness: 0.95,
-        metalness: 0.0,
-        flatShading: true
-    });
-    
-    // Create tiered banks for RuneScape look
-    const bankTiers = 3;
-    const tierHeight = 0.3;
-    const tierWidth = 0.6;
-    
-    // West bank tiers
-    for (let tier = 0; tier < bankTiers; tier++) {
-        const bankGeometry = new THREE.BoxGeometry(
-            tierWidth, 
-            tierHeight, 
-            CONSTANTS.TOTAL_DEPTH * 1.2
-        );
-        
-        // Add vertex variation
-        const positions = bankGeometry.attributes.position.array;
-        for (let i = 0; i < positions.length; i += 3) {
-            positions[i + 1] += (Math.random() - 0.5) * 0.05; // Small Y variation
-        }
-        bankGeometry.computeVertexNormals();
-        
-        const westBankTier = new THREE.Mesh(bankGeometry, bankMaterial);
-        westBankTier.position.set(
-            CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH/2 - tierWidth/2 - tier * tierWidth * 0.8, 
-            tierHeight/2 + tier * tierHeight * 0.7, 
-            0
-        );
-        westBankTier.receiveShadow = true;
-        westBankTier.castShadow = true;
-        scene.add(westBankTier);
-    }
-    
-    // East bank tiers
-    for (let tier = 0; tier < bankTiers; tier++) {
-        const bankGeometry = new THREE.BoxGeometry(
-            tierWidth, 
-            tierHeight, 
-            CONSTANTS.TOTAL_DEPTH * 1.2
-        );
-        
-        // Add vertex variation
-        const positions = bankGeometry.attributes.position.array;
-        for (let i = 0; i < positions.length; i += 3) {
-            positions[i + 1] += (Math.random() - 0.5) * 0.05; // Small Y variation
-        }
-        bankGeometry.computeVertexNormals();
-        
-        const eastBankTier = new THREE.Mesh(bankGeometry, bankMaterial);
-        eastBankTier.position.set(
-            CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH/2 + tierWidth/2 + tier * tierWidth * 0.8, 
-            tierHeight/2 + tier * tierHeight * 0.7, 
-            0
-        );
-        eastBankTier.receiveShadow = true;
-        eastBankTier.castShadow = true;
-        scene.add(eastBankTier);
-    }
-    
-    // Add rocks along the river
-    const rockGeometry = new THREE.DodecahedronGeometry(0.4, 0);
+    // Add some rocks along the banks
     const rockMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x4A4A4A, 
-        roughness: 0.9,
-        flatShading: true 
-    });
-    
-    // Place rocks along the banks
-    for (let i = 0; i < 30; i++) {
-        const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-        const side = Math.random() > 0.5 ? 1 : -1;
-        const alongRiver = (Math.random() - 0.5) * CONSTANTS.TOTAL_DEPTH;
-        const offset = Math.random() * 2 + CONSTANTS.RIVER_WIDTH/2;
-        
-        rock.position.set(
-            CONSTANTS.RIVER_CENTER_X + side * offset,
-            Math.random() * 0.3,
-            alongRiver
-        );
-        rock.rotation.set(
-            Math.random() * Math.PI,
-            Math.random() * Math.PI,
-            Math.random() * Math.PI
-        );
-        rock.scale.setScalar(0.5 + Math.random() * 0.8);
-        rock.castShadow = true;
-        rock.receiveShadow = true;
-        scene.add(rock);
-    }
-    
-    // Add some reeds/grass near the water
-    const reedMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x3A5F3A,
-        roughness: 0.9,
-        side: THREE.DoubleSide
+        color: 0x666666,
+        roughness: 0.9 
     });
     
     for (let i = 0; i < 20; i++) {
-        const reedGroup = new THREE.Group();
-        const side = Math.random() > 0.5 ? 1 : -1;
-        const alongRiver = (Math.random() - 0.5) * CONSTANTS.TOTAL_DEPTH * 0.8;
-        const offset = CONSTANTS.RIVER_WIDTH/2 + Math.random() * 1.5;
-        
-        // Create 3-5 reeds in a cluster
-        const numReeds = 3 + Math.floor(Math.random() * 3);
-        for (let j = 0; j < numReeds; j++) {
-            const reedHeight = 0.8 + Math.random() * 0.4;
-            const reedGeometry = new THREE.ConeGeometry(0.05, reedHeight, 3);
-            const reed = new THREE.Mesh(reedGeometry, reedMaterial);
-            reed.position.set(
-                (Math.random() - 0.5) * 0.3,
-                reedHeight/2,
-                (Math.random() - 0.5) * 0.3
-            );
-            reed.rotation.z = (Math.random() - 0.5) * 0.2;
-            reedGroup.add(reed);
-        }
-        
-        reedGroup.position.set(
-            CONSTANTS.RIVER_CENTER_X + side * offset,
-            -0.1,
-            alongRiver
+        const rockScale = 0.2 + Math.random() * 0.4;
+        const rock = new THREE.Mesh(
+            new THREE.SphereGeometry(rockScale, 6, 6),
+            rockMaterial
         );
-        scene.add(reedGroup);
+        
+        const side = Math.random() > 0.5 ? 1 : -1;
+        const xPos = constants.RIVER_CENTER_X + side * (constants.RIVER_WIDTH/2 + 0.5 + Math.random());
+        const zPos = -constants.TOTAL_DEPTH/2 + Math.random() * constants.TOTAL_DEPTH;
+        
+        rock.position.set(xPos, -0.3 + rockScale/2, zPos);
+        rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        rock.castShadow = true;
+        
+        scene.add(rock);
     }
 }

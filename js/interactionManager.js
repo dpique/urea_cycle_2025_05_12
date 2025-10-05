@@ -3,10 +3,10 @@ import * as THREE from 'three';
 import * as CONSTANTS from './constants.js';
 import { showDialogue, showFeedback, showInteractionPrompt, hideInteractionPrompt } from './uiManager.js';
 import { createGameBoySound, playMoleculeGenerationSound, playPortalCelebration, stopBackgroundMusic, startBackgroundMusic } from './audioManager.js';
-import { advanceUreaCycleQuest, startRealityRiverChallenge, hasRequiredItems, consumeItems, ureaCycleQuestData } from './questManager.js';
+import { advanceUreaCycleQuest, startUreaCycleQuest, startRealityRiverChallenge, hasRequiredItems, consumeItems, ureaCycleQuestData } from './questManager.js';
 import { removePortalBarrierFromWorld, createResource, interactiveObjects, originalMaterials, removeResourceFromWorld } from './worldManager.js';
 import { player } from './playerManager.js';
-import { getGameState, setGameState, getCurrentQuest, getInventory, addToInventory, getPlayerLocation, setPlayerLocation } from '../main.js';
+import { getGameState, setGameState, getCurrentQuest, getInventory, addToInventory, getPlayerLocation, setPlayerLocation } from './gameState.js';
 import { createSimpleParticleSystem, createCollectionEffect } from './utils.js';
 
 const PRE_SURVEY_LINK = "https://forms.gle/yourpretestsurvey";
@@ -158,6 +158,7 @@ function updateQuestIndicator(obj) {
             case CONSTANTS.QUEST_STATE.STEP_11A_COLLECT_MALATE:
                 isQuestRelevant = obj.userData.name === 'Malate';
                 break;
+            case CONSTANTS.QUEST_STATE.STEP_8B_GET_ASPARTATE:
             case CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE:
                 isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.SHUTTLE_DRIVER;
                 break;
@@ -182,14 +183,21 @@ function updateQuestIndicator(obj) {
             case CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE:
                 isQuestRelevant = obj.userData.name === 'Bicarbonate';
                 break;
-            case CONSTANTS.QUEST_STATE.STEP_1_GATHER_MITO_REMAINING:
-                isQuestRelevant = obj.userData.name === 'NH3' || obj.userData.name === 'ATP';
+            case CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3:
+                isQuestRelevant = obj.userData.name === 'NH3';
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP:
+            case CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP:
+                isQuestRelevant = obj.userData.name === 'ATP' && obj.position.x < CONSTANTS.RIVER_CENTER_X;
                 break;
             case CONSTANTS.QUEST_STATE.STEP_3_COLLECT_CARB_PHOS:
                 isQuestRelevant = obj.userData.name === 'Carbamoyl Phosphate';
                 break;
-            case CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO:
-                isQuestRelevant = obj.userData.name === 'Citrulline' || obj.userData.name === 'ATP';
+            case CONSTANTS.QUEST_STATE.STEP_8_COLLECT_CITRULLINE:
+                isQuestRelevant = obj.userData.name === 'Citrulline';
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_8A_COLLECT_ATP:
+                isQuestRelevant = obj.userData.name === 'ATP';
                 break;
         }
     }
@@ -237,7 +245,17 @@ export function interactWithObject(object, scene) {
         interactionProcessedThisFrame = true;
 
         if (userData.name === CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS) {
-            if (currentQuest && currentQuest.id === 'ureaCycle') {
+            if (!currentQuest || (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.NOT_STARTED)) {
+                 showDialogue("Welcome! The cell is overwhelmed with ammonia! We need to convert it to Urea. Before we begin, would you like to take a brief pre-quest survey? Your feedback is valuable!", [
+                     { text: "Take Pre-Quest Survey", action: () => { window.open(PRE_SURVEY_LINK, '_blank'); }},
+                     { text: "Accept Quest", action: () => {
+                         if(startUreaCycleQuest()) {
+                            startBackgroundMusic();
+                         }
+                     }},
+                     { text: "Decline Quest" }
+                 ], setGameInteracting);
+            } else if (currentQuest && currentQuest.id === 'ureaCycle') {
                 if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_14_RIVER_CHALLENGE) {
                      showDialogue("Ready to test your knowledge on the Urea Cycle?", [
                          { text: "Yes, start the challenge!", action: startRealityRiverChallenge },
@@ -251,16 +269,6 @@ export function interactWithObject(object, scene) {
                 } else {
                      showDialogue(`Current Objective: ${ureaCycleQuestData.objectives[currentQuest.state]}`, [ { text: "Okay"} ], setGameInteracting);
                 }
-            } else if (!currentQuest) {
-                 showDialogue("Welcome! The cell is overwhelmed with ammonia! We need to convert it to Urea. Before we begin, would you like to take a brief pre-quest survey? Your feedback is valuable!", [
-                     { text: "Take Pre-Quest Survey", action: () => { window.open(PRE_SURVEY_LINK, '_blank'); }},
-                     { text: "Accept Quest", action: () => {
-                         if(getGameState().startUreaCycleQuest()) {
-                            startBackgroundMusic();
-                         }
-                     }},
-                     { text: "Decline Quest" }
-                 ], setGameInteracting);
             }
         }
         else if (userData.name === CONSTANTS.NPC_NAMES.ORNITHINE_USHER) {
@@ -308,7 +316,6 @@ export function interactWithObject(object, scene) {
         else if (userData.name === CONSTANTS.NPC_NAMES.DONKEY) {
             // Flexible quest state check for Donkey
             const donkeyStates = [
-                CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO,
                 CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY,
                 CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN
             ];
@@ -514,7 +521,9 @@ export function interactWithObject(object, scene) {
             ];
             // Helper: quest state order for comparison
             const questStateOrder = [
-                CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO,
+                CONSTANTS.QUEST_STATE.STEP_8_COLLECT_CITRULLINE,
+                CONSTANTS.QUEST_STATE.STEP_8A_COLLECT_ATP,
+                CONSTANTS.QUEST_STATE.STEP_8B_GET_ASPARTATE,
                 CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY,
                 CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN,
                 CONSTANTS.QUEST_STATE.STEP_11_CONVERT_FUMARATE_TO_MALATE,
@@ -527,11 +536,12 @@ export function interactWithObject(object, scene) {
             function isEarlierThan(stateA, stateB) {
                 return questStateOrder.indexOf(stateA) < questStateOrder.indexOf(stateB);
             }
-            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO) {
+            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_8B_GET_ASPARTATE) {
                 if (!inventory['Aspartate']) {
                     showDialogue("Welcome! I'm Malcolm, the Malate-Aspartate Shuttle Driver. The shuttle I manage is crucial for the Urea Cycle. I exchange Malate and Aspartate between the mitochondria and cytosol. Aspartate is essential for Argininosuccinate synthesis because it provides the second nitrogen atom. Would you like some Aspartate to continue your quest?", [
                         { text: "Yes, please!", action: () => {
                             addToInventory('Aspartate', 1);
+                            advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY);
                         }},
                         { text: "Not right now." }
                     ], setGameInteracting);
@@ -626,23 +636,29 @@ export function interactWithObject(object, scene) {
 
         if (currentQuest?.id === 'ureaCycle') {
             if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE && userData.name === 'Bicarbonate') {
-                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1_GATHER_MITO_REMAINING)) questAdvancedGenericFeedbackSuppressed = true;
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3)) questAdvancedGenericFeedbackSuppressed = true;
             }
-            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1_GATHER_MITO_REMAINING && hasRequiredItems({ 'Bicarbonate': 1, 'NH3': 1, 'ATP': 2 })) {
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3 && userData.name === 'NH3') {
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP)) questAdvancedGenericFeedbackSuppressed = true;
+            }
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP && userData.name === 'ATP') {
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP)) questAdvancedGenericFeedbackSuppressed = true;
+                showFeedback("First ATP collected! You need one more.", 3000);
+                specificFeedbackGivenForThisResource = true;
+            }
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP && userData.name === 'ATP' && hasRequiredItems({ 'ATP': 2 })) {
                 if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS)) questAdvancedGenericFeedbackSuppressed = true;
+                showFeedback("Both ATPs collected! Now go to Casper.", 3000);
+                specificFeedbackGivenForThisResource = true;
             }
             else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_3_COLLECT_CARB_PHOS && userData.name === 'Carbamoyl Phosphate') {
                 if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER)) questAdvancedGenericFeedbackSuppressed = true;
             }
-            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO) {
-                if (hasRequiredItems({ 'Citrulline': 1, 'ATP': 1 }) && !hasRequiredItems({'Aspartate':1}) ) {
-                    showFeedback(`Collected ${userData.name}. Now you need Aspartate from the ${CONSTANTS.NPC_NAMES.SHUTTLE_DRIVER}.`);
-                    specificFeedbackGivenForThisResource = true;
-                } else if (hasRequiredItems({ 'Citrulline': 1, 'ATP': 1, 'Aspartate':1 })) {
-                    // This state should ideally be covered by Shuttle Driver interaction advancing to STEP_9
-                    // but as a fallback if player somehow gets Aspartate another way (or for testing)
-                    if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY)) questAdvancedGenericFeedbackSuppressed = true;
-                }
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_8_COLLECT_CITRULLINE && userData.name === 'Citrulline') {
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_8A_COLLECT_ATP)) questAdvancedGenericFeedbackSuppressed = true;
+            }
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_8A_COLLECT_ATP && userData.name === 'ATP') {
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_8B_GET_ASPARTATE)) questAdvancedGenericFeedbackSuppressed = true;
             }
             else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_10B_COLLECT_PRODUCTS) {
                 if (userData.name === 'Arginine' || userData.name === 'Fumarate') {
@@ -762,7 +778,7 @@ export function interactWithObject(object, scene) {
         // Place Citrulline resource on the Cytosol side of the bridge
         createResource(scene, 'Citrulline', { x: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH / 2 + 0.5, z: CONSTANTS.BRIDGE_CENTER_Z + 1, yBase: CONSTANTS.BRIDGE_HEIGHT + 0.01, name: "Citrulline_bridge" }, userData.productColor || CONSTANTS.CITRULLINE_COLOR);
 
-        advanceUreaCycleQuest(userData.advancesQuestTo);
+        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_8_COLLECT_CITRULLINE);
     }
     else if (userData.type === 'wasteBucket' && !interactionProcessedThisFrame) {
         interactionProcessedThisFrame = true;

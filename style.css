@@ -399,3 +399,142 @@ body {
     color: rgba(255, 255, 255, 0.7);
     text-align: center;
 }
+
+/* Death Screen Styles */
+#deathScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: none; /* Hidden by default */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    color: white;
+    font-family: sans-serif;
+}
+
+#deathScreen h1 {
+    font-size: 3em;
+    margin-bottom: 20px;
+}
+
+#deathScreen p {
+    font-size: 1.5em;
+}
+
+/* Save Indicator Styles */
+#saveIndicator {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: #88ff88;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Urea Cycle Diagram Styles */
+.urea-cycle-diagram {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background-color: rgba(20, 20, 20, 0.9);
+    border: 2px solid rgba(100, 100, 100, 0.8);
+    border-radius: 10px;
+    padding: 10px;
+    color: white;
+    font-family: Arial, sans-serif;
+    z-index: 90;
+    transition: transform 0.3s ease-in-out;
+}
+
+.urea-cycle-diagram.collapsed {
+    transform: translateY(calc(100% - 40px));
+}
+
+.urea-cycle-diagram h3 {
+    margin: 0 0 10px 0;
+    text-align: center;
+    font-size: 14px;
+}
+
+.cycle-toggle {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    user-select: none;
+    transition: transform 0.3s;
+}
+
+.urea-cycle-diagram.collapsed .cycle-toggle {
+    transform: rotate(180deg);
+}
+
+/* SVG styles for the cycle diagram */
+.cycle-node {
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.cycle-node circle {
+    stroke-width: 2;
+}
+
+.cycle-node.completed circle {
+    fill: #4CAF50;
+    stroke: #45a049;
+}
+
+.cycle-node.current circle {
+    fill: #FFA500;
+    stroke: #FF8C00;
+    animation: pulse 2s infinite;
+}
+
+.cycle-node.pending circle {
+    fill: #555;
+    stroke: #777;
+}
+
+.cycle-arrow {
+    stroke: #666;
+    stroke-width: 2;
+    fill: none;
+    marker-end: url(#arrowhead);
+}
+
+.cycle-arrow.completed {
+    stroke: #4CAF50;
+}
+
+.cycle-label {
+    font-size: 10px;
+    font-weight: bold;
+    text-anchor: middle;
+    fill: white;
+    pointer-events: none;
+}
+
+.cycle-sublabel {
+    font-size: 8px;
+    text-anchor: middle;
+    fill: #ccc;
+    pointer-events: none;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}

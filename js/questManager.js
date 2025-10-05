@@ -8,7 +8,8 @@ import {
     updateRiverProgressUI, disableRiverAnswerButtons
 } from './uiManager.js';
 import { controls } from './sceneSetup.js';
-import { getGameState, setGameState, advanceCurrentQuestStateInMain, setCurrentQuestInMain, getCurrentQuest, getInventory, removeFromInventory } from '../main.js';
+import { getGameState, setGameState, getCurrentQuest, setCurrentQuest, advanceCurrentQuestState, getInventory, removeFromInventory } from './gameState.js';
+import { updateCycleDisplay } from './cycleDisplay.js';
 
 export const ureaCycleQuestData = {
     id: 'ureaCycle',
@@ -20,14 +21,18 @@ export const ureaCycleQuestData = {
         [CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2]: "Now collect CO2 from the Fire Pit in the alcove.",
         [CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE]: "Use the CAVA Shrine in the alcove with Water and CO2 to create Bicarbonate.",
         [CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE]: "Collect the Bicarbonate crystal that formed at the CAVA Shrine.",
-        [CONSTANTS.QUEST_STATE.STEP_1_GATHER_MITO_REMAINING]: "Gather NH3 (1) and ATP (2) in Mitochondria. (You have Bicarbonate).",
+        [CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3]: "Now collect NH3 (Ammonia) in the Mitochondria.",
+        [CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP]: "Collect your first ATP molecule in the Mitochondria.",
+        [CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP]: "Collect one more ATP molecule (you need 2 total for Casper).",
         [CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS]: "Great! Now speak with Casper (CPS1) to make Carbamoyl Phosphate.",
         [CONSTANTS.QUEST_STATE.STEP_3_COLLECT_CARB_PHOS]: "Collect the Carbamoyl Phosphate.",
         [CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER]: "Speak with the Ornithine Usher to get some Ornithine.",
         [CONSTANTS.QUEST_STATE.STEP_5_MAKE_CITRULLINE]: "Speak with Otis (OTC) to make Citrulline.",
         [CONSTANTS.QUEST_STATE.STEP_6_TALK_TO_USHER_PASSAGE]: "Talk to the Ornithine Usher to gain passage across the river bridge.",
         [CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL]: "Permission granted! Use the ORNT1 Portal on the bridge with Citrulline to activate it and transport to the Cytosol.",
-        [CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO]: "In the Cytosol: Collect the transported Citrulline and ATP (1). Aspartate will come from the Malate-Aspartate Shuttle.",
+        [CONSTANTS.QUEST_STATE.STEP_8_COLLECT_CITRULLINE]: "Collect the transported Citrulline that appeared on the Cytosol side.",
+        [CONSTANTS.QUEST_STATE.STEP_8A_COLLECT_ATP]: "Now collect ATP (1) in the Cytosol.",
+        [CONSTANTS.QUEST_STATE.STEP_8B_GET_ASPARTATE]: "Talk to Malcolm the Shuttle Driver to get Aspartate for the next reaction.",
         [CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY]: `Find ${CONSTANTS.NPC_NAMES.DONKEY} in the Cytosol to make Argininosuccinate (Needs Citrulline, Aspartate, ATP).`,
         [CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN]: `Take Argininosuccinate to ${CONSTANTS.NPC_NAMES.ASLAN}, and ask him to break it in 2 pieces.`,
         [CONSTANTS.QUEST_STATE.STEP_10B_COLLECT_PRODUCTS]: `Collect the Arginine and Fumarate that Aslan produced.`,
@@ -54,15 +59,18 @@ let currentRiverQuestionIndex = 0;
 let riverCorrectAnswers = 0;
 
 export function initQuests() {
-    // For now, just ensuring the data is available
+    // Set the initial quest state to show "Talk to Professor Hepaticus"
+    const initialQuest = { ...ureaCycleQuestData, state: CONSTANTS.QUEST_STATE.NOT_STARTED };
+    setCurrentQuest(initialQuest);
 }
 
 export function startUreaCycleQuest() {
     const currentQuest = getCurrentQuest();
-    if (!currentQuest) {
+    if (!currentQuest || currentQuest.state === CONSTANTS.QUEST_STATE.NOT_STARTED) {
         const newQuest = { ...ureaCycleQuestData, state: CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2 };
-        setCurrentQuestInMain(newQuest);
+        setCurrentQuest(newQuest);
         showFeedback(`Quest Started: ${newQuest.name}`, 3500);
+        updateCycleDisplay();
         return true;
     }
     return false;
@@ -71,7 +79,7 @@ export function startUreaCycleQuest() {
 export function advanceUreaCycleQuest(newState) {
     const currentQuest = getCurrentQuest();
     if (currentQuest && currentQuest.id === ureaCycleQuestData.id && currentQuest.state !== newState) {
-        advanceCurrentQuestStateInMain(newState);
+        advanceCurrentQuestState(newState);
         console.log(`Advancing quest ${ureaCycleQuestData.id} from ${currentQuest.state} to ${newState}`);
 
         const objectiveText = ureaCycleQuestData.objectives[newState];

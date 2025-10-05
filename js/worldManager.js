@@ -234,7 +234,8 @@ export function initWorld(scene) {
     createResource(scene, 'ATP', { x: CONSTANTS.CYTO_ZONE_MIN_X + 10, z: -8 }, CONSTANTS.ATP_COLOR);
     // Aspartate is no longer a free pickup, it comes from the shuttle
 
-    createWasteBucket(scene, new THREE.Vector3(CONSTANTS.MAX_X - 5, 0.01, CONSTANTS.MAX_Z - 5)); // Cytosol, far corner
+    // Waste Receptacle - near Argus (Arginase) for Urea disposal
+    createWasteBucket(scene, new THREE.Vector3(CONSTANTS.MAX_X - 5, 0.01, -10));
 
     // NPC placement for Fumarase and Shuttle Driver will be handled by npcManager using constants
     // Example: Fumarase in Cytosol near Aslan, Shuttle near bridge Cytosol side.
@@ -300,6 +301,221 @@ function createCaveArea(scene) {
             console.warn("Skipped placing a fixed rock due to proximity to essential alcove item:", data);
         }
     });
+}
+
+// Create natural barriers using terrain elevation
+function createNaturalBarriers(scene) {
+    // Natural barriers are now handled by terrain elevation at edges
+    // No additional objects needed as the terrain itself forms barriers
+}
+
+// Create trees for environmental detail
+function createTrees(scene) {
+    // Tree trunk material
+    const trunkMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x4a3c28,
+        roughness: 0.8 
+    });
+    
+    // Green leaf material for cytosol trees
+    const cytoLeafMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x2d5016, // Dark forest green
+        roughness: 0.6 
+    });
+    
+    // Brownish leaf material for mitochondria trees
+    const mitoLeafMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x8B4513, // Brownish for mitochondria
+        roughness: 0.6 
+    });
+    
+    // Add MANY trees in cytosol area (like the original)
+    for (let i = 0; i < 15; i++) {
+        const x = CONSTANTS.CYTO_ZONE_MIN_X + 5 + Math.random() * (CONSTANTS.MAX_X - CONSTANTS.CYTO_ZONE_MIN_X - 10);
+        const z = CONSTANTS.MIN_Z + 5 + Math.random() * (CONSTANTS.TOTAL_DEPTH - 10);
+        createTree(scene, x, z, trunkMaterial, cytoLeafMaterial);
+    }
+    
+    // Add some trees in mitochondria area too
+    const mitoTreePositions = [
+        { x: CONSTANTS.MIN_X + 5, z: 10 },
+        { x: CONSTANTS.MIN_X + 25, z: -20 },
+        { x: CONSTANTS.MIN_X + 18, z: 5 },
+        { x: CONSTANTS.MIN_X + 30, z: -5 },
+    ];
+    
+    mitoTreePositions.forEach(pos => {
+        createTree(scene, pos.x, pos.z, trunkMaterial, mitoLeafMaterial);
+    });
+    
+    // Also add crystals in mitochondria area
+    createCrystals(scene);
+}
+
+function createTree(scene, x, z, trunkMaterial, leafMaterial) {
+    const treeGroup = new THREE.Group();
+    
+    // Trunk
+    const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 3, 6);
+    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    trunk.position.y = 1.5;
+    trunk.castShadow = true;
+    treeGroup.add(trunk);
+    
+    // Foliage
+    const foliageGeometry = new THREE.ConeGeometry(2, 4, 8);
+    const foliage = new THREE.Mesh(foliageGeometry, leafMaterial);
+    foliage.position.y = 4.5;
+    foliage.castShadow = true;
+    foliage.receiveShadow = true;
+    treeGroup.add(foliage);
+    
+    const terrainHeight = getTerrainHeightAt(x, z);
+    treeGroup.position.set(x, terrainHeight, z);
+    scene.add(treeGroup);
+}
+
+function createCrystals(scene) {
+    // Add glowing crystals in mitochondria area
+    const crystalMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x7fffd4,
+        emissive: 0x7fffd4,
+        emissiveIntensity: 0.2,
+        roughness: 0.2,
+        metalness: 0.8
+    });
+    
+    for (let i = 0; i < 10; i++) {
+        const x = CONSTANTS.MIN_X + 5 + Math.random() * (CONSTANTS.MITO_ZONE_MAX_X - CONSTANTS.MIN_X - 10);
+        const z = CONSTANTS.MIN_Z + 5 + Math.random() * (CONSTANTS.TOTAL_DEPTH - 10);
+        
+        const crystal = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.3, 0),
+            crystalMaterial
+        );
+        
+        const terrainHeight = getTerrainHeightAt(x, z);
+        crystal.position.set(x, terrainHeight + 0.3, z);
+        crystal.rotation.y = Math.random() * Math.PI;
+        crystal.castShadow = true;
+        
+        scene.add(crystal);
+    }
+}
+
+// Add environmental details like grass, rocks, etc.
+function addEnvironmentalDetails(scene) {
+    // Add some scattered rocks
+    const rockMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x666666, 
+        roughness: 0.9 
+    });
+    
+    // Add rocks in various locations
+    for (let i = 0; i < 15; i++) {
+        const rockScale = 0.3 + Math.random() * 0.7;
+        const rock = new THREE.Mesh(
+            new THREE.DodecahedronGeometry(rockScale),
+            rockMaterial
+        );
+        
+        // Random positions avoiding key areas
+        let x = CONSTANTS.MIN_X + Math.random() * (CONSTANTS.MAX_X - CONSTANTS.MIN_X);
+        let z = -25 + Math.random() * 50;
+        
+        // Avoid river area
+        if (Math.abs(x - CONSTANTS.RIVER_CENTER_X) < CONSTANTS.RIVER_WIDTH * 1.5) continue;
+        
+        rock.position.set(x, getTerrainHeightAt(x, z) + rockScale/2, z);
+        rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        rock.castShadow = true;
+        rock.receiveShadow = true;
+        
+        scene.add(rock);
+    }
+    
+    // Add trees to both biomes
+    createTrees(scene);
+    
+    // Add some grass tufts
+    const grassMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x2d4a1f,
+        side: THREE.DoubleSide
+    });
+    
+    for (let i = 0; i < 30; i++) {
+        const grassGroup = new THREE.Group();
+        const bladeCount = 3 + Math.floor(Math.random() * 4);
+        
+        for (let j = 0; j < bladeCount; j++) {
+            const blade = new THREE.Mesh(
+                new THREE.PlaneGeometry(0.1, 0.3 + Math.random() * 0.3),
+                grassMaterial
+            );
+            blade.position.set(
+                (Math.random() - 0.5) * 0.3,
+                0.15,
+                (Math.random() - 0.5) * 0.3
+            );
+            blade.rotation.y = Math.random() * Math.PI;
+            grassGroup.add(blade);
+        }
+        
+        let x = CONSTANTS.MIN_X + Math.random() * (CONSTANTS.MAX_X - CONSTANTS.MIN_X);
+        let z = -25 + Math.random() * 50;
+        
+        // Avoid river area
+        if (Math.abs(x - CONSTANTS.RIVER_CENTER_X) < CONSTANTS.RIVER_WIDTH * 1.5) continue;
+        
+        grassGroup.position.set(x, getTerrainHeightAt(x, z), z);
+        scene.add(grassGroup);
+    }
+}
+
+// Add visible trails between important locations
+function addPhysicalTrails(scene) {
+    const trailMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x8b7355,
+        roughness: 1.0
+    });
+    
+    // Create a trail from spawn to Professor Hepaticus
+    const trailWidth = 0.8;
+    
+    // Trail 1: From spawn area to Professor
+    const trail1Start = new THREE.Vector3(-10, 0, -5);
+    const trail1End = new THREE.Vector3(CONSTANTS.MIN_X + 10, 0, -8);
+    
+    const trail1Length = trail1Start.distanceTo(trail1End);
+    const trail1 = new THREE.Mesh(
+        new THREE.PlaneGeometry(trail1Length, trailWidth, 20, 1),
+        trailMaterial
+    );
+    
+    // Position and rotate trail
+    trail1.position.copy(trail1Start.clone().add(trail1End).multiplyScalar(0.5));
+    trail1.position.y = 0.01; // Slightly above terrain
+    trail1.rotation.x = -Math.PI / 2;
+    trail1.lookAt(trail1End.x, trail1.position.y, trail1End.z);
+    
+    scene.add(trail1);
+    
+    // Trail 2: From Professor area to bridge
+    const trail2Start = trail1End.clone();
+    const trail2End = new THREE.Vector3(CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2, 0, CONSTANTS.BRIDGE_CENTER_Z);
+    
+    const trail2Length = trail2Start.distanceTo(trail2End);
+    const trail2 = new THREE.Mesh(
+        new THREE.PlaneGeometry(trail2Length, trailWidth, 20, 1),
+        trailMaterial
+    );
+    
+    trail2.position.copy(trail2Start.clone().add(trail2End).multiplyScalar(0.5));
+    trail2.position.y = 0.01;
+    trail2.rotation.x = -Math.PI / 2;
+    trail2.lookAt(trail2End.x, trail2.position.y, trail2End.z);
+    
+    scene.add(trail2);
 }
 
 function createProfessorStudyArea(scene) {
@@ -682,48 +898,25 @@ export function getTerrainHeightAt(x, z) {
         return getCaveFloorY(x);
     }
     
-    // Base terrain height calculation (matching the terrain generation)
+    // Match the terrain generation in createTerrainSection
     const worldX = x;
     const worldZ = z;
     
-    // Distance from center calculations
-    const distFromCenterX = Math.abs(worldX) / (CONSTANTS.TOTAL_WIDTH / 2);
-    const distFromCenterZ = Math.abs(worldZ) / (CONSTANTS.TOTAL_DEPTH / 2);
-    const distFromEdge = Math.max(distFromCenterX, distFromCenterZ);
+    // Multiple octaves of noise for more realistic terrain (matching createTerrainSection)
+    const noise1 = Math.sin(worldX * 0.05) * Math.cos(worldZ * 0.05) * 0.8;
+    const noise2 = Math.sin(worldX * 0.1) * Math.cos(worldZ * 0.1) * 0.4;
+    const noise3 = Math.sin(worldX * 0.2) * Math.cos(worldZ * 0.2) * 0.2;
+    let height = noise1 + noise2 + noise3;
     
-    // Match the RuneScape-style terrain generation
-    let height = 0;
-    
-    // Large-scale hills
-    height += Math.sin(worldX * 0.02 + 1.3) * Math.cos(worldZ * 0.025) * 1.2;
-    height += Math.sin(worldX * 0.035 + 2.7) * Math.cos(worldZ * 0.03 + 0.8) * 0.8;
-    
-    // Medium-scale variation
-    height += Math.sin(worldX * 0.08 + 0.5) * Math.cos(worldZ * 0.06 + 1.2) * 0.4;
-    height += Math.cos(worldX * 0.12) * Math.sin(worldZ * 0.1 + 2.1) * 0.3;
-    
-    // Small-scale variation
-    const tileNoise = (Math.sin(worldX * 0.5) * Math.cos(worldZ * 0.5) + Math.sin(worldX * 0.7 + worldZ * 0.7)) * 0.15;
-    height += tileNoise;
-    
-    // Biome heights
-    if (worldX < CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH) {
-        height += 0.3 + Math.sin(worldX * 0.1 + worldZ * 0.15) * 0.2;
-    } else if (worldX > CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH) {
-        height += 0.1 + Math.cos(worldX * 0.09) * Math.sin(worldZ * 0.11) * 0.25;
-    } else {
-        const riverDist = Math.abs(worldX - CONSTANTS.RIVER_CENTER_X) / (CONSTANTS.RIVER_WIDTH * 0.5);
-        height -= 0.8 * (1 - riverDist * riverDist);
+    // Add biome-specific height offsets
+    if (x < CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH/2) {
+        height += 0.3; // Mitochondria slightly elevated
+    } else if (x > CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH/2) {
+        height += 0.1; // Cytosol lower
     }
     
-    // Edge barriers
-    if (distFromEdge > 0.8) {
-        const edgeStrength = (distFromEdge - 0.8) / 0.2;
-        height += edgeStrength * edgeStrength * 2.5;
-        height += edgeStrength * Math.sin(worldX * 0.15 + worldZ * 0.2) * 0.5;
-    }
-    
-    return height * 0.1; // Scale down to match world scale
+    // Scale down for world scale (matching createTerrainSection)
+    return height * 0.1;
 }
 
 function addMitoCristae(scene) {
@@ -818,6 +1011,71 @@ export function removeResourceFromWorld(resourceObject) {
     }
 }
 
+// Create a terrain section with RuneScape-style tiles
+function createTerrainSection(scene, startX, width, tilesX, tilesZ, material, zone) {
+    const depth = 60; // Z depth of terrain
+    const geometry = new THREE.PlaneGeometry(width, depth, tilesX - 1, tilesZ - 1);
+    
+    // Apply height variation and vertex colors
+    const vertices = geometry.attributes.position.array;
+    const colors = new Float32Array(vertices.length);
+    
+    for (let i = 0; i < vertices.length; i += 3) {
+        const x = vertices[i];
+        const z = vertices[i + 1];
+        
+        // Create height variation
+        const worldX = x + startX + width/2;
+        const worldZ = z;
+        
+        // Multiple octaves of noise for more realistic terrain
+        const noise1 = Math.sin(worldX * 0.05) * Math.cos(worldZ * 0.05) * 0.8;
+        const noise2 = Math.sin(worldX * 0.1) * Math.cos(worldZ * 0.1) * 0.4;
+        const noise3 = Math.sin(worldX * 0.2) * Math.cos(worldZ * 0.2) * 0.2;
+        let height = noise1 + noise2 + noise3;
+        
+        // Add biome-specific height offsets
+        if (zone === 'mito') {
+            height += 0.3; // Mitochondria slightly elevated
+        } else {
+            height += 0.1; // Cytosol lower
+        }
+        
+        // Scale down for world scale
+        vertices[i + 2] = height * 0.1; // Set Y (height)
+        
+        // Vertex coloring for RuneScape style variation - different colors per biome
+        if (zone === 'mito') {
+            // Mitochondria - brownish/reddish terrain
+            const brownVariation = 0.1 + Math.random() * 0.1;
+            colors[i] = 0.4 + brownVariation;     // R
+            colors[i + 1] = 0.25 + brownVariation * 0.7; // G
+            colors[i + 2] = 0.15 + brownVariation * 0.5; // B
+        } else {
+            // Cytosol - greenish terrain
+            const greenVariation = 0.1 + Math.random() * 0.15;
+            colors[i] = 0.2 + Math.random() * 0.1;     // R
+            colors[i + 1] = 0.4 + greenVariation; // G
+            colors[i + 2] = 0.1 + Math.random() * 0.05; // B
+        }
+    }
+    
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.computeVertexNormals();
+    
+    const terrainMesh = new THREE.Mesh(geometry, material);
+    terrainMesh.rotation.x = -Math.PI / 2;
+    terrainMesh.position.set(startX + width/2, 0, 0);
+    terrainMesh.receiveShadow = true;
+    terrainMesh.userData.terrainType = zone;
+    
+    scene.add(terrainMesh);
+    
+    // Store terrain meshes for height queries
+    if (!window.terrainMeshes) window.terrainMeshes = [];
+    window.terrainMeshes.push(terrainMesh);
+}
+
 // RuneScape-style tiled terrain with visible triangulated faces
 function createTerrain(scene) {
     // Create two separate terrain meshes - one for each side of the river
@@ -838,10 +1096,10 @@ function createTerrain(scene) {
     });
     
     // Create mitochondria terrain (west of river)
-    createTerrainSection(scene, CONSTANTS.MIN_X, CONSTANTS.MITO_ZONE_MAX_X, mitoWidth, tilesX, tilesZ, terrainMaterial, 'mito');
+    createTerrainSection(scene, CONSTANTS.MIN_X, mitoWidth, tilesX, tilesZ, terrainMaterial, 'mito');
     
     // Create cytosol terrain (east of river)
-    createTerrainSection(scene, CONSTANTS.CYTO_ZONE_MIN_X, CONSTANTS.MAX_X, cytoWidth, tilesX, tilesZ, terrainMaterial, 'cyto');
+    createTerrainSection(scene, CONSTANTS.CYTO_ZONE_MIN_X, cytoWidth, tilesX, tilesZ, terrainMaterial, 'cyto');
     
     // Keep the improved river with north-south flow
     createRiverWithFlow(scene, CONSTANTS);
@@ -850,752 +1108,50 @@ function createTerrain(scene) {
     createBackgroundTerrain(scene);
 }
 
-// Helper function to create a terrain section
-function createTerrainSection(scene, minX, maxX, width, tilesX, tilesZ, material, biome) {
-    const geometry = new THREE.PlaneGeometry(width, CONSTANTS.TOTAL_DEPTH, tilesX, tilesZ);
-    const vertices = geometry.attributes.position.array;
-    
-    // Process vertices
-    for (let i = 0; i < vertices.length; i += 3) {
-        const localX = vertices[i];
-        const z = vertices[i + 1];
-        // Convert local x to world x
-        const worldX = localX + (minX + maxX) / 2;
-        
-        // RuneScape-style terrain with more random variation
-        let height = 0;
-        
-        // Create irregular terrain using multiple noise patterns
-        // Large-scale hills
-        height += Math.sin(worldX * 0.02 + 1.3) * Math.cos(z * 0.025) * 1.2;
-        height += Math.sin(worldX * 0.035 + 2.7) * Math.cos(z * 0.03 + 0.8) * 0.8;
-        
-        // Medium-scale variation
-        height += Math.sin(worldX * 0.08 + 0.5) * Math.cos(z * 0.06 + 1.2) * 0.4;
-        height += Math.cos(worldX * 0.12) * Math.sin(z * 0.1 + 2.1) * 0.3;
-        
-        // Small-scale tile-to-tile variation for RuneScape feel
-        const tileNoise = (Math.sin(worldX * 0.5) * Math.cos(z * 0.5) + Math.sin(worldX * 0.7 + z * 0.7)) * 0.15;
-        height += tileNoise;
-        
-        // Biome-based height
-        if (biome === 'mito') {
-            // Mitochondria - slightly raised with variation
-            height += 0.3 + Math.sin(worldX * 0.1 + z * 0.15) * 0.2;
-        } else {
-            // Cytosol - rolling plains
-            height += 0.1 + Math.cos(worldX * 0.09) * Math.sin(z * 0.11) * 0.25;
-        }
-        
-        // Edge barriers - check distance from actual world edges
-        const distFromEdgeX = Math.min(Math.abs(worldX - CONSTANTS.MIN_X), Math.abs(worldX - CONSTANTS.MAX_X)) / (CONSTANTS.TOTAL_WIDTH * 0.5);
-        const distFromEdgeZ = Math.min(Math.abs(z - CONSTANTS.MIN_Z), Math.abs(z - CONSTANTS.MAX_Z)) / (CONSTANTS.TOTAL_DEPTH * 0.5);
-        const distFromEdge = Math.min(distFromEdgeX, distFromEdgeZ);
-        
-        if (distFromEdge < 0.2) {
-            const edgeStrength = (0.2 - distFromEdge) / 0.2;
-            height += edgeStrength * edgeStrength * 2.5;
-            height += edgeStrength * Math.sin(worldX * 0.15 + z * 0.2) * 0.5;
-        }
-        
-        height = Math.max(height, 0);
-        vertices[i + 2] = height * 0.1; // Scale down to match world scale
-    }
-    
-    geometry.computeVertexNormals();
-    
-    // Add vertex colors
-    const colors = new Float32Array(vertices.length);
-    for (let i = 0; i < vertices.length; i += 3) {
-        const height = vertices[i + 2];
-        
-        // RuneScape-style tile coloring
-        let r, g, b;
-        
-        // Base biome colors
-        if (biome === 'mito') {
-            // Mitochondria - earthy browns and tans
-            const brownVar = Math.random() * 0.15;
-            r = 0.65 + brownVar; 
-            g = 0.52 + brownVar * 0.8; 
-            b = 0.35 + brownVar * 0.5;
-        } else {
-            // Cytosol - varied greens  
-            const greenVar = Math.random() * 0.2;
-            r = 0.25 + greenVar * 0.5; 
-            g = 0.55 + greenVar; 
-            b = 0.25 + greenVar * 0.3;
-        }
-        
-        // Tile-by-tile color variation for RuneScape aesthetic
-        const tileVariation = (Math.random() - 0.5) * 0.1;
-        r += tileVariation;
-        g += tileVariation;
-        b += tileVariation;
-        
-        // Height-based shading - brighter on hills, darker in valleys
-        const heightShade = 0.8 + (height * 0.15);
-        
-        // Random darker tiles for visual interest
-        if (Math.random() < 0.1) {
-            const darkness = 0.7 + Math.random() * 0.2;
-            r *= darkness;
-            g *= darkness;
-            b *= darkness;
-        }
-        
-        colors[i] = Math.min(1, Math.max(0, r * heightShade));
-        colors[i + 1] = Math.min(1, Math.max(0, g * heightShade));
-        colors[i + 2] = Math.min(1, Math.max(0, b * heightShade));
-    }
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    
-    const terrain = new THREE.Mesh(geometry, material);
-    terrain.rotation.x = -Math.PI / 2;
-    // Position the terrain section correctly
-    terrain.position.set((minX + maxX) / 2, 0, 0);
-    terrain.receiveShadow = true;
-    scene.add(terrain);
-    
-    // Add grid lines for RuneScape tile effect
-    const gridMaterial = new THREE.LineBasicMaterial({ 
-        color: 0x000000, 
-        opacity: 0.1, 
-        transparent: true 
-    });
-    
-    // Create a subtle grid overlay
-    const gridGeometry = new THREE.EdgesGeometry(geometry);
-    const gridLines = new THREE.LineSegments(gridGeometry, gridMaterial);
-    gridLines.rotation.x = -Math.PI / 2;
-    gridLines.position.set((minX + maxX) / 2, 0.01, 0); // Slightly above terrain
-    scene.add(gridLines);
-}
-
+// Create extended terrain that meets the horizon
 function createBackgroundTerrain(scene) {
-    // Create massive extended terrain that reaches to horizon
-    const extendedWidth = 1000; // Massive width to reach horizon
-    const extendedDepth = 1000; // Massive depth to reach horizon
-    const segments = 200;
+    // Create a massive terrain plane that extends to the horizon
+    const horizonDistance = 500; // Extend far into the distance
+    const backgroundGeometry = new THREE.PlaneGeometry(horizonDistance * 2, horizonDistance * 2, 50, 50);
     
-    const backgroundGeometry = new THREE.PlaneGeometry(extendedWidth, extendedDepth, segments, segments);
-    const positions = backgroundGeometry.attributes.position;
-    
-    // Generate infinite-looking terrain with realistic features
-    for (let i = 0; i < positions.count; i++) {
-        const x = positions.getX(i);
-        const z = positions.getZ(i);
+    // Apply height variation for more realistic distant terrain
+    const vertices = backgroundGeometry.attributes.position.array;
+    for (let i = 0; i < vertices.length; i += 3) {
+        const x = vertices[i];
+        const z = vertices[i + 1];
         
-        // Distance from center of world
-        const distFromCenter = Math.sqrt(x * x + z * z);
-        const maxDist = Math.sqrt((extendedWidth/2) * (extendedWidth/2) + (extendedDepth/2) * (extendedDepth/2));
-        const normalizedDist = distFromCenter / maxDist;
+        // Distance from center
+        const distance = Math.sqrt(x * x + z * z);
         
-        // Create varied terrain with multiple layers
-        let height = 0;
+        // Less height variation for distant terrain, more variation closer to play area
+        const heightScale = Math.max(0.1, 1 - distance / horizonDistance);
+        const noise1 = Math.sin(x * 0.005) * Math.cos(z * 0.005) * 3 * heightScale;
+        const noise2 = Math.sin(x * 0.02) * Math.cos(z * 0.02) * 1.5 * heightScale;
+        const noise3 = Math.sin(x * 0.05) * Math.cos(z * 0.05) * 0.5 * heightScale;
         
-        // Large-scale terrain features
-        height += Math.sin(x * 0.003 + 1.7) * Math.cos(z * 0.004) * 15;
-        height += Math.sin(x * 0.005 + 0.5) * Math.cos(z * 0.003 + 1.2) * 12;
-        height += Math.cos(x * 0.002) * Math.sin(z * 0.0025) * 18;
+        // Gradually lower terrain as it approaches horizon
+        const horizonDip = -distance * 0.02;
         
-        // Medium-scale rolling hills
-        height += Math.sin(x * 0.01) * Math.cos(z * 0.012) * 5;
-        height += Math.sin(x * 0.015 + 2.5) * Math.cos(z * 0.02) * 3;
-        
-        // Small-scale variation for texture
-        height += Math.sin(x * 0.05) * Math.cos(z * 0.04) * 1;
-        height += (Math.random() - 0.5) * 0.5;
-        
-        // Create distant mountain ranges
-        if (normalizedDist > 0.6) {
-            const mountainFactor = (normalizedDist - 0.6) / 0.4;
-            const mountainNoise = Math.sin(x * 0.001) * Math.cos(z * 0.001);
-            height += mountainFactor * 50 * Math.abs(mountainNoise);
-            
-            // Add peaks
-            if (normalizedDist > 0.8 && mountainNoise > 0.7) {
-                height += mountainFactor * 80 * (mountainNoise - 0.7);
-            }
-        }
-        
-        // Smooth transition from playable area
-        const playableX = Math.abs(x) <= CONSTANTS.MAX_X + 10;
-        const playableZ = Math.abs(z) <= CONSTANTS.MAX_Z + 10;
-        if (playableX && playableZ) {
-            // Smooth blend near playable area
-            const blendX = Math.max(0, (Math.abs(x) - CONSTANTS.MAX_X) / 10);
-            const blendZ = Math.max(0, (Math.abs(z) - CONSTANTS.MAX_Z) / 10);
-            const blendFactor = Math.max(blendX, blendZ);
-            height *= blendFactor;
-        }
-        
-        positions.setY(i, height);
+        vertices[i + 2] = noise1 + noise2 + noise3 + horizonDip;
     }
     
-    // Add vertex colors for distance-based coloring
-    const colors = new Float32Array(positions.count * 3);
-    for (let i = 0; i < positions.count; i++) {
-        const x = positions.getX(i);
-        const z = positions.getZ(i);
-        const y = positions.getY(i);
-        
-        const distFromCenter = Math.sqrt(x * x + z * z);
-        const normalizedDist = Math.min(distFromCenter / 300, 1);
-        
-        // Base terrain colors
-        let r = 0.3 + Math.random() * 0.1;
-        let g = 0.5 + Math.random() * 0.1;
-        let b = 0.3 + Math.random() * 0.1;
-        
-        // Height-based coloring
-        if (y > 20) {
-            // Mountain peaks - rocky gray
-            r = 0.5 + (y - 20) / 80 * 0.3;
-            g = 0.5 + (y - 20) / 80 * 0.3;
-            b = 0.55 + (y - 20) / 80 * 0.3;
-        } else if (y > 10) {
-            // Hills - brownish
-            r = 0.45;
-            g = 0.4;
-            b = 0.35;
-        }
-        
-        // Distance fog simulation
-        const fogFactor = normalizedDist * 0.5;
-        r = r + fogFactor * (0.7 - r);
-        g = g + fogFactor * (0.8 - g);
-        b = b + fogFactor * (0.9 - b);
-        
-        colors[i * 3] = r;
-        colors[i * 3 + 1] = g;
-        colors[i * 3 + 2] = b;
-    }
-    
-    backgroundGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     backgroundGeometry.computeVertexNormals();
     
-    // Create material with vertex colors
+    // Create gradient material that fades to horizon
     const backgroundMaterial = new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.95,
-        metalness: 0.0,
-        flatShading: true,
-        fog: true
+        color: 0x3a4d2e, // Slightly darker green for distance
+        roughness: 1.0,
+        metalness: 0,
+        fog: true // Enable fog for this mesh
     });
     
-    const backgroundTerrain = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
-    backgroundTerrain.rotation.x = -Math.PI / 2;
-    backgroundTerrain.position.set(0, -0.2, 0);
-    backgroundTerrain.receiveShadow = true;
-    scene.add(backgroundTerrain);
+    const backgroundMesh = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
+    backgroundMesh.rotation.x = -Math.PI / 2;
+    backgroundMesh.position.y = -2; // Slightly below main terrain
+    backgroundMesh.receiveShadow = true;
+    
+    scene.add(backgroundMesh);
+    
+    // Add fog to create atmospheric perspective
+    scene.fog = new THREE.Fog(0x87CEEB, 50, horizonDistance * 0.8);
 }
-
-// Removed addDistantMountains - mountains are now part of the terrain itself
-
-function createNaturalBarriers(scene) {
-    // Create invisible collision barriers at the edges
-    // Players will be stopped by the steep terrain elevation, not visible walls
-    
-    // Create invisible barriers for collision detection only
-    const barrierMaterial = new THREE.MeshBasicMaterial({ 
-        visible: false // Invisible barriers
-    });
-    
-    // West barrier
-    const westBarrier = new THREE.Mesh(
-        new THREE.BoxGeometry(1, 20, CONSTANTS.TOTAL_DEPTH),
-        barrierMaterial
-    );
-    westBarrier.position.set(CONSTANTS.MIN_X - 0.5, 10, 0);
-    scene.add(westBarrier);
-    wallBoundingBoxes.push(new THREE.Box3().setFromObject(westBarrier));
-    
-    // East barrier
-    const eastBarrier = new THREE.Mesh(
-        new THREE.BoxGeometry(1, 20, CONSTANTS.TOTAL_DEPTH),
-        barrierMaterial
-    );
-    eastBarrier.position.set(CONSTANTS.MAX_X + 0.5, 10, 0);
-    scene.add(eastBarrier);
-    wallBoundingBoxes.push(new THREE.Box3().setFromObject(eastBarrier));
-    
-    // North barrier
-    const northBarrier = new THREE.Mesh(
-        new THREE.BoxGeometry(CONSTANTS.TOTAL_WIDTH, 20, 1),
-        barrierMaterial
-    );
-    northBarrier.position.set(0, 10, CONSTANTS.MAX_Z + 0.5);
-    scene.add(northBarrier);
-    wallBoundingBoxes.push(new THREE.Box3().setFromObject(northBarrier));
-    
-    // South barrier
-    const southBarrier = new THREE.Mesh(
-        new THREE.BoxGeometry(CONSTANTS.TOTAL_WIDTH, 20, 1),
-        barrierMaterial
-    );
-    southBarrier.position.set(0, 10, CONSTANTS.MIN_Z - 0.5);
-    scene.add(southBarrier);
-    wallBoundingBoxes.push(new THREE.Box3().setFromObject(southBarrier));
-}
-
-function addEnvironmentalDetails(scene) {
-    // Add trees in cytosol area
-    for (let i = 0; i < 15; i++) {
-        const x = CONSTANTS.CYTO_ZONE_MIN_X + 5 + Math.random() * (CONSTANTS.MAX_X - CONSTANTS.CYTO_ZONE_MIN_X - 10);
-        const z = CONSTANTS.MIN_Z + 5 + Math.random() * (CONSTANTS.TOTAL_DEPTH - 10);
-        createTree(scene, x, z);
-    }
-    
-    // Add rocks and boulders
-    for (let i = 0; i < 20; i++) {
-        const x = CONSTANTS.MIN_X + Math.random() * CONSTANTS.TOTAL_WIDTH;
-        const z = CONSTANTS.MIN_Z + Math.random() * CONSTANTS.TOTAL_DEPTH;
-        // Avoid placing in river
-        if (Math.abs(x - CONSTANTS.RIVER_CENTER_X) > CONSTANTS.RIVER_WIDTH) {
-            createRock(scene, x, z);
-        }
-    }
-    
-    // Add crystals in mitochondria area
-    for (let i = 0; i < 10; i++) {
-        const x = CONSTANTS.MIN_X + 5 + Math.random() * (CONSTANTS.MITO_ZONE_MAX_X - CONSTANTS.MIN_X - 10);
-        const z = CONSTANTS.MIN_Z + 5 + Math.random() * (CONSTANTS.TOTAL_DEPTH - 10);
-        createCrystal(scene, x, z);
-    }
-}
-
-function createTree(scene, x, z) {
-    const treeGroup = new THREE.Group();
-    
-    // Trunk
-    const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 3, 6);
-    const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x4a3c28 });
-    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-    trunk.position.y = 1.5;
-    trunk.castShadow = true;
-    treeGroup.add(trunk);
-    
-    // Foliage
-    const foliageGeometry = new THREE.ConeGeometry(2, 4, 8);
-    const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x2d5016 });
-    const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
-    foliage.position.y = 4.5;
-    foliage.castShadow = true;
-    treeGroup.add(foliage);
-    
-    const terrainHeight = getTerrainHeightAt(x, z);
-    treeGroup.position.set(x, terrainHeight, z);
-    scene.add(treeGroup);
-}
-
-function createRock(scene, x, z) {
-    const rockGeometry = new THREE.DodecahedronGeometry(0.5 + Math.random() * 0.5, 0);
-    const rockMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x5a5a5a,
-        roughness: 0.9 
-    });
-    const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-    const terrainHeight = getTerrainHeightAt(x, z);
-    rock.position.set(x, terrainHeight + Math.random() * 0.3, z);
-    rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-    rock.castShadow = true;
-    scene.add(rock);
-}
-
-function createCrystal(scene, x, z) {
-    const crystalGeometry = new THREE.OctahedronGeometry(0.3, 0);
-    const crystalMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x7fffd4,
-        emissive: 0x7fffd4,
-        emissiveIntensity: 0.2,
-        roughness: 0.2,
-        metalness: 0.8
-    });
-    const crystal = new THREE.Mesh(crystalGeometry, crystalMaterial);
-    const terrainHeight = getTerrainHeightAt(x, z);
-    crystal.position.set(x, terrainHeight + 0.3, z);
-    crystal.rotation.y = Math.random() * Math.PI;
-    scene.add(crystal);
-}
-
-function addPhysicalTrails(scene) {
-    // Create trail material
-    const trailMaterial = new THREE.MeshBasicMaterial({
-        color: 0xc4a57b, // Sandy brown color
-        transparent: true,
-        opacity: 0.6
-    });
-    
-    // Define trail segments matching minimap trails
-    const trailSegments = [
-        // Mitochondria trails
-        { from: { x: CONSTANTS.MIN_X + 10, z: -8 }, to: { x: CONSTANTS.MIN_X + 15, z: 15 } }, // Prof to Casper
-        { from: { x: CONSTANTS.MIN_X + 15, z: 15 }, to: { x: CONSTANTS.MIN_X + 20, z: -10 } }, // Casper to Otis
-        { from: { x: CONSTANTS.MIN_X + 20, z: -10 }, to: { x: CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2 - 2, z: 0 } }, // Otis to Usher
-        
-        // Bridge approach trails
-        { from: { x: CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2 - 6, z: 0 }, to: { x: CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2, z: 0 } }, // To bridge west
-        { from: { x: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2, z: 0 }, to: { x: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2 + 6, z: 0 } }, // From bridge east
-        
-        // Cytosol trails
-        { from: { x: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2 + 6, z: 0 }, to: { x: CONSTANTS.CYTO_ZONE_MIN_X + 10, z: -15 } }, // Bridge to Donkey
-        { from: { x: CONSTANTS.CYTO_ZONE_MIN_X + 10, z: -15 }, to: { x: CONSTANTS.CYTO_ZONE_MIN_X + 25, z: 15 } }, // Donkey to Aslan
-        { from: { x: CONSTANTS.CYTO_ZONE_MIN_X + 25, z: 15 }, to: { x: CONSTANTS.CYTO_ZONE_MIN_X + 20, z: 0 } }, // Aslan to Fumarase
-        { from: { x: CONSTANTS.CYTO_ZONE_MIN_X + 20, z: 0 }, to: { x: CONSTANTS.CYTO_ZONE_MIN_X + 5, z: CONSTANTS.BRIDGE_CENTER_Z + 2 } }, // Fumarase to Shuttle
-        { from: { x: CONSTANTS.CYTO_ZONE_MIN_X + 5, z: CONSTANTS.BRIDGE_CENTER_Z + 2 }, to: { x: CONSTANTS.MAX_X - 15, z: -10 } }, // Shuttle to Argus
-        { from: { x: CONSTANTS.MAX_X - 15, z: -10 }, to: { x: CONSTANTS.MAX_X - 5, z: CONSTANTS.MAX_Z - 5 } } // Argus to Waste
-    ];
-    
-    const trailWidth = 1.5;
-    
-    trailSegments.forEach(segment => {
-        const dx = segment.to.x - segment.from.x;
-        const dz = segment.to.z - segment.from.z;
-        const distance = Math.sqrt(dx * dx + dz * dz);
-        const angle = Math.atan2(dz, dx);
-        
-        // Create trail plane
-        const trailGeometry = new THREE.PlaneGeometry(distance, trailWidth);
-        const trail = new THREE.Mesh(trailGeometry, trailMaterial);
-        
-        // Position and rotate trail
-        trail.position.set(
-            (segment.from.x + segment.to.x) / 2,
-            0.02, // Slightly above ground
-            (segment.from.z + segment.to.z) / 2
-        );
-        trail.rotation.x = -Math.PI / 2; // Lay flat
-        trail.rotation.z = -angle; // Orient along path
-        trail.receiveShadow = true;
-        
-        scene.add(trail);
-        
-        // Add some stones along the trail for visual interest
-        const numStones = Math.floor(distance / 3);
-        for (let i = 0; i < numStones; i++) {
-            const t = (i + 0.5) / numStones;
-            const stoneX = segment.from.x + dx * t + (Math.random() - 0.5) * trailWidth;
-            const stoneZ = segment.from.z + dz * t + (Math.random() - 0.5) * trailWidth;
-            
-            const stoneGeometry = new THREE.SphereGeometry(0.1 + Math.random() * 0.1, 4, 3);
-            const stoneMaterial = new THREE.MeshStandardMaterial({ 
-                color: 0x808080,
-                roughness: 0.9
-            });
-            const stone = new THREE.Mesh(stoneGeometry, stoneMaterial);
-            stone.position.set(stoneX, 0.05, stoneZ);
-            stone.castShadow = true;
-            scene.add(stone);
-        }
-    });
-}
-
-// Old river function - replaced by createRiverWithFlow from riverHelper.js
-/*
-function createImprovedRiver(scene) {
-    // River bed (darker, lower) with RuneScape-style tiling
-    const riverBedGeometry = new THREE.PlaneGeometry(CONSTANTS.RIVER_WIDTH * 1.5, CONSTANTS.TOTAL_DEPTH * 1.2, 12, 40);
-    riverBedGeometry.computeVertexNormals();
-    
-    const riverBedPositions = riverBedGeometry.attributes.position.array;
-    
-    // Add depth variation to river bed
-    for (let i = 0; i < riverBedPositions.length; i += 3) {
-        const x = riverBedPositions[i];
-        const z = riverBedPositions[i + 1];
-        
-        // Create river bed depth with center being deeper
-        const distFromCenter = Math.abs(x) / (CONSTANTS.RIVER_WIDTH * 0.75);
-        const depthFactor = 1 - Math.pow(Math.min(distFromCenter, 1), 2);
-        
-        // Add tile-based variation for RuneScape look
-        const tileX = Math.floor(x * 2) / 2;
-        const tileZ = Math.floor(z * 0.5) / 0.5;
-        const tileNoise = Math.sin(tileX * 2) * Math.cos(tileZ) * 0.1;
-        
-        riverBedPositions[i + 2] = -1.8 * depthFactor + tileNoise - 0.3;
-    }
-    
-    // Add vertex colors for river bed
-    const riverColors = new Float32Array(riverBedPositions.length);
-    for (let i = 0; i < riverBedPositions.length; i += 3) {
-        const depth = -riverBedPositions[i + 2];
-        const variation = Math.random() * 0.1;
-        
-        // Darker blue-green for deeper parts
-        riverColors[i] = 0.1 + variation;
-        riverColors[i + 1] = 0.2 + depth * 0.1 + variation;
-        riverColors[i + 2] = 0.3 + depth * 0.15 + variation;
-    }
-    riverBedGeometry.setAttribute('color', new THREE.BufferAttribute(riverColors, 3));
-    riverBedGeometry.computeVertexNormals();
-    
-    const riverBedMaterial = new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.95,
-        metalness: 0.0,
-        flatShading: true // Flat shading for RuneScape look
-    });
-    
-    const riverBed = new THREE.Mesh(riverBedGeometry, riverBedMaterial);
-    riverBed.rotation.x = -Math.PI / 2;
-    riverBed.position.set(CONSTANTS.RIVER_CENTER_X, -0.8, 0);
-    riverBed.receiveShadow = true;
-    scene.add(riverBed);
-    
-    // Create animated water with shader material - more natural flow
-    const waterShaderMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-            time: { value: 0 },
-            flowSpeed: { value: 0.3 }, // Slower flow speed
-            waveHeight: { value: 0.03 }, // Gentler waves
-            color: { value: new THREE.Color(0x2E7FB5) },
-            opacity: { value: 0.75 }
-        },
-        vertexShader: riverVertexShader,
-        fragmentShader: riverFragmentShader,
-            uniform float flowSpeed;
-            uniform float waveHeight;
-            varying vec2 vUv;
-            varying float vElevation;
-            varying float vDistortion;
-            
-            // Simple noise function
-            float noise(vec2 st) {
-                return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-            }
-            
-            void main() {
-                vUv = uv;
-                vec3 pos = position;
-                
-                // Create meandering river flow with asymmetry
-                float riverCurve = sin(position.y * 0.15 + 1.3) * 2.5;
-                float meanderOffset = position.x + riverCurve;
-                
-                // Multiple wave frequencies for natural look
-                float wave1 = sin(position.y * 3.7 - time * flowSpeed + meanderOffset * 0.3) * 0.4;
-                float wave2 = cos(position.y * 2.3 - time * flowSpeed * 0.7 + position.x * 0.5) * 0.3;
-                float wave3 = sin((position.y + meanderOffset * 0.2) * 5.2 - time * flowSpeed * 1.1) * 0.2;
-                float wave4 = cos(position.y * 7.1 - time * flowSpeed * 1.5) * 0.15;
-                
-                // Add turbulence based on position
-                float turbulence = noise(vec2(position.y * 0.5, time * 0.1)) * 0.3;
-                float edgeTurbulence = noise(vec2(position.x * 2.0, position.y * 0.3 + time * 0.2)) * 0.4;
-                
-                // Asymmetric flow strength - stronger on one side
-                float asymmetry = (position.x + 3.0) / 6.0;
-                float distFromCenter = abs(position.x) / 4.0 + noise(vec2(position.y * 0.1, 0.0)) * 0.3;
-                float flowStrength = (1.0 - distFromCenter) * (0.7 + asymmetry * 0.3);
-                
-                // Combine all wave components
-                float totalWave = wave1 + wave2 + wave3 + wave4 + turbulence;
-                pos.z = totalWave * waveHeight * flowStrength + edgeTurbulence * 0.02;
-                vElevation = pos.z;
-                vDistortion = turbulence + edgeTurbulence;
-                
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-            }
-        `,
-        fragmentShader: `
-            uniform vec3 color;
-            uniform float opacity;
-            uniform float time;
-            uniform float flowSpeed;
-            varying vec2 vUv;
-            varying float vElevation;
-            varying float vDistortion;
-            
-            float noise(vec2 st) {
-                return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-            }
-            
-            void main() {
-                // Create animated foam with irregular patterns
-                float foam1 = step(0.97, sin((vUv.y * 18.0 - time * flowSpeed) * 3.2 + vDistortion * 5.0));
-                float foam2 = step(0.98, sin((vUv.x * 12.0 + vUv.y * 8.0 + time * 0.3) * 2.5));
-                float foam = max(foam1, foam2) * (0.5 + noise(vUv * 10.0) * 0.5);
-                
-                // Base water color with natural variation
-                vec3 deepColor = color * (0.5 + vDistortion * 0.2);
-                vec3 shallowColor = color * (1.2 + noise(vUv * 5.0) * 0.3);
-                vec3 mudColor = vec3(0.4, 0.35, 0.3);
-                
-                // Mix colors based on depth and position
-                float depthMix = clamp(vElevation + 0.5 + vDistortion * 0.3, 0.0, 1.0);
-                vec3 finalColor = mix(deepColor, shallowColor, depthMix);
-                
-                // Add muddy edges
-                float edgeFactor = smoothstep(0.7, 0.9, abs(vUv.x - 0.5) * 2.0);
-                finalColor = mix(finalColor, mudColor, edgeFactor * 0.3);
-                
-                // Add foam highlights
-                finalColor = mix(finalColor, vec3(0.9, 0.95, 1.0), foam * 0.4);
-                
-                // Natural shimmer with variation
-                float shimmer = 0.9 + sin(vUv.y * 80.0 - time * 1.5 + vUv.x * 30.0) * 0.05 
-                              + sin(vUv.x * 60.0 + time) * 0.03;
-                finalColor *= shimmer;
-                
-                gl_FragColor = vec4(finalColor, opacity * (0.7 + depthMix * 0.3));
-            }
-        `,
-        transparent: true,
-        side: THREE.DoubleSide,
-        depthWrite: false
-    });
-    
-    const waterSegmentsX = 10;
-    const waterSegmentsZ = 40;
-    const waterGeometry = new THREE.PlaneGeometry(CONSTANTS.RIVER_WIDTH * 0.9, CONSTANTS.TOTAL_DEPTH * 1.2, waterSegmentsX, waterSegmentsZ);
-    
-    const waterSurface = new THREE.Mesh(waterGeometry, waterShaderMaterial);
-    waterSurface.rotation.x = -Math.PI / 2;
-    waterSurface.position.set(CONSTANTS.RIVER_CENTER_X, -0.4, 0);
-    waterSurface.userData.isWater = true;
-    scene.add(waterSurface);
-    
-    // Add second water layer for depth
-    const underWaterMaterial = waterShaderMaterial.clone();
-    underWaterMaterial.uniforms.opacity.value = 0.5;
-    underWaterMaterial.uniforms.flowSpeed.value = 0.3;
-    
-    const underWaterSurface = new THREE.Mesh(waterGeometry.clone(), underWaterMaterial);
-    underWaterSurface.rotation.x = -Math.PI / 2;
-    underWaterSurface.position.set(CONSTANTS.RIVER_CENTER_X, -0.6, 0);
-    underWaterSurface.userData.isWater = true;
-    scene.add(underWaterSurface);
-    
-    // River banks with RuneScape-style rocky edges
-    const bankMaterial = new THREE.MeshStandardMaterial({
-        color: 0x5A4A3A,
-        roughness: 0.95,
-        metalness: 0.0,
-        flatShading: true
-    });
-    
-    // Create tiered banks for RuneScape look
-    const bankTiers = 3;
-    const tierHeight = 0.3;
-    const tierWidth = 0.6;
-    
-    // West bank tiers
-    for (let tier = 0; tier < bankTiers; tier++) {
-        const bankGeometry = new THREE.BoxGeometry(
-            tierWidth, 
-            tierHeight, 
-            CONSTANTS.TOTAL_DEPTH * 1.2
-        );
-        
-        // Add vertex variation
-        const positions = bankGeometry.attributes.position.array;
-        for (let i = 0; i < positions.length; i += 3) {
-            positions[i + 1] += (Math.random() - 0.5) * 0.05; // Small Y variation
-        }
-        bankGeometry.computeVertexNormals();
-        
-        const westBankTier = new THREE.Mesh(bankGeometry, bankMaterial);
-        westBankTier.position.set(
-            CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH/2 - tierWidth/2 - tier * tierWidth * 0.8, 
-            tierHeight/2 + tier * tierHeight * 0.7, 
-            0
-        );
-        westBankTier.receiveShadow = true;
-        westBankTier.castShadow = true;
-        scene.add(westBankTier);
-    }
-    
-    // East bank tiers
-    for (let tier = 0; tier < bankTiers; tier++) {
-        const bankGeometry = new THREE.BoxGeometry(
-            tierWidth, 
-            tierHeight, 
-            CONSTANTS.TOTAL_DEPTH * 1.2
-        );
-        
-        // Add vertex variation
-        const positions = bankGeometry.attributes.position.array;
-        for (let i = 0; i < positions.length; i += 3) {
-            positions[i + 1] += (Math.random() - 0.5) * 0.05; // Small Y variation
-        }
-        bankGeometry.computeVertexNormals();
-        
-        const eastBankTier = new THREE.Mesh(bankGeometry, bankMaterial);
-        eastBankTier.position.set(
-            CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH/2 + tierWidth/2 + tier * tierWidth * 0.8, 
-            tierHeight/2 + tier * tierHeight * 0.7, 
-            0
-        );
-        eastBankTier.receiveShadow = true;
-        eastBankTier.castShadow = true;
-        scene.add(eastBankTier);
-    }
-    
-    // Add rocks along the river
-    const rockGeometry = new THREE.DodecahedronGeometry(0.4, 0);
-    const rockMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x4A4A4A, 
-        roughness: 0.9,
-        flatShading: true 
-    });
-    
-    // Place rocks along the banks
-    for (let i = 0; i < 30; i++) {
-        const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-        const side = Math.random() > 0.5 ? 1 : -1;
-        const alongRiver = (Math.random() - 0.5) * CONSTANTS.TOTAL_DEPTH;
-        const offset = Math.random() * 2 + CONSTANTS.RIVER_WIDTH/2;
-        
-        rock.position.set(
-            CONSTANTS.RIVER_CENTER_X + side * offset,
-            Math.random() * 0.3,
-            alongRiver
-        );
-        rock.rotation.set(
-            Math.random() * Math.PI,
-            Math.random() * Math.PI,
-            Math.random() * Math.PI
-        );
-        rock.scale.setScalar(0.5 + Math.random() * 0.8);
-        rock.castShadow = true;
-        rock.receiveShadow = true;
-        scene.add(rock);
-    }
-    
-    // Add some reeds/grass near the water
-    const reedMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x3A5F3A,
-        roughness: 0.9,
-        side: THREE.DoubleSide
-    });
-    
-    for (let i = 0; i < 20; i++) {
-        const reedGroup = new THREE.Group();
-        const side = Math.random() > 0.5 ? 1 : -1;
-        const alongRiver = (Math.random() - 0.5) * CONSTANTS.TOTAL_DEPTH * 0.8;
-        const offset = CONSTANTS.RIVER_WIDTH/2 + Math.random() * 1.5;
-        
-        // Create 3-5 reeds in a cluster
-        const numReeds = 3 + Math.floor(Math.random() * 3);
-        for (let j = 0; j < numReeds; j++) {
-            const reedHeight = 0.8 + Math.random() * 0.4;
-            const reedGeometry = new THREE.ConeGeometry(0.05, reedHeight, 3);
-            const reed = new THREE.Mesh(reedGeometry, reedMaterial);
-            reed.position.set(
-                (Math.random() - 0.5) * 0.3,
-                reedHeight/2,
-                (Math.random() - 0.5) * 0.3
-            );
-            reed.rotation.z = (Math.random() - 0.5) * 0.2;
-            reedGroup.add(reed);
-        }
-        
-        reedGroup.position.set(
-            CONSTANTS.RIVER_CENTER_X + side * offset,
-            -0.1,
-            alongRiver
-        );
-        scene.add(reedGroup);
-    }
-}*/

@@ -33,18 +33,26 @@ export function initNPCs(scene) {
     const usherX = CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 - 2;
     ornithineUsherNPC = createOrnithineUsher(scene, new THREE.Vector3(usherX, CONSTANTS.BRIDGE_HEIGHT, CONSTANTS.BRIDGE_CENTER_Z));
 
-    // Cytosol NPCs - spread out much more
-    aslanNPC = createAslan(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 25, 0, 15));
-    donkeyNPC = createDonkey(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 10, 0, -15));
-    argusNPC = createArgus(scene, new THREE.Vector3(CONSTANTS.MAX_X - 15, 0, -10));
+    // Cytosol NPCs - ordered by Urea Cycle sequence
+    // 1. Donkey (ASS) - Argininosuccinate Synthetase - creates Argininosuccinate
+    donkeyNPC = createDonkey(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 10, 0, -5));
+    
+    // 2. Aslan (ASL) - Argininosuccinate Lyase - splits to Arginine + Fumarate
+    aslanNPC = createAslan(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 25, 0, 5));
+    
+    // 3. Argus (ARG1) - Arginase - splits Arginine to Urea + Ornithine
+    argusNPC = createArgus(scene, new THREE.Vector3(CONSTANTS.MAX_X - 10, 0, -5));
 
     // Mitochondria NPCs spread out
     otisOTC_NPC = createOtisOTC(scene, new THREE.Vector3(CONSTANTS.MIN_X + 20, 0, -10));
     casperCPS1_NPC = createCasperCPS1(scene, new THREE.Vector3(CONSTANTS.MIN_X + 15, 0, 15));
 
-    // New NPCs - spread out more
-    fumaraseNPC = createFumaraseEnzyme(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 20, 0, 0));
-    shuttleDriverNPC = createShuttleDriver(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 5, CONSTANTS.BRIDGE_HEIGHT, CONSTANTS.BRIDGE_CENTER_Z + CONSTANTS.BRIDGE_WIDTH/2 + 2));
+    // Supporting NPCs in logical positions
+    // Fumarase - near Aslan since it processes Fumarate from ASL
+    fumaraseNPC = createFumaraseEnzyme(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 30, 0, 15));
+    
+    // Shuttle Driver - between Fumarase and Argus (provides Aspartate back to Donkey)
+    shuttleDriverNPC = createShuttleDriver(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 35, 0, 5));
 
 
     npcAnims.professor = {
