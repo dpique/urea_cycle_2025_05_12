@@ -8,6 +8,7 @@ import { removePortalBarrierFromWorld, createResource, interactiveObjects, origi
 import { player } from './playerManager.js';
 import { getGameState, setGameState, getCurrentQuest, getInventory, addToInventory, getPlayerLocation, setPlayerLocation } from './gameState.js';
 import { createSimpleParticleSystem, createCollectionEffect } from './utils.js';
+import { setNPCInteracting } from './npcManager.js';
 
 const PRE_SURVEY_LINK = "https://forms.gle/yourpretestsurvey";
 const POST_SURVEY_LINK = "https://forms.gle/yourposttestsurvey";
@@ -272,6 +273,16 @@ export function interactWithObject(object, scene) {
             }
         }
         else if (userData.name === CONSTANTS.NPC_NAMES.ORNITHINE_USHER) {
+             // Set NPC as interacting when dialogue starts
+             setNPCInteracting(CONSTANTS.NPC_NAMES.ORNITHINE_USHER, true);
+             const usherInteractionCallback = (isInteracting) => {
+                 setGameInteracting(isInteracting);
+                 if (!isInteracting) {
+                     // Set NPC as not interacting when dialogue ends
+                     setNPCInteracting(CONSTANTS.NPC_NAMES.ORNITHINE_USHER, false);
+                 }
+             };
+             
              if (currentQuest && currentQuest.id === 'ureaCycle') {
                 if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER) {
                     showDialogue("Ah, you must be the one Professor Hepaticus sent. I'm the Ornithine Usher. I help Ornithine move back into the mitochondria, and Citrulline out. For you to make Citrulline, you'll need some Ornithine. Take this.", [
@@ -283,7 +294,7 @@ export function interactWithObject(object, scene) {
                             }
                         }},
                         { text: "Not yet."}
-                    ], setGameInteracting);
+                    ], usherInteractionCallback);
                 } else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_6_TALK_TO_USHER_PASSAGE) {
                     if (hasRequiredItems({ 'Citrulline': 1 })) {
                         showDialogue("Excellent, you've made Citrulline! It's ready for its journey to the cytosol. You may pass through the ORNT1 portal bridge.", [
@@ -291,9 +302,9 @@ export function interactWithObject(object, scene) {
                                 setGameState({hasPortalPermission: true});
                                 advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL);
                             }}
-                        ], setGameInteracting);
+                        ], usherInteractionCallback);
                     } else {
-                        showDialogue("You need Citrulline to pass. Remember, I help transport it. Come back when you have it.", [{ text: "Okay" }], setGameInteracting);
+                        showDialogue("You need Citrulline to pass. Remember, I help transport it. Come back when you have it.", [{ text: "Okay" }], usherInteractionCallback);
                     }
                 } else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA && hasRequiredItems({'Ornithine': 1})) {
                      showDialogue("Welcome back, traveler! You've returned with Ornithine. I'll ensure it gets back into the mitochondria, ready to start the cycle anew. Well done!", [
@@ -301,16 +312,16 @@ export function interactWithObject(object, scene) {
                             consumeItems({'Ornithine': 1});
                             advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_14_RIVER_CHALLENGE);
                         }}
-                    ], setGameInteracting);
+                    ], usherInteractionCallback);
                 } else if (currentQuest.state < CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER) {
-                    showDialogue("Greetings! I am the Ornithine Usher. I guard this passage and facilitate the transport of Ornithine and Citrulline across the mitochondrial membrane.", [{ text: "Interesting." }], setGameInteracting);
+                    showDialogue("Greetings! I am the Ornithine Usher. I guard this passage and facilitate the transport of Ornithine and Citrulline across the mitochondrial membrane.", [{ text: "Interesting." }], usherInteractionCallback);
                 } else if (currentQuest.state > CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL && currentQuest.state < CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA) {
-                     showDialogue("Keep up the good work in the Cytosol! Remember, the cycle links two cellular compartments.", [{ text: "Will do." }], setGameInteracting);
+                     showDialogue("Keep up the good work in the Cytosol! Remember, the cycle links two cellular compartments.", [{ text: "Will do." }], usherInteractionCallback);
                 } else {
-                    showDialogue("The cycle continues, a testament to efficient biochemical pathways...", [{ text: "Indeed." }], setGameInteracting);
+                    showDialogue("The cycle continues, a testament to efficient biochemical pathways...", [{ text: "Indeed." }], usherInteractionCallback);
                 }
             } else {
-                 showDialogue("I am the Ornithine Usher. Speak to Professor Hepaticus to learn about the Urea Cycle.", [{ text: "Okay" }], setGameInteracting);
+                 showDialogue("I am the Ornithine Usher. Speak to Professor Hepaticus to learn about the Urea Cycle.", [{ text: "Okay" }], usherInteractionCallback);
             }
         }
         else if (userData.name === CONSTANTS.NPC_NAMES.DONKEY) {

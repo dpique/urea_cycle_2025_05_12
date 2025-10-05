@@ -163,7 +163,7 @@ export function initWorld(scene) {
     createWall(scene, { x: CONSTANTS.MIN_X, y: alcoveWallBaseY, z: CONSTANTS.ALCOVE_Z_CENTER }, { x: CONSTANTS.WALL_THICKNESS, y: alcoveWallHeight, z: CONSTANTS.ALCOVE_WIDTH }, 0, "Alcove_Back", alcoveWallMaterial);
     createWall(scene, { x: CONSTANTS.MIN_X + CONSTANTS.WALL_THICKNESS/2 + CONSTANTS.ALCOVE_DEPTH / 2, y: alcoveWallBaseY, z: CONSTANTS.ALCOVE_Z_START - CONSTANTS.WALL_THICKNESS/2 }, { x: CONSTANTS.ALCOVE_DEPTH + CONSTANTS.WALL_THICKNESS, y: alcoveWallHeight, z: CONSTANTS.WALL_THICKNESS }, 0, "Alcove_Side_South", alcoveWallMaterial);
     createWall(scene, { x: CONSTANTS.MIN_X + CONSTANTS.WALL_THICKNESS/2 + CONSTANTS.ALCOVE_DEPTH / 2, y: alcoveWallBaseY, z: CONSTANTS.ALCOVE_Z_END + CONSTANTS.WALL_THICKNESS/2 }, { x: CONSTANTS.ALCOVE_DEPTH + CONSTANTS.WALL_THICKNESS, y: alcoveWallHeight, z: CONSTANTS.WALL_THICKNESS }, 0, "Alcove_Side_North", alcoveWallMaterial);
-    
+
     // Alcove is open for easy access - no front wall needed
 
     // Create walls with gap for Professor's Study entrance at z=-8
@@ -355,17 +355,23 @@ function createTrees(scene) {
 function createTree(scene, x, z, trunkMaterial, leafMaterial) {
     const treeGroup = new THREE.Group();
     
+    // Random height variation (50% to 100% of base size)
+    const heightScale = 0.5 + Math.random() * 0.5;
+    
     // Trunk
-    const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 3, 6);
+    const trunkHeight = 3 * heightScale;
+    const trunkGeometry = new THREE.CylinderGeometry(0.3 * heightScale, 0.5 * heightScale, trunkHeight, 6);
     const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-    trunk.position.y = 1.5;
+    trunk.position.y = trunkHeight / 2;
     trunk.castShadow = true;
     treeGroup.add(trunk);
     
     // Foliage
-    const foliageGeometry = new THREE.ConeGeometry(2, 4, 8);
+    const foliageHeight = 4 * heightScale;
+    const foliageRadius = 2 * heightScale;
+    const foliageGeometry = new THREE.ConeGeometry(foliageRadius, foliageHeight, 8);
     const foliage = new THREE.Mesh(foliageGeometry, leafMaterial);
-    foliage.position.y = 4.5;
+    foliage.position.y = trunkHeight + foliageHeight / 2;
     foliage.castShadow = true;
     foliage.receiveShadow = true;
     treeGroup.add(foliage);

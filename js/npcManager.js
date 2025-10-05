@@ -15,6 +15,17 @@ export function getNPCs() {
     return npcs;
 }
 
+export function setNPCInteracting(npcName, isInteracting) {
+    // Find the NPC animation data by name
+    for (const key in npcAnims) {
+        const npc = npcAnims[key];
+        if (npc.group && npc.group.userData.name === npcName) {
+            npc.isInteracting = isInteracting;
+            break;
+        }
+    }
+}
+
 // Helper function to position NPC group on terrain
 function positionNPCOnTerrain(npcGroup, position) {
     const terrainHeight = getTerrainHeightAt(position.x, position.z);
@@ -25,17 +36,27 @@ const professorSwaySpeed = 0.5;
 const professorArmSwingSpeed = 1.2;
 const generalNpcPaceLerpFactor = 0.015;
 
+// Helper function to calculate bounds based on center position and radius
+function getBoundsFromPosition(position, radius) {
+    return {
+        minX: position.x - radius,
+        maxX: position.x + radius,
+        minZ: position.z - radius,
+        maxZ: position.z + radius
+    };
+}
+
 export function initNPCs(scene) {
     // Spread NPCs throughout the larger world
     professorHepaticusNPC = createProfessorHepaticus(scene, new THREE.Vector3(CONSTANTS.MIN_X + 10, 0, -8));
     
-    // Ornithine Usher on Mitochondria side of the bridge
-    const usherX = CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 - 2;
+    // Ornithine Usher starts at left end of bridge
+    const usherX = CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 + 1;
     ornithineUsherNPC = createOrnithineUsher(scene, new THREE.Vector3(usherX, CONSTANTS.BRIDGE_HEIGHT, CONSTANTS.BRIDGE_CENTER_Z));
 
     // Cytosol NPCs - ordered by Urea Cycle sequence
     // 1. Donkey (ASS) - Argininosuccinate Synthetase - creates Argininosuccinate
-    donkeyNPC = createDonkey(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 10, 0, -5));
+    donkeyNPC = createDonkey(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 10, 0, 5));
     
     // 2. Aslan (ASL) - Argininosuccinate Lyase - splits to Arginine + Fumarate
     aslanNPC = createAslan(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 25, 0, 5));
@@ -51,8 +72,8 @@ export function initNPCs(scene) {
     // Fumarase - near Aslan since it processes Fumarate from ASL
     fumaraseNPC = createFumaraseEnzyme(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 30, 0, 15));
     
-    // Shuttle Driver - between Fumarase and Argus (provides Aspartate back to Donkey)
-    shuttleDriverNPC = createShuttleDriver(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 35, 0, 5));
+    // Shuttle Driver - closer to river and Donkey for Malate-Aspartate exchange
+    shuttleDriverNPC = createShuttleDriver(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 5, 0, 5));
 
 
     npcAnims.professor = {
@@ -62,21 +83,31 @@ export function initNPCs(scene) {
         paceTimer: 0,
         paceInterval: 2 + Math.random() * 2,
         paceRange: 2.5,
-        bounds: { minX: CONSTANTS.MIN_X + 1, maxX: CONSTANTS.ALCOVE_OPENING_X_PLANE -2 , minZ: -9, maxZ: -6 }
+        bounds: getBoundsFromPosition(professorHepaticusNPC.position, 1.5)
     };
     npcAnims.usher = {
         group: ornithineUsherNPC,
         basePos: ornithineUsherNPC.position.clone(),
-        targetPos: ornithineUsherNPC.position.clone(),
-        paceTimer: Math.random() * 4,
-        paceInterval: 4 + Math.random() * 3,
-        paceRange: 1.0, // Less pacing on bridge
+        targetPos: new THREE.Vector3(
+            CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH / 2 + 2,
+            CONSTANTS.BRIDGE_HEIGHT,
+            CONSTANTS.BRIDGE_CENTER_Z
+        ), // Start by moving to right end
+        paceTimer: 0,
+        paceInterval: 8, // Time to walk across bridge
+        paceRange: CONSTANTS.BRIDGE_LENGTH + 4, // Extended patrol range
         bounds: {
-            minX: CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 - 2.5,
-            maxX: CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 - 0.5,
-            minZ: CONSTANTS.BRIDGE_CENTER_Z - CONSTANTS.BRIDGE_WIDTH/2 + 0.5,
-            maxZ: CONSTANTS.BRIDGE_CENTER_Z + CONSTANTS.BRIDGE_WIDTH/2 - 0.5
-        }
+            minX: CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 - 2,
+            maxX: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH / 2 + 2,
+            minZ: CONSTANTS.BRIDGE_CENTER_Z - 0.5, // Keep centered on bridge
+            maxZ: CONSTANTS.BRIDGE_CENTER_Z + 0.5
+        },
+        patrolling: true, // New flag for back-and-forth movement
+        movingRight: true, // Track direction
+        pauseTimer: 0, // Timer for pausing at ends
+        pauseDuration: 3, // Pause for 3 seconds at each end
+        isPaused: false, // Is currently paused
+        isInteracting: false // Is player talking to him
     };
      npcAnims.aslan = {
         group: aslanNPC,
@@ -85,7 +116,7 @@ export function initNPCs(scene) {
         paceTimer: Math.random() * 4,
         paceInterval: 5 + Math.random() * 3,
         paceRange: 2.0,
-        bounds: { minX: CONSTANTS.CYTO_ZONE_MIN_X + 23, maxX: CONSTANTS.CYTO_ZONE_MIN_X + 27, minZ: 13.5, maxZ: 16.5 }
+        bounds: getBoundsFromPosition(aslanNPC.position, 2.0)
     };
     npcAnims.donkey = {
         group: donkeyNPC,
@@ -94,7 +125,7 @@ export function initNPCs(scene) {
         paceTimer: Math.random() * 4,
         paceInterval: 3.5 + Math.random() * 3,
         paceRange: 2.0,
-        bounds: { minX: CONSTANTS.CYTO_ZONE_MIN_X + 8, maxX: CONSTANTS.CYTO_ZONE_MIN_X + 12, minZ: -16.5, maxZ: -13.5 }
+        bounds: getBoundsFromPosition(donkeyNPC.position, 2.0)
     };
     npcAnims.argus = {
         group: argusNPC,
@@ -103,7 +134,7 @@ export function initNPCs(scene) {
         paceTimer: Math.random() * 4,
         paceInterval: 4.5 + Math.random() * 3,
         paceRange: 1.8,
-        bounds: { minX: CONSTANTS.MAX_X - 17, maxX: CONSTANTS.MAX_X - 13, minZ: -11.5, maxZ: -8.5 }
+        bounds: getBoundsFromPosition(argusNPC.position, 1.8)
     };
     npcAnims.otis = {
         group: otisOTC_NPC,
@@ -127,13 +158,10 @@ export function initNPCs(scene) {
         group: shuttleDriverNPC,
         basePos: shuttleDriverNPC.position.clone(),
         targetPos: shuttleDriverNPC.position.clone(),
-        paceTimer: Math.random() * 5, paceInterval: 6 + Math.random()*2, paceRange: 0.5, // Minimal pacing
-        bounds: {
-            minX: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH / 2 + 0.5,
-            maxX: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH / 2 + 2.5,
-            minZ: CONSTANTS.BRIDGE_CENTER_Z + CONSTANTS.BRIDGE_WIDTH/2, // Stays on one side of bridge width
-            maxZ: CONSTANTS.BRIDGE_CENTER_Z + CONSTANTS.BRIDGE_WIDTH/2 + 2
-        }
+        paceTimer: Math.random() * 5, 
+        paceInterval: 6 + Math.random()*2, 
+        paceRange: 0.5, // Minimal pacing
+        bounds: getBoundsFromPosition(shuttleDriverNPC.position, 0.5)
     };
 }
 
@@ -541,13 +569,25 @@ function createShuttleDriver(scene, position) {
     const bodyMat = new THREE.MeshStandardMaterial({ color: uniformColor, roughness: 0.7 });
     const headMat = new THREE.MeshStandardMaterial({ color: 0xFFDEAD, roughness: 0.5 }); // NavajoWhite
 
+    // Legs - positioned so bottom touches ground (y=0)
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x2F4F4F, roughness: 0.7 }); // DarkSlateGray pants
+    const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 6), legMat);
+    leftLeg.position.set(-0.1, 0.25, 0); // Leg height/2 = 0.25
+    leftLeg.castShadow = true;
+    driverGroup.add(leftLeg);
+    const rightLeg = leftLeg.clone();
+    rightLeg.position.x = 0.1;
+    driverGroup.add(rightLeg);
+
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.7, 0.25), bodyMat);
-    body.position.y = 0.35; // Relative to group's y
+    body.position.y = 0.5 + 0.35; // Top of legs (0.5) + half body height (0.35)
     body.name = "driver_body";
+    body.castShadow = true;
     driverGroup.add(body);
 
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), headMat);
-    head.position.y = 0.7 + 0.2;
+    head.position.y = 0.5 + 0.7 + 0.2; // Top of legs + body height + head radius
+    head.castShadow = true;
     driverGroup.add(head);
 
     // Peaked cap
@@ -584,30 +624,74 @@ export function updateNPCs(delta, elapsedTime) {
         if (!npc.group) continue;
 
         let basePaceY = npc.basePos.y;
-        if (npcKey === 'usher' || npcKey === 'shuttleDriver') {
-            basePaceY = CONSTANTS.BRIDGE_HEIGHT; // Keep Y on bridge for these NPCs
+        if (npcKey === 'usher') {
+            basePaceY = CONSTANTS.BRIDGE_HEIGHT; // Keep Y on bridge for usher only
         }
 
 
         if (npc.paceRange > 0) {
             npc.paceTimer += delta;
-            if (npc.paceTimer > npc.paceInterval) {
-                let newTargetX = npc.basePos.x + (Math.random() - 0.5) * npc.paceRange;
-                let newTargetZ = npc.basePos.z + (Math.random() - 0.5) * npc.paceRange;
-
-                newTargetX = Math.max(npc.bounds.minX, Math.min(npc.bounds.maxX, newTargetX));
-                newTargetZ = Math.max(npc.bounds.minZ, Math.min(npc.bounds.maxZ, newTargetZ));
-
-                if (npcKey === 'professor') {
-                     if (newTargetX < CONSTANTS.ALCOVE_OPENING_X_PLANE + 1 && newTargetZ > CONSTANTS.ALCOVE_Z_START -1 && newTargetZ < CONSTANTS.ALCOVE_Z_END + 1) {
-                        newTargetX = Math.max(newTargetX, CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5);
+            
+            // Special handling for usher patrolling
+            if (npcKey === 'usher' && npc.patrolling) {
+                // Don't move if interacting with player
+                if (npc.isInteracting) {
+                    return;
+                }
+                
+                // Handle pausing at ends
+                if (npc.isPaused) {
+                    npc.pauseTimer += delta;
+                    if (npc.pauseTimer >= npc.pauseDuration) {
+                        npc.isPaused = false;
+                        npc.pauseTimer = 0;
+                        // Set new target after pause
+                        const newTargetX = npc.movingRight ? npc.bounds.maxX : npc.bounds.minX;
+                        npc.targetPos.set(newTargetX, basePaceY, CONSTANTS.BRIDGE_CENTER_Z);
+                    }
+                } else {
+                    // Check if reached target position
+                    const distToTarget = Math.abs(npc.group.position.x - npc.targetPos.x);
+                    if (distToTarget < 0.1) {
+                        // Start pause
+                        npc.isPaused = true;
+                        npc.pauseTimer = 0;
+                        // Switch direction for next movement
+                        npc.movingRight = !npc.movingRight;
+                    } else {
+                        // Check distance to portal center and slow down if close
+                        const distanceToPortal = Math.abs(npc.group.position.x - CONSTANTS.BRIDGE_CENTER_X);
+                        let lerpFactor = generalNpcPaceLerpFactor * 0.5;
+                        
+                        // Slow down when within 2 units of the portal center
+                        if (distanceToPortal < 2) {
+                            lerpFactor *= (0.3 + (distanceToPortal / 2) * 0.7); // Slow down gradually near portal
+                        }
+                        
+                        // Smooth movement along bridge
+                        npc.group.position.lerp(npc.targetPos, lerpFactor);
                     }
                 }
-                npc.targetPos.set(newTargetX, basePaceY, newTargetZ); // Use basePaceY
-                npc.paceTimer = 0;
-                npc.paceInterval = (3 + Math.random() * 3) * (npcKey === 'professor' ? 0.7 : 1);
+            } else {
+                // Normal pacing behavior for other NPCs
+                if (npc.paceTimer > npc.paceInterval) {
+                    let newTargetX = npc.basePos.x + (Math.random() - 0.5) * npc.paceRange;
+                    let newTargetZ = npc.basePos.z + (Math.random() - 0.5) * npc.paceRange;
+
+                    newTargetX = Math.max(npc.bounds.minX, Math.min(npc.bounds.maxX, newTargetX));
+                    newTargetZ = Math.max(npc.bounds.minZ, Math.min(npc.bounds.maxZ, newTargetZ));
+
+                    if (npcKey === 'professor') {
+                         if (newTargetX < CONSTANTS.ALCOVE_OPENING_X_PLANE + 1 && newTargetZ > CONSTANTS.ALCOVE_Z_START -1 && newTargetZ < CONSTANTS.ALCOVE_Z_END + 1) {
+                            newTargetX = Math.max(newTargetX, CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5);
+                        }
+                    }
+                    npc.targetPos.set(newTargetX, basePaceY, newTargetZ);
+                    npc.paceTimer = 0;
+                    npc.paceInterval = (3 + Math.random() * 3) * (npcKey === 'professor' ? 0.7 : 1);
+                }
+                npc.group.position.lerp(npc.targetPos, generalNpcPaceLerpFactor * (npcKey === 'professor' ? 1.5 : 1));
             }
-            npc.group.position.lerp(npc.targetPos, generalNpcPaceLerpFactor * (npcKey === 'professor' ? 1.5 : 1));
         } else {
              npc.group.position.y = basePaceY; // Ensure stationary NPCs stay at correct height
         }
@@ -625,8 +709,13 @@ export function updateNPCs(delta, elapsedTime) {
             npc.group.position.y = CONSTANTS.BRIDGE_HEIGHT + Math.sin(elapsedTime * 1.0) * 0.05;
             npc.group.rotation.y = Math.sin(elapsedTime * 0.7) * 0.15;
         } else if (npcKey === 'shuttleDriver') {
-            npc.group.position.y = CONSTANTS.BRIDGE_HEIGHT + Math.sin(elapsedTime * 0.8) * 0.03; // Slight bob
+            // Malcolm subtle animation
             npc.group.rotation.y = Math.sin(elapsedTime * 0.3) * 0.05;
+            // Small bounce animation without changing group Y position
+            const bodyMesh = npc.group.children.find(c => c.name === "driver_body");
+            if (bodyMesh) {
+                bodyMesh.position.y = 0.5 + 0.35 + Math.sin(elapsedTime * 0.8) * 0.01;
+            }
         }
          else if (npcKey === 'donkey') {
             npc.group.rotation.y = npc.basePos.y + Math.sin(elapsedTime * 0.3) * 0.1;
