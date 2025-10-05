@@ -7,6 +7,10 @@ let isMinimapVisible = true;
 const pathHistory = [];
 const MAX_PATH_POINTS = 500;
 
+// Smoothed rotation for minimap
+let smoothedRotation = 0;
+const ROTATION_SMOOTH_FACTOR = 0.1; // Same as player slerp factor in playerManager.js
+
 export function initMinimap() {
     minimapCanvas = document.getElementById('minimapCanvas');
     minimapContainer = document.getElementById('minimapContainer');
@@ -48,7 +52,18 @@ export function updateMinimap(player, npcs, resources) {
     // Get player rotation by calculating from forward vector
     const forward = new THREE.Vector3(0, 0, 1);
     forward.applyQuaternion(player.quaternion);
-    const playerRotation = Math.atan2(forward.x, forward.z);
+    const targetRotation = Math.atan2(forward.x, forward.z);
+    
+    // Smooth the rotation to match player turning smoothness
+    // Handle angle wrapping for smooth interpolation
+    let rotationDiff = targetRotation - smoothedRotation;
+    if (rotationDiff > Math.PI) rotationDiff -= 2 * Math.PI;
+    if (rotationDiff < -Math.PI) rotationDiff += 2 * Math.PI;
+    
+    smoothedRotation += rotationDiff * ROTATION_SMOOTH_FACTOR;
+    
+    // Use smoothed rotation for all minimap calculations
+    const playerRotation = smoothedRotation;
     
     // Helper function to convert world coords to minimap coords (player-centric rotation)
     const worldToMinimap = (worldX, worldZ) => {
