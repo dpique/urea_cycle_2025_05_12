@@ -84,41 +84,6 @@ export function updateMinimap(player, npcs, resources) {
         };
     };
     
-    // --- START LOGGING BLOCK ---
-    console.log("------------------- Minimap Update Logs -------------------");
-    console.log(`Player World Position: X=${player.position.x.toFixed(2)}, Z=${player.position.z.toFixed(2)}`);
-    
-    const playerRotationRad = Math.atan2(forward.x, forward.z); // Radian value
-    const playerRotationDeg = THREE.MathUtils.radToDeg(playerRotationRad);
-    console.log(`Player Rotation (rad): ${playerRotationRad.toFixed(2)}, (deg): ${playerRotationDeg.toFixed(2)}`);
-
-    // Log a fixed world point (e.g., CONSTANTS.MIN_X, 0) relative to player at (0,0)
-    // To make this clearer, let's assume a hypothetical fixed point and convert it
-    const fixedWorldPointX = CONSTANTS.MIN_X + 5; // e.g., a point within the Mito zone
-    const fixedWorldPointZ = 0; // e.g., center of the world Z-axis
-    const minimapCoordsFixed = worldToMinimap(fixedWorldPointX, fixedWorldPointZ);
-    console.log(`Fixed World Point (${fixedWorldPointX.toFixed(2)}, ${fixedWorldPointZ.toFixed(2)}) -> Minimap (${minimapCoordsFixed.x.toFixed(2)}, ${minimapCoordsFixed.y.toFixed(2)})`);
-
-    // Log the bridge's start and end points
-    const bridgeStartX = CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH/2;
-    const bridgeStartZ = CONSTANTS.BRIDGE_CENTER_Z;
-    const bridgeStartMinimap = worldToMinimap(bridgeStartX, bridgeStartZ);
-    console.log(`Bridge Start World (${bridgeStartX.toFixed(2)}, ${bridgeStartZ.toFixed(2)}) -> Minimap (${bridgeStartMinimap.x.toFixed(2)}, ${bridgeStartMinimap.y.toFixed(2)})`);
-    
-    const bridgeEndX = CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2;
-    const bridgeEndMinimap = worldToMinimap(bridgeEndX, bridgeStartZ);
-    console.log(`Bridge End World (${bridgeEndX.toFixed(2)}, ${bridgeStartZ.toFixed(2)}) -> Minimap (${bridgeEndMinimap.x.toFixed(2)}, ${bridgeEndMinimap.y.toFixed(2)})`);
-
-    // Let's also log the world coordinates of the Mitochondria zone max X and Cyto zone min X
-    const mitoZoneMaxX = CONSTANTS.MITO_ZONE_MAX_X;
-    const cytoZoneMinX = CONSTANTS.CYTO_ZONE_MIN_X;
-    const mitoCornerMinimap = worldToMinimap(mitoZoneMaxX, 0); // At center Z
-    const cytoCornerMinimap = worldToMinimap(cytoZoneMinX, 0); // At center Z
-    console.log(`Mito Zone Max X (${mitoZoneMaxX.toFixed(2)}, 0) -> Minimap (${mitoCornerMinimap.x.toFixed(2)}, ${mitoCornerMinimap.y.toFixed(2)})`);
-    console.log(`Cyto Zone Min X (${cytoZoneMinX.toFixed(2)}, 0) -> Minimap (${cytoCornerMinimap.x.toFixed(2)}, ${cytoCornerMinimap.y.toFixed(2)})`);
-    console.log("-----------------------------------------------------------");
-    // --- END LOGGING BLOCK ---
-
     // Save context for rotating zones
     minimapCtx.save();
     

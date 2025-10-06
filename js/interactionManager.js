@@ -1,7 +1,7 @@
 // js/interactionManager.js
 import * as THREE from 'three';
 import * as CONSTANTS from './constants.js';
-import { showDialogue, showFeedback, showInteractionPrompt, hideInteractionPrompt } from './uiManager.js';
+import { showDialogue, showFeedback, showInteractionPrompt, hideInteractionPrompt, updateDialogueContent } from './uiManager.js';
 import { createGameBoySound, playMoleculeGenerationSound, playPortalCelebration, stopBackgroundMusic, startBackgroundMusic } from './audioManager.js';
 import { advanceUreaCycleQuest, startUreaCycleQuest, startRealityRiverChallenge, hasRequiredItems, consumeItems, ureaCycleQuestData } from './questManager.js';
 import { removePortalBarrierFromWorld, createResource, interactiveObjects, originalMaterials, removeResourceFromWorld } from './worldManager.js';
@@ -231,7 +231,17 @@ function updateQuestIndicator(obj) {
 
 export function interactWithObject(object, scene) {
     const gameState = getGameState();
-    if (!object || gameState.isUserInteracting) return;
+    console.log('[InteractWithObject] Called with:', object?.userData?.name, 'isUserInteracting:', gameState.isUserInteracting);
+    
+    // Special case: Allow River Guardian to continue dialogue even when already interacting
+    const isRiverGuardianContinuation = object?.userData?.name === 'River Guardian' && 
+                                       object?.userData?.dialogueState && 
+                                       object?.userData?.dialogueState !== 'initial';
+    
+    if (!object || (gameState.isUserInteracting && !isRiverGuardianContinuation)) {
+        console.log('[InteractWithObject] Early return - object:', !!object, 'isInteracting:', gameState.isUserInteracting);
+        return;
+    }
 
     const userData = object.userData;
     let interactionProcessedThisFrame = false;
@@ -598,6 +608,102 @@ export function interactWithObject(object, scene) {
             }
         }
 
+        else if (userData.name === 'River Guardian') {
+            console.log('[RiverGuardian] Interaction started');
+            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2) {
+                const guardianObj = object;
+                
+                // Initialize dialogue state if needed
+                if (!guardianObj.userData.dialogueState) {
+                    guardianObj.userData.dialogueState = 'initial';
+                    console.log('[RiverGuardian] Initialized dialogue state to: initial');
+                }
+                
+                console.log('[RiverGuardian] Current dialogue state:', guardianObj.userData.dialogueState);
+                
+                switch(guardianObj.userData.dialogueState) {
+                    case 'initial':
+                        console.log('[RiverGuardian] Showing initial dialogue');
+                        showDialogue("Greetings, seeker. I am the River Guardian, keeper of life-giving water.", [
+                            { text: "Tell me more.", hideOnClick: false, action: () => {
+                                console.log('[RiverGuardian] Tell me more clicked');
+                                guardianObj.userData.dialogueState = 'explain';
+                                // Directly show next dialogue without closing first
+                                showDialogue("Water (H₂O) kick-starts the urea cycle by helping to form bicarbonate (HCO₃⁻). Without it, the cycle cannot begin. Will you accept this gift of water?", [
+                                    { text: "Yes, I accept.", hideOnClick: false, action: () => {
+                                        guardianObj.userData.dialogueState = 'warning';
+                                        showDialogue("The water is yours, young alchemist. But heed my warning: Do not wade too deep into these sacred waters. The river's current is stronger than it appears, and those who venture too far... never return to tell their tale.", [
+                                            { text: "I understand the danger.", action: () => {
+                                                // Create water droplet near the guardian
+                                                const waterPos = {
+                                                    x: guardianObj.position.x + 1.5,
+                                                    z: guardianObj.position.z,
+                                                    yBase: guardianObj.position.y
+                                                };
+                                                createResource(scene, 'Water', waterPos, CONSTANTS.WATER_COLOR);
+                                                showFeedback("The River Guardian manifests a water droplet for you.");
+                                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER);
+                                                guardianObj.userData.dialogueState = 'complete';
+                                            }}
+                                        ], setGameInteracting);
+                                    }},
+                                    { text: "Not yet.", action: () => { guardianObj.userData.dialogueState = 'initial'; }}
+                                ], setGameInteracting);
+                            }},
+                            { text: "I must go." }
+                        ], setGameInteracting);
+                        break;
+                        
+                    case 'explain':
+                        showDialogue("Water (H₂O) kick-starts the urea cycle by helping to form bicarbonate (HCO₃⁻). Without it, the cycle cannot begin. Will you accept this gift of water?", [
+                            { text: "Yes, I accept.", action: () => {
+                                guardianObj.userData.dialogueState = 'warning';
+                                showDialogue("The water is yours, young alchemist. But heed my warning: Do not wade too deep into these sacred waters. The river's current is stronger than it appears, and those who venture too far... never return to tell their tale.", [
+                                    { text: "I understand the danger.", action: () => {
+                                        // Create water droplet near the guardian
+                                        const waterPos = {
+                                            x: guardianObj.position.x + 1.5,
+                                            z: guardianObj.position.z,
+                                            yBase: guardianObj.position.y
+                                        };
+                                        createResource(scene, 'Water', waterPos, CONSTANTS.WATER_COLOR);
+                                        showFeedback("The River Guardian manifests a water droplet for you.");
+                                        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER);
+                                        guardianObj.userData.dialogueState = 'complete';
+                                    }}
+                                ], setGameInteracting);
+                            }},
+                            { text: "Not yet.", action: () => { guardianObj.userData.dialogueState = 'initial'; }}
+                        ], setGameInteracting);
+                        break;
+                        
+                    case 'warning':
+                        showDialogue("The water is yours, young alchemist. But heed my warning: Do not wade too deep into these sacred waters. The river's current is stronger than it appears, and those who venture too far... never return to tell their tale.", [
+                            { text: "I understand the danger.", action: () => {
+                                // Create water droplet near the guardian
+                                const waterPos = {
+                                    x: guardianObj.position.x + 1.5,
+                                    z: guardianObj.position.z,
+                                    yBase: guardianObj.position.y
+                                };
+                                createResource(scene, 'Water', waterPos, CONSTANTS.WATER_COLOR);
+                                showFeedback("The River Guardian manifests a water droplet for you.");
+                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER);
+                                guardianObj.userData.dialogueState = 'complete';
+                            }}
+                        ], setGameInteracting);
+                        break;
+                        
+                    case 'complete':
+                        showDialogue("The water awaits you. Remember my warning about the river's depths.", 
+                            [{ text: "Thank you." }], setGameInteracting);
+                        break;
+                }
+            } else {
+                showDialogue("The waters cleansing properties flow eternally. Return when you seek the essence of H₂O.", 
+                    [{ text: "I understand." }], setGameInteracting);
+            }
+        }
         else {
              setGameInteracting(false);
         }
@@ -646,7 +752,10 @@ export function interactWithObject(object, scene) {
         questAdvancedGenericFeedbackSuppressed = false;
 
         if (currentQuest?.id === 'ureaCycle') {
-            if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE && userData.name === 'Bicarbonate') {
+            if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER && userData.name === 'Water') {
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2)) questAdvancedGenericFeedbackSuppressed = true;
+            }
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE && userData.name === 'Bicarbonate') {
                 if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3)) questAdvancedGenericFeedbackSuppressed = true;
             }
             else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3 && userData.name === 'NH3') {
@@ -725,7 +834,7 @@ export function interactWithObject(object, scene) {
 
         if (userData.name === "CAVA Shrine") {
             dialogueTitle = "CAVA Shrine (Carbonic Anhydrase VA)";
-            educationalBlurb = "Welcome, seeker, to the CAVA Shrine. Within my crystalline heart, the essence of Carbonic Anhydrase VA resides. Here in the mitochondrial cave, I blend Water and CO2, transforming them into Bicarbonate (HCO3-). This is the first substrate for the Urea Cycle.";
+            educationalBlurb = "Welcome, seeker, to the CAVA Shrine. I see you bring gifts of Water and CO2. Within my crystalline heart, the essence of Carbonic Anhydrase VA resides. Here in the mitochondrial cave, I blend Water and CO2, transforming them into Bicarbonate (HCO3-). This is the first substrate for the Urea Cycle.";
             actionButtonText = `Create Bicarbonate!`;
         }
 

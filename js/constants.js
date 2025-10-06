@@ -65,7 +65,15 @@ export const ALCOVE_Z_START = ALCOVE_Z_CENTER - ALCOVE_WIDTH / 2;
 export const ALCOVE_Z_END = ALCOVE_Z_CENTER + ALCOVE_WIDTH / 2;
 export const ALCOVE_INTERIOR_BACK_X = MIN_X + WALL_THICKNESS / 2; 
 export const ALCOVE_OPENING_X_PLANE = MIN_X + WALL_THICKNESS / 2 + ALCOVE_DEPTH;
-export const CAVE_SLOPE_DROP = 1.0; 
+export const CAVE_SLOPE_DROP = 1.0;
+
+// River Guardian position constants
+export const RIVER_GUARDIAN_X = RIVER_CENTER_X - RIVER_WIDTH / 2 - 2; // Just west of river edge
+export const RIVER_GUARDIAN_Z = -15; // South of the bridge, easily accessible
+
+// CO2 Vents position constants
+export const CO2_VENTS_X = ALCOVE_INTERIOR_BACK_X + ALCOVE_DEPTH / 2 + 0.5;
+export const CO2_VENTS_Z = ALCOVE_Z_END - 1.2; 
 
 // --- Player Constants ---
 export const PLAYER_SPEED = 5.0;
@@ -88,6 +96,7 @@ export const INTERACTION_RADIUS_SQ = 2.0 * 2.0;
 export const QUEST_STATE = Object.freeze({
     NOT_STARTED: 'NOT_STARTED',
     STEP_0_GATHER_WATER_CO2: 'STEP_0_GATHER_WATER_CO2',
+    STEP_0_COLLECT_WATER: 'STEP_0_COLLECT_WATER',
     STEP_0A_GATHER_CO2: 'STEP_0A_GATHER_CO2',
     STEP_0B_MAKE_BICARBONATE: 'STEP_0B_MAKE_BICARBONATE',
     STEP_0C_COLLECT_BICARBONATE: 'STEP_0C_COLLECT_BICARBONATE',

@@ -70,8 +70,18 @@ export function showDialogue(text, options = [], setGameInteractingState) {
         const button = document.createElement('button');
         button.textContent = opt.text;
         button.onclick = () => {
-            hideDialogue(setGameInteractingState); // This will hide the current dialogue box
-            if (opt.action) opt.action();
+            // Check if this button continues the dialogue (has an action that shows more dialogue)
+            // If so, DON'T hide first - let the action handle it
+            if (opt.action) {
+                // Only hide if the option explicitly says to (for exit buttons)
+                if (opt.hideOnClick !== false) {
+                    hideDialogue(setGameInteractingState);
+                }
+                opt.action();
+            } else {
+                // No action means this is an exit button - always hide
+                hideDialogue(setGameInteractingState);
+            }
         };
         dialogueOptionsEl.appendChild(button);
     });
@@ -107,6 +117,33 @@ export function hideDialogue(setGameInteractingState) {
     if (setGameInteractingState) { // Check if function is provided
        setGameInteractingState(false);
     }
+}
+
+export function updateDialogueContent(text, options = []) {
+    if (!dialogueBoxEl || !dialogueTextEl || !dialogueOptionsEl) return;
+    
+    // Fade out just the content
+    dialogueTextEl.style.opacity = '0';
+    dialogueOptionsEl.style.opacity = '0';
+    
+    setTimeout(() => {
+        // Update content
+        dialogueTextEl.textContent = text;
+        dialogueOptionsEl.innerHTML = '';
+        
+        options.forEach(opt => {
+            const button = document.createElement('button');
+            button.textContent = opt.text;
+            button.onclick = () => {
+                if (opt.action) opt.action();
+            };
+            dialogueOptionsEl.appendChild(button);
+        });
+        
+        // Fade back in
+        dialogueTextEl.style.opacity = '1';
+        dialogueOptionsEl.style.opacity = '1';
+    }, 150);
 }
 
 export function updateQuestUI(currentQuest) {

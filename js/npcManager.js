@@ -6,7 +6,7 @@ import { interactiveObjects, originalMaterials, getTerrainHeightAt } from './wor
 
 let professorHepaticusNPC, ornithineUsherNPC, aslanNPC, donkeyNPC, argusNPC;
 let otisOTC_NPC, casperCPS1_NPC;
-let fumaraseNPC, shuttleDriverNPC; // New NPCs
+let fumaraseNPC, shuttleDriverNPC, riverGuardianNPC; // New NPCs
 
 const npcs = [];
 const npcAnims = {};
@@ -74,6 +74,9 @@ export function initNPCs(scene) {
     
     // Shuttle Driver - closer to river and Donkey for Malate-Aspartate exchange
     shuttleDriverNPC = createShuttleDriver(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 5, 0, 5));
+    
+    // River Guardian by the river edge in mitochondria zone
+    riverGuardianNPC = createRiverGuardian(scene, new THREE.Vector3(CONSTANTS.RIVER_GUARDIAN_X, 0, CONSTANTS.RIVER_GUARDIAN_Z));
 
 
     npcAnims.professor = {
@@ -162,6 +165,15 @@ export function initNPCs(scene) {
         paceInterval: 6 + Math.random()*2, 
         paceRange: 0.5, // Minimal pacing
         bounds: getBoundsFromPosition(shuttleDriverNPC.position, 0.5)
+    };
+    npcAnims.riverGuardian = {
+        group: riverGuardianNPC,
+        basePos: riverGuardianNPC.position.clone(),
+        targetPos: riverGuardianNPC.position.clone(),
+        paceTimer: 0,
+        paceInterval: 1000, // Doesn't pace
+        paceRange: 0, // Stationary
+        floatTimer: 0
     };
 }
 
@@ -617,6 +629,99 @@ function createShuttleDriver(scene, position) {
     return driverGroup;
 }
 
+function createRiverGuardian(scene, position) {
+    const guardianGroup = new THREE.Group();
+    positionNPCOnTerrain(guardianGroup, position);
+    
+    // Translucent blue/cyan material with emissive glow
+    const spiritMat = new THREE.MeshStandardMaterial({ 
+        color: 0x00ccff, 
+        emissive: 0x0088ff,
+        emissiveIntensity: 0.3,
+        transparent: true,
+        opacity: 0.7,
+        roughness: 0.2,
+        metalness: 0.1
+    });
+    
+    // Flowing robe-like body
+    const bodyGeo = new THREE.CylinderGeometry(0.25, 0.5, 1.5, 8, 4);
+    const body = new THREE.Mesh(bodyGeo, spiritMat);
+    body.position.y = 0.75;
+    body.name = "guardian_body";
+    body.castShadow = false; // Spirits don't cast shadows
+    body.receiveShadow = false;
+    guardianGroup.add(body);
+    
+    // Head sphere
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 6), spiritMat);
+    head.position.y = 1.75;
+    guardianGroup.add(head);
+    
+    // Ripple rings at base
+    const ringMat = new THREE.MeshStandardMaterial({ 
+        color: 0x0099ff, 
+        emissive: 0x0066ff,
+        emissiveIntensity: 0.2,
+        transparent: true,
+        opacity: 0.4,
+        side: THREE.DoubleSide
+    });
+    
+    for (let i = 0; i < 3; i++) {
+        const ringGeo = new THREE.RingGeometry(0.3 + i * 0.2, 0.4 + i * 0.2, 16);
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.02 + i * 0.01;
+        guardianGroup.add(ring);
+    }
+    
+    // Glowing aura particles
+    const particleCount = 20;
+    const particleGeo = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    
+    for (let i = 0; i < particleCount; i++) {
+        const theta = (i / particleCount) * Math.PI * 2;
+        positions[i * 3] = Math.cos(theta) * 0.6;
+        positions[i * 3 + 1] = Math.random() * 1.5;
+        positions[i * 3 + 2] = Math.sin(theta) * 0.6;
+    }
+    
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particleMat = new THREE.PointsMaterial({
+        color: 0x00ffff,
+        size: 0.05,
+        transparent: true,
+        opacity: 0.6
+    });
+    const particles = new THREE.Points(particleGeo, particleMat);
+    guardianGroup.add(particles);
+    
+    const label = createTextSprite("River Guardian", { x: 0, y: 2.3, z: 0 }, { fontSize: 36, scale: 0.6 });
+    guardianGroup.add(label);
+    
+    guardianGroup.userData = {
+        type: 'npc',
+        name: 'River Guardian',
+        mainMesh: body,
+        provides: 'Water',
+        requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2
+    };
+    
+    guardianGroup.traverse(child => { 
+        if (child.isMesh) {
+            child.castShadow = false;
+            child.receiveShadow = false;
+        }
+    });
+    
+    scene.add(guardianGroup);
+    interactiveObjects.push(guardianGroup);
+    originalMaterials.set(body, spiritMat.clone());
+    npcs.push(guardianGroup);
+    return guardianGroup;
+}
 
 export function updateNPCs(delta, elapsedTime) {
     for (const npcKey in npcAnims) {
@@ -737,6 +842,25 @@ export function updateNPCs(delta, elapsedTime) {
         } else if (npcKey === 'fumarase') {
             npc.group.rotation.x = Math.sin(elapsedTime * 0.5) * 0.1;
             npc.group.rotation.y = Math.cos(elapsedTime * 0.3) * 0.15;
+        } else if (npcKey === 'riverGuardian') {
+            // Gentle floating animation
+            npc.floatTimer = elapsedTime;
+            npc.group.position.y = npc.basePos.y + Math.sin(npc.floatTimer * 0.8) * 0.1;
+            
+            // Rotate ripple rings
+            const rings = npc.group.children.filter(child => 
+                child.geometry && child.geometry.type === 'RingGeometry'
+            );
+            rings.forEach((ring, i) => {
+                ring.rotation.z = npc.floatTimer * (0.3 + i * 0.1);
+                ring.material.opacity = 0.3 + Math.sin(npc.floatTimer * 2 + i) * 0.1;
+            });
+            
+            // Animate particles
+            const particles = npc.group.children.find(child => child.type === 'Points');
+            if (particles) {
+                particles.rotation.y = npc.floatTimer * 0.2;
+            }
         }
     }
 }

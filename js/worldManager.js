@@ -139,18 +139,14 @@ export function initWorld(scene) {
     fixedAlcoveItemPositions.push({ x: cavaShrineX, z: CONSTANTS.ALCOVE_Z_CENTER, radius: 1.8 });
 
 
-    const wellX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + CONSTANTS.ALCOVE_DEPTH / 2;
-    const wellZ = CONSTANTS.ALCOVE_Z_START + 1.2;
-    const wellY = getCaveFloorY(wellX);
-    createWaterWell(scene, new THREE.Vector3(wellX, wellY, wellZ));
-    fixedAlcoveItemPositions.push({ x: wellX, z: wellZ, radius: 1.5 });
+    // River Guardian is created in initNPCs at the river edge
+    // No longer need to track alcove position for water well
 
 
-    const brazierX = CONSTANTS.ALCOVE_INTERIOR_BACK_X + CONSTANTS.ALCOVE_DEPTH / 2 + 0.5;
-    const brazierZ = CONSTANTS.ALCOVE_Z_END - 1.2;
-    const brazierY = getCaveFloorY(brazierX);
-    createAlchemistsBrazier(scene, new THREE.Vector3(brazierX, brazierY, brazierZ));
-    fixedAlcoveItemPositions.push({ x: brazierX, z: brazierZ, radius: 1.5 });
+    // CO2 Vents replace fire pit - mitochondrial respiratory byproduct
+    const ventY = getCaveFloorY(CONSTANTS.CO2_VENTS_X);
+    createCO2Vents(scene, new THREE.Vector3(CONSTANTS.CO2_VENTS_X, ventY, CONSTANTS.CO2_VENTS_Z));
+    fixedAlcoveItemPositions.push({ x: CONSTANTS.CO2_VENTS_X, z: CONSTANTS.CO2_VENTS_Z, radius: 1.5 });
 
     createCaveArea(scene);
 
@@ -571,15 +567,121 @@ export function createResource(scene, name, position, color, userData = {}) {
             geometry = createLightningBoltGeometry();
             material = new THREE.MeshStandardMaterial({ color: color, roughness: 0.3, metalness: 0.7, emissive: color, emissiveIntensity: 0.3 });
         } else if (name === 'Water') {
-            geometry = new THREE.SphereGeometry(0.25, 6, 4);
-            material = new THREE.MeshStandardMaterial({ color: CONSTANTS.WATER_COLOR, transparent: true, opacity: 0.7, roughness: 0.2, metalness: 0.1 });
-            scale = 0.9;
+            // 3D water droplet using merged spheres
+            const dropGroup = new THREE.Group();
+            
+            // Main body sphere
+            const mainSphere = new THREE.Mesh(
+                new THREE.SphereGeometry(0.25, 16, 12),
+                new THREE.MeshStandardMaterial({ 
+                    color: CONSTANTS.WATER_COLOR, 
+                    transparent: true, 
+                    opacity: 0.85, 
+                    roughness: 0.05, 
+                    metalness: 0.0
+                })
+            );
+            dropGroup.add(mainSphere);
+            
+            // Top pointed part
+            const topCone = new THREE.Mesh(
+                new THREE.ConeGeometry(0.15, 0.3, 8),
+                mainSphere.material
+            );
+            topCone.position.y = 0.3;
+            dropGroup.add(topCone);
+            
+            // Bottom sphere for teardrop shape
+            const bottomSphere = new THREE.Mesh(
+                new THREE.SphereGeometry(0.2, 12, 8),
+                mainSphere.material
+            );
+            bottomSphere.position.y = -0.1;
+            bottomSphere.scale.y = 0.7;
+            dropGroup.add(bottomSphere);
+            
+            // Merge geometries
+            const mergedGeo = new THREE.BufferGeometry();
+            dropGroup.updateMatrixWorld();
+            dropGroup.traverse(child => {
+                if (child.isMesh) {
+                    child.updateMatrixWorld();
+                    const geo = child.geometry.clone();
+                    geo.applyMatrix4(child.matrixWorld);
+                    if (mergedGeo.attributes.position) {
+                        // THREE.js BufferGeometry doesn't have merge method
+                        // We'll just use the main sphere for now
+                    } else {
+                        mergedGeo.copy(geo);
+                    }
+                }
+            });
+            
+            // For simplicity, use a sphere geometry that looks like a droplet
+            geometry = new THREE.SphereGeometry(0.25, 16, 12);
+            geometry.scale(1, 1.3, 1); // Stretch vertically for droplet shape
+            
+            material = new THREE.MeshStandardMaterial({ 
+                color: CONSTANTS.WATER_COLOR, 
+                transparent: true, 
+                opacity: 0.85, 
+                roughness: 0.05, 
+                metalness: 0.0,
+                emissive: CONSTANTS.WATER_COLOR,
+                emissiveIntensity: 0.1
+            });
+            scale = 0.8;
         } else if (name === 'CO2') {
             geometry = new THREE.SphereGeometry(0.28, 6, 4);
             material = new THREE.MeshStandardMaterial({ color: CONSTANTS.SMOKE_COLOR, transparent: true, opacity: 0.6, roughness: 0.8, metalness: 0.0 });
         } else if (name === 'Bicarbonate') {
-            geometry = new THREE.OctahedronGeometry(0.3, 0);
-            material = new THREE.MeshStandardMaterial({ color: CONSTANTS.BICARBONATE_COLOR, roughness: 0.4, metalness: 0.2, emissive: CONSTANTS.BICARBONATE_COLOR, emissiveIntensity: 0.2 });
+            // White powder pile
+            const pileGroup = new THREE.Group();
+            
+            // Create multiple small spheres to form a powder pile
+            const powderMat = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, 
+                roughness: 0.9, 
+                metalness: 0.0
+            });
+            
+            // Base mound
+            const baseMound = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4, 8, 6),
+                powderMat
+            );
+            baseMound.scale.set(1, 0.4, 1);
+            pileGroup.add(baseMound);
+            
+            // Add smaller mounds for texture
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const radius = 0.2 + Math.random() * 0.1;
+                const smallMound = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.15 + Math.random() * 0.1, 6, 4),
+                    powderMat
+                );
+                smallMound.position.set(
+                    Math.cos(angle) * radius,
+                    Math.random() * 0.1,
+                    Math.sin(angle) * radius
+                );
+                smallMound.scale.y = 0.5;
+                pileGroup.add(smallMound);
+            }
+            
+            // For now, use a simple flattened sphere for the powder pile
+            geometry = new THREE.SphereGeometry(0.4, 12, 8);
+            geometry.scale(1.2, 0.4, 1.2); // Flatten to look like a pile
+            
+            material = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, 
+                roughness: 0.85, 
+                metalness: 0.1,
+                emissive: 0xffffff,
+                emissiveIntensity: 0.05
+            });
+            scale = 1.0;
         } else if (name === 'Malate') {
             geometry = new THREE.TetrahedronGeometry(0.35, 0); // Simple shape for Malate
             material = new THREE.MeshStandardMaterial({ color: CONSTANTS.MALATE_COLOR, roughness: 0.5, metalness: 0.1 });
@@ -606,7 +708,8 @@ export function createResource(scene, name, position, color, userData = {}) {
         const terrainHeight = getTerrainHeightAt(position.x, position.z);
         const baseResourceY = position.yBase !== undefined ? position.yBase : 
                              (name.toLowerCase().includes("bridge") ? CONSTANTS.BRIDGE_HEIGHT + 0.01 : terrainHeight + 0.01);
-        const hoverOffset = 0.6;
+        // Bicarbonate sits on ground, others hover
+        const hoverOffset = name === 'Bicarbonate' ? 0 : 0.6;
         const initialY = userData.initialY !== undefined ? userData.initialY : (baseResourceY + hoverOffset);
 
         resource.userData = { ...userData, type: 'resource', name: name, object3D: resource, initialY: initialY, baseLevelY: baseResourceY, mainMesh: resource };
@@ -704,7 +807,86 @@ function createCavaShrine(scene, position) {
 }
 
 
-function createWaterWell(scene, position) {
+function createCO2Vents(scene, position) {
+    const group = new THREE.Group();
+    const terrainHeight = getTerrainHeightAt(position.x, position.z);
+    group.position.set(position.x, terrainHeight, position.z);
+    
+    // Create multiple vent pipes
+    const ventMat = new THREE.MeshStandardMaterial({ 
+        color: 0x555555, 
+        metalness: 0.8, 
+        roughness: 0.2 
+    });
+    
+    // Main vent
+    const mainVentGeo = new THREE.CylinderGeometry(0.15, 0.2, 0.8, 8);
+    const mainVent = new THREE.Mesh(mainVentGeo, ventMat);
+    mainVent.position.y = 0.4;
+    mainVent.castShadow = true;
+    group.add(mainVent);
+    
+    // Side vents
+    const sideVentGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.5, 6);
+    const positions = [
+        { x: -0.3, z: 0.2 },
+        { x: 0.2, z: -0.15 }
+    ];
+    
+    positions.forEach(pos => {
+        const vent = new THREE.Mesh(sideVentGeo, ventMat);
+        vent.position.set(pos.x, 0.25, pos.z);
+        vent.rotation.z = (Math.random() - 0.5) * 0.2;
+        vent.castShadow = true;
+        group.add(vent);
+    });
+    
+    // Base plate
+    const basePlate = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.5, 0.6, 0.05, 12),
+        new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.5, roughness: 0.5 })
+    );
+    basePlate.position.y = 0.025;
+    basePlate.castShadow = true;
+    group.add(basePlate);
+    
+    // Add glow effect to main vent
+    const glowLight = new THREE.PointLight(0xcccccc, 0.3, 2);
+    glowLight.position.y = 0.8;
+    group.add(glowLight);
+    
+    group.userData = { 
+        type: 'source', 
+        name: 'CO₂ Vents', 
+        provides: 'CO2', 
+        requiredQuestState: CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2, 
+        mainMesh: mainVent 
+    };
+    
+    interactiveObjects.push(group);
+    originalMaterials.set(mainVent, ventMat.clone());
+    scene.add(group);
+    
+    const label = createTextSprite("CO₂ Vents (Respiratory Byproduct)", 
+        { x: position.x, y: position.y + 1.2, z: position.z }, 
+        { scale: 0.5 }
+    );
+    scene.add(label);
+    
+    // White/gray CO2 particle clouds
+    const particleEmitterPos = position.clone().add(new THREE.Vector3(0, 0.8, 0));
+    createSimpleParticleSystem(scene, 40, 0xdddddd, 0.08, 0.4, 3.5, particleEmitterPos, new THREE.Vector3(0.3, 0.1, 0.3));
+    
+    // Side vent particles
+    positions.forEach(pos => {
+        const sideEmitter = position.clone().add(new THREE.Vector3(pos.x, 0.5, pos.z));
+        createSimpleParticleSystem(scene, 15, 0xcccccc, 0.05, 0.3, 2.5, sideEmitter, new THREE.Vector3(0.15, 0.05, 0.15));
+    });
+    
+    return group;
+}
+
+function createWaterWell_DEPRECATED(scene, position) {
     const group = new THREE.Group();
     const terrainHeight = getTerrainHeightAt(position.x, position.z);
     group.position.set(position.x, terrainHeight, position.z);
@@ -756,7 +938,7 @@ function createWaterWell(scene, position) {
     return group;
 }
 
-function createAlchemistsBrazier(scene, position) {
+function createAlchemistsBrazier_DEPRECATED(scene, position) {
     const group = new THREE.Group();
     const terrainHeight = getTerrainHeightAt(position.x, position.z);
     group.position.set(position.x, terrainHeight, position.z);
@@ -985,9 +1167,22 @@ export function updateResourceHover(elapsedTime) {
     const hoverAmount = 0.2;
     resourceMeshes.forEach((resource, index) => {
         if (resource?.parent && resource.userData?.initialY !== undefined) {
-            const yPos = resource.userData.initialY + Math.sin(elapsedTime * hoverSpeed + index * 0.5) * hoverAmount;
-            if (!isNaN(yPos)) {
-                resource.position.y = yPos;
+            // Bicarbonate doesn't hover but sparkles
+            if (resource.userData.name === 'Bicarbonate') {
+                // Keep it on ground
+                resource.position.y = resource.userData.initialY;
+                
+                // Sparkle effect through emissive intensity
+                if (resource.material && resource.material.emissive) {
+                    const sparkle = Math.sin(elapsedTime * 4 + index) * 0.5 + 0.5;
+                    resource.material.emissiveIntensity = 0.05 + sparkle * 0.1;
+                }
+            } else {
+                // Normal hover for other resources
+                const yPos = resource.userData.initialY + Math.sin(elapsedTime * hoverSpeed + index * 0.5) * hoverAmount;
+                if (!isNaN(yPos)) {
+                    resource.position.y = yPos;
+                }
             }
         }
     });

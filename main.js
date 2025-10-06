@@ -182,14 +182,19 @@ function getQuestTargetPosition() {
             break;
             
         case CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2:
-            // Point to Water Well
-            const waterWell = interactiveObjects.find(obj => obj.userData.name === 'Water Well');
-            return waterWell ? waterWell.position : new THREE.Vector3(CONSTANTS.MIN_X + 4, 0, CONSTANTS.ALCOVE_Z_CENTER - 2);
+            // Point to River Guardian
+            const riverGuardian = npcs.find(npc => npc.userData.name === 'River Guardian');
+            return riverGuardian ? riverGuardian.position : new THREE.Vector3(CONSTANTS.RIVER_GUARDIAN_X, 0, CONSTANTS.RIVER_GUARDIAN_Z);
+            
+        case CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER:
+            // Point to Water resource near River Guardian
+            const water = interactiveObjects.find(obj => obj.userData.name === 'Water');
+            return water ? water.position : new THREE.Vector3(CONSTANTS.RIVER_GUARDIAN_X + 1.5, 0, CONSTANTS.RIVER_GUARDIAN_Z);
             
         case CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2:
-            // Point to Fire Pit
-            const firePit = interactiveObjects.find(obj => obj.userData.name === 'Fire Pit');
-            return firePit ? firePit.position : new THREE.Vector3(CONSTANTS.MIN_X + 3, 0, CONSTANTS.ALCOVE_Z_CENTER + 3);
+            // Point to CO2 Vents
+            const co2Vents = interactiveObjects.find(obj => obj.userData.name === 'CO₂ Vents');
+            return co2Vents ? co2Vents.position : new THREE.Vector3(CONSTANTS.CO2_VENTS_X, 0, CONSTANTS.CO2_VENTS_Z);
             
         case CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE:
             // Point to CAVA Shrine

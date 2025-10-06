@@ -17,8 +17,9 @@ export const ureaCycleQuestData = {
     state: CONSTANTS.QUEST_STATE.NOT_STARTED,
     objectives: {
         [CONSTANTS.QUEST_STATE.NOT_STARTED]: "Talk to Professor Hepaticus.",
-        [CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2]: "Go to the alcove (West Mitochondria). Collect Water from the Well.",
-        [CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2]: "Now collect CO2 from the Fire Pit in the alcove.",
+        [CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2]: "Find the River Guardian near the river's edge (south of the bridge) to obtain Water.",
+        [CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER]: "Collect the Water droplet granted by the River Guardian.",
+        [CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2]: "Now collect CO2 from the Respiratory Vents in the alcove.",
         [CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE]: "Use the CAVA Shrine in the alcove with Water and CO2 to create Bicarbonate.",
         [CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE]: "Collect the Bicarbonate crystal that formed at the CAVA Shrine.",
         [CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3]: "Now collect NH3 (Ammonia) in the Mitochondria.",
