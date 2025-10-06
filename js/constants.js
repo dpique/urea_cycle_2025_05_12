@@ -133,6 +133,6 @@ export const NPC_NAMES = Object.freeze({
     ARGUS: "Argus, the Finalizer (ARG1)",
     OTIS_OTC: "Otis (OTC)", 
     CASPER_CPS1: "Casper (CPS1)",
-    FUMARASE_ENZYME: "Fumarase Enzyme", // New NPC
+    FUMARASE_ENZYME: "Fumarate Hydratase", // New NPC
     SHUTTLE_DRIVER: "Malcolm the Shuttle Driver"   // New NPC
 });

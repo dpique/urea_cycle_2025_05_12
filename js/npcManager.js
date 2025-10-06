@@ -69,8 +69,8 @@ export function initNPCs(scene) {
     casperCPS1_NPC = createCasperCPS1(scene, new THREE.Vector3(CONSTANTS.MIN_X + 15, 0, 15));
 
     // Supporting NPCs in logical positions
-    // Fumarase - near Aslan since it processes Fumarate from ASL
-    fumaraseNPC = createFumaraseEnzyme(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 30, 0, 15));
+    // Fumarase - closer to river (fire hydrant that hydrates molecules!)
+    fumaraseNPC = createFumaraseEnzyme(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 8, 0, -8));
     
     // Shuttle Driver - closer to river and Donkey for Malate-Aspartate exchange
     shuttleDriverNPC = createShuttleDriver(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 5, 0, 5));
@@ -424,33 +424,52 @@ function createOtisOTC(scene, position) {
     const otisGroup = new THREE.Group();
     positionNPCOnTerrain(otisGroup, position);
 
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff8c00, roughness: 0.6 });
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.6, 4, 8), bodyMat);
-    body.position.y = 0.4 + 0.6/2;
+    // Green ogre skin!
+    const ogreSkin = new THREE.MeshStandardMaterial({ color: 0x6B8E23, roughness: 0.8 }); // Olive drab green
+    
+    // Bigger, rounder ogre body
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), ogreSkin);
+    body.position.y = 0.7;
+    body.scale.set(1, 1.2, 0.9); // Stretch vertically
     body.name = "otis_body";
     otisGroup.add(body);
 
-    const headMat = new THREE.MeshStandardMaterial({ color: 0xffaa55, roughness: 0.5 });
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 6), headMat);
-    head.position.y = body.position.y + 0.6/2 + 0.3;
+    // Large ogre head with slight green tint
+    const headMat = new THREE.MeshStandardMaterial({ color: 0x7BA428, roughness: 0.7 });
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 6), headMat);
+    head.position.y = body.position.y + 0.6 + 0.35;
+    head.scale.set(1.1, 0.9, 1); // Wider, flatter head
     otisGroup.add(head);
+    
+    // Big ogre ears
+    const earMat = new THREE.MeshStandardMaterial({ color: 0x5A7020, roughness: 0.8 });
+    const leftEar = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.25, 6), earMat);
+    leftEar.position.set(-0.35, head.position.y + 0.05, 0);
+    leftEar.rotation.z = -Math.PI / 4;
+    otisGroup.add(leftEar);
+    const rightEar = leftEar.clone();
+    rightEar.position.x = 0.35;
+    rightEar.rotation.z = Math.PI / 4;
+    otisGroup.add(rightEar);
 
-    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-    const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 4), eyeMat);
-    leftEye.position.set(-0.1, head.position.y + 0.05, 0.28);
+    // Beady ogre eyes
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 4), eyeMat);
+    leftEye.position.set(-0.12, head.position.y + 0.05, 0.32);
     otisGroup.add(leftEye);
     const rightEye = leftEye.clone();
-    rightEye.position.x = 0.1;
+    rightEye.position.x = 0.12;
     otisGroup.add(rightEye);
 
-    const armGeo = new THREE.CylinderGeometry(0.08, 0.06, 0.5, 6);
-    const leftArm = new THREE.Mesh(armGeo, bodyMat);
-    leftArm.position.set(-0.4, body.position.y + 0.1, 0);
-    leftArm.rotation.z = Math.PI / 3;
+    // Big powerful ogre arms
+    const armGeo = new THREE.CylinderGeometry(0.12, 0.09, 0.7, 6);
+    const leftArm = new THREE.Mesh(armGeo, ogreSkin);
+    leftArm.position.set(-0.55, body.position.y + 0.1, 0);
+    leftArm.rotation.z = Math.PI / 3.5;
     otisGroup.add(leftArm);
     const rightArm = leftArm.clone();
-    rightArm.position.x = 0.4;
-    rightArm.rotation.z = -Math.PI / 3;
+    rightArm.position.x = 0.55;
+    rightArm.rotation.z = -Math.PI / 3.5;
     otisGroup.add(rightArm);
 
     const label = createTextSprite(CONSTANTS.NPC_NAMES.OTIS_OTC, { x: 0, y: head.position.y + 0.4, z: 0 }, { fontSize: 36, scale: 0.6 });
@@ -468,7 +487,7 @@ function createOtisOTC(scene, position) {
     otisGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(otisGroup);
     interactiveObjects.push(otisGroup);
-    originalMaterials.set(body, bodyMat.clone());
+    originalMaterials.set(body, ogreSkin.clone());
     npcs.push(otisGroup);
     return otisGroup;
 }
@@ -535,21 +554,50 @@ function createCasperCPS1(scene, position) {
 function createFumaraseEnzyme(scene, position) {
     const fumaraseGroup = new THREE.Group();
     positionNPCOnTerrain(fumaraseGroup, position);
-    const enzymeColor = 0x8A2BE2; // BlueViolet
-    const bodyMat = new THREE.MeshStandardMaterial({ color: enzymeColor, roughness: 0.5, metalness: 0.3 });
+    
+    // Fire hydrant colors - red body, silver accents
+    const hydrantRed = new THREE.MeshStandardMaterial({ color: 0xCC0000, roughness: 0.4, metalness: 0.6 });
+    const hydrantSilver = new THREE.MeshStandardMaterial({ color: 0xC0C0C0, roughness: 0.3, metalness: 0.8 });
+    const hydrantYellow = new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.5, metalness: 0.5 });
 
-    // A more abstract, enzyme-like shape. Could be a cluster of spheres or a lumpy form.
-    const mainBody = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 0), bodyMat); // Faceted
+    // Main hydrant body (cylindrical)
+    const mainBody = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 1.2, 8), hydrantRed);
     mainBody.position.y = 0.6;
     mainBody.name = "fumarase_body";
     fumaraseGroup.add(mainBody);
 
-    const lobe1 = new THREE.Mesh(new THREE.SphereGeometry(0.3, 6, 4), bodyMat);
-    lobe1.position.set(0.3, 0.8, 0.2);
-    fumaraseGroup.add(lobe1);
-    const lobe2 = new THREE.Mesh(new THREE.SphereGeometry(0.25, 6, 4), bodyMat);
-    lobe2.position.set(-0.2, 0.5, -0.3);
-    fumaraseGroup.add(lobe2);
+    // Top dome cap
+    const topCap = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), hydrantRed);
+    topCap.position.y = 1.2;
+    fumaraseGroup.add(topCap);
+
+    // Side nozzles (fire hydrant outlets) - these spray water!
+    const nozzleGeo = new THREE.CylinderGeometry(0.1, 0.12, 0.4, 6);
+    const leftNozzle = new THREE.Mesh(nozzleGeo, hydrantSilver);
+    leftNozzle.position.set(-0.35, 0.8, 0);
+    leftNozzle.rotation.z = Math.PI / 2;
+    fumaraseGroup.add(leftNozzle);
+    
+    const rightNozzle = leftNozzle.clone();
+    rightNozzle.position.x = 0.35;
+    fumaraseGroup.add(rightNozzle);
+
+    // Front nozzle (main spray outlet)
+    const frontNozzle = new THREE.Mesh(nozzleGeo, hydrantSilver);
+    frontNozzle.position.set(0, 0.8, 0.35);
+    frontNozzle.rotation.x = Math.PI / 2;
+    fumaraseGroup.add(frontNozzle);
+
+    // Top valve wheel (to turn on the water)
+    const valveWheel = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.05, 8, 8), hydrantYellow);
+    valveWheel.position.y = 1.3;
+    valveWheel.rotation.x = Math.PI / 2;
+    fumaraseGroup.add(valveWheel);
+
+    // Base flange
+    const baseFlange = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.42, 0.1, 8), hydrantSilver);
+    baseFlange.position.y = 0.05;
+    fumaraseGroup.add(baseFlange);
 
     const label = createTextSprite(CONSTANTS.NPC_NAMES.FUMARASE_ENZYME, { x: 0, y: 1.5, z: 0 }, { fontSize: 32, scale: 0.6 });
     fumaraseGroup.add(label);
@@ -567,7 +615,7 @@ function createFumaraseEnzyme(scene, position) {
     fumaraseGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(fumaraseGroup);
     interactiveObjects.push(fumaraseGroup);
-    originalMaterials.set(mainBody, bodyMat.clone());
+    originalMaterials.set(mainBody, hydrantRed.clone());
     npcs.push(fumaraseGroup);
     return fumaraseGroup;
 }

@@ -342,26 +342,29 @@ export function interactWithObject(object, scene) {
             ];
             if (currentQuest && donkeyStates.includes(currentQuest.state)) {
                 if (inventory['Argininosuccinate']) {
-                    showDialogue("You already have Argininosuccinate! Take it to Aslan, the Chomper (ASL) for the next step.", [{ text: "On it!" }], setGameInteracting);
+                    showDialogue("HEE-HAW! You already have Argininosuccinate! Take it to Aslan, the Chomper (ASL) for the next step. This stubborn donkey's work is done!", [{ text: "Thanks, Donkey!" }], setGameInteracting);
                 } else if (hasRequiredItems(userData.requires)) {
-                    showDialogue("Hee-haw! Got Citrulline, Aspartate, and ATP? I'm Argininosuccinate Synthetase (ASS) - call me Donkey! I take that Citrulline from the mitochondria, and with Aspartate providing the second nitrogen and ATP for energy, I stitch 'em together to make Argininosuccinate. It's a vital link! Ready to synthesize?", [
-                        { text: "Yes, let's do it!", action: () => {
-                            consumeItems(userData.requires);
-                            playMoleculeGenerationSound();
-                            createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 2, yBase: object.position.y }, userData.productColors[userData.produces]);
-                            // Always advance to STEP_10_TALK_TO_ASLAN if not already there
-                            if (currentQuest.state !== CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN) {
-                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN);
-                            }
-                        }},
-                        { text: "Just admiring the... talking donkey."}
+                    showDialogue("HEE-HAW! Perfect! I'm Donkey, the Synthesizer - representing Argininosuccinate Synthetase (ASS). Now listen up: I'm as stubborn as they come, and when I set my mind to joining two things together, NOTHING stops me! I'll take your Citrulline and Aspartate, and with some good ol' ATP energy, I'll KICK them together - literally! Us donkeys are patient workers - this synthesis takes time and effort, but I REFUSE to give up until these molecules are properly joined! Ready to see some stubborn donkey determination?", [
+                        { text: "KICK them together!", hideOnClick: false, action: () => {
+                            showDialogue("*Donkey positions the molecules carefully*\n\nHEE-HAW! Watch this! *KICK* *KICK* There we go! With my powerful hind legs and stubborn persistence, I've joined Citrulline and Aspartate into Argininosuccinate! See? When a donkey sets their mind to something, it gets DONE! That's the secret to good synthesis - never give up, keep kicking until the bonds form!", [
+                                { text: "Amazing work, Donkey!", action: () => {
+                                    consumeItems(userData.requires);
+                                    playMoleculeGenerationSound();
+                                    createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 2, yBase: object.position.y }, userData.productColors[userData.produces]);
+                                    // Always advance to STEP_10_TALK_TO_ASLAN if not already there
+                                    if (currentQuest.state !== CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN) {
+                                        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN);
+                                    }
+                                }}
+                            ], setGameInteracting);
+                        }}
                     ], setGameInteracting);
                 } else {
                     let missing = Object.keys(userData.requires).filter(item => !inventory[item] || inventory[item] < userData.requires[item]);
-                    showDialogue(`Hee-haw! To make Argininosuccinate, I need ${missing.join(' and ')}. Aspartate is key for that second nitrogen atom, you know! Get it from the Shuttle Driver.`, [{text: "Right-o."}], setGameInteracting);
+                    showDialogue(`HEE-HAW! Hold your horses... er, donkeys! To do my synthesis work, I need ${missing.join(' and ')}. I'm stubborn, but I can't kick together molecules that aren't here! That Aspartate is especially important - provides the second nitrogen atom, you know. Get what I need and I'll show you some REAL donkey determination!`, [{text: "I'll get them!"}], setGameInteracting);
                 }
             } else {
-                showDialogue("Hee-haw! Mighty strange seeing folks wanderin' 'round here. I'm just a simple donkey, really, who happens to be an expert in amino acid ligation.", [{text: "Okay then..."}], setGameInteracting);
+                showDialogue("HEE-HAW! Name's Donkey, the Synthesizer! I'm a stubborn worker who specializes in KICKING molecules together with precision and patience. When you need Argininosuccinate synthesized, I'm your donkey!", [{text: "Good to know!"}], setGameInteracting);
             }
         }
         else if (userData.name === CONSTANTS.NPC_NAMES.ASLAN) {
@@ -382,8 +385,8 @@ export function interactWithObject(object, scene) {
                             createGameBoySound('success');
                             let offset = 0;
                             userData.produces.forEach(prod => {
-                                createResource(scene, prod, { x: object.position.x + offset - 0.5, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[prod]);
-                                offset += 1.0;
+                                createResource(scene, prod, { x: object.position.x + offset - 1.0, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[prod]);
+                                offset += 2.0; // Spread them out more
                             });
                             // Advance to collection step
                             if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN) {
@@ -452,29 +455,29 @@ export function interactWithObject(object, scene) {
             }
         }
         else if (userData.name === CONSTANTS.NPC_NAMES.OTIS_OTC) {
-            const dialogueTitle = "Otis (Ornithine Transcarbamoylase)";
-            const educationalBlurb = "Well hello there! I'm Otis, representing Ornithine Transcarbamoylase. My job here in the mitochondria is a crucial one: I take Carbamoyl Phosphate and combine it with Ornithine. Poof! We get Citrulline, which is then ready to be shipped out to the cytosol. It's all about connecting the dots... or molecules, in this case!";
-            const actionButtonText = `Let's make Citrulline!`;
+            const dialogueTitle = "Otis the Ogre (OTC)";
+            const educationalBlurb = "ROAR! Er, I mean... hello there! I'm Otis the Ogre, and I represent Ornithine Transcarbamoylase. Don't let my green complexion scare ya! My job here in the mitochondria is SMASHING molecules together - with my POWERFUL HANDS, I take Carbamoyl Phosphate and Ornithine and SMUSH them into Citrulline! It's ogre-ly satisfying work!";
+            const actionButtonText = `SMASH them together!`;
 
             if (!currentQuest || currentQuest.state !== userData.requiredQuestState) {
-                showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nBut it seems it's not the right time for my talents. Your current objective: ${currentQuest?.objectives[currentQuest.state] || "Start the quest with Professor Hepaticus."}`, [{ text: "Got it." }], setGameInteracting);
+                showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nBut hold on there, buddy! It's not the right time for my ogre strength. Your quest says: ${currentQuest?.objectives[currentQuest.state] || "Start with Professor Hepaticus."}`, [{ text: "Got it, Otis!" }], setGameInteracting);
                 return;
             }
             if (!hasRequiredItems(userData.requires)) {
                 let missing = Object.keys(userData.requires).filter(item => !inventory[item] || inventory[item] < userData.requires[item]).join(' and ');
-                showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nLooks like you're missing ${missing}. Find those, and we can get to work!`, [{ text: "I'll find them." }], setGameInteracting);
+                showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nOgres need their ingredients! You're missing ${missing}. Can't smush what ya don't have!`, [{ text: "I'll find them!" }], setGameInteracting);
                 return;
             }
-            showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nYou've got everything! Ready to combine Carbamoyl Phosphate and Ornithine?`, [
+            showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nPerfect! You've got both molecules! Ready to watch some ogre magic? I'll SMASH Carbamoyl Phosphate and Ornithine together to make something... citrusy! Well, Citrulline, actually. Same diff!`, [
                 { text: actionButtonText, action: () => {
                     consumeItems(userData.requires);
                     playMoleculeGenerationSound();
                     createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[userData.produces]);
                     if (!advanceUreaCycleQuest(userData.advancesQuestTo)) {
-                        showFeedback(`${userData.produces} created by Otis!`);
+                        showFeedback(`Citrulline created! Smells citrusy... kinda.`);
                     }
                 }},
-                { text: "Not right now." }
+                { text: "Not right now, big guy." }
             ], setGameInteracting);
         }
         else if (userData.name === CONSTANTS.NPC_NAMES.CASPER_CPS1) {
@@ -512,25 +515,28 @@ export function interactWithObject(object, scene) {
             ];
             if (currentQuest && fumaraseStates.includes(currentQuest.state)) {
                 if (inventory['Malate']) {
-                    showDialogue("You already have Malate! Take it to Malcolm the Shuttle Driver for the next step.", [{ text: "On it!" }], setGameInteracting);
+                    showDialogue("You already have Malate! Take it to Malcolm the Shuttle Driver for the next step. That Malate is ready for its journey back into the mitochondria!", [{ text: "On it!" }], setGameInteracting);
                 } else if (hasRequiredItems(userData.requires)) {
-                    showDialogue("Ah, Fumarate! I am the Fumarase Enzyme. I can hydrate this Fumarate to produce Malate. Ready for the transformation?", [
-                        { text: "Yes, convert it!", action: () => {
-                            consumeItems(userData.requires);
-                            playMoleculeGenerationSound();
-                            createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[userData.produces]);
-                            // Always advance to STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE if not already there
-                            if (currentQuest.state !== CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE) {
-                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE);
-                            }
-                        }},
-                        { text: "Not just yet."}
+                    showDialogue("*The fire hydrant gleams in the light*\n\nAh, Fumarate! I'm the Fumarase Enzyme - or as some call me, the Fire Hydrant! Why? Because I'm Fumarate HYDRATase, and I literally SPRAY water onto Fumarate to hydrate it! I'm positioned here close to the river for good reason - I need H₂O to do my job. Let me splash a little water on that Fumarate to convert it to Malate, getting it ready for its journey back into the mitochondria. Ready to see the hydration in action?", [
+                        { text: "Spray the water!", hideOnClick: false, action: () => {
+                            showDialogue("*WHOOOOSH! Water sprays from the hydrant nozzles*\n\n💦 SPLASH! There we go! I've added water (H₂O) to your Fumarate, hydrating it into Malate! See how the molecule absorbed that water? That's enzyme catalysis at work! Now this Malate is ready for Malcolm the Shuttle Driver to transport it back across the membrane into the mitochondria. The cycle continues!", [
+                                { text: "Amazing! Thanks, Fire Hydrant!", action: () => {
+                                    consumeItems(userData.requires);
+                                    playMoleculeGenerationSound();
+                                    createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[userData.produces]);
+                                    // Always advance to STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE if not already there
+                                    if (currentQuest.state !== CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE) {
+                                        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE);
+                                    }
+                                }}
+                            ], setGameInteracting);
+                        }}
                     ], setGameInteracting);
                 } else {
-                    showDialogue("You need Fumarate for me to work my magic. Bring it to me!", [{text: "I will."}], setGameInteracting);
+                    showDialogue("I'm the Fire Hydrant - Fumarase Enzyme! Bring me Fumarate and I'll spray some water on it to hydrate it into Malate. It's what I do!", [{text: "I'll bring it!"}], setGameInteracting);
                 }
             } else {
-                showDialogue("I am the Fumarase Enzyme. I convert Fumarate to Malate. Check your objectives to see if you need my services.", [{text: "Okay."}], setGameInteracting);
+                showDialogue("I'm the Fumarase Enzyme - the Fire Hydrant! I spray water (H₂O) onto Fumarate to hydrate it into Malate. That's why I'm called Fumarate HYDRATase - I literally add water! When you need hydration services, come find me by the river!", [{text: "Got it!"}], setGameInteracting);
             }
         }
         else if (userData.name === CONSTANTS.NPC_NAMES.SHUTTLE_DRIVER) {
