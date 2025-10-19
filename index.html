@@ -16,6 +16,16 @@
     <div id="ui-container">
         <!-- Top Left Panels -->
         <div>
+            <!-- Health Bar -->
+            <div id="healthDisplay" class="ui-panel">
+                <h3>Health</h3>
+                <div class="health-bar-container">
+                    <div id="healthBar" class="health-bar"></div>
+                    <span id="healthText" class="health-text">100</span>
+                </div>
+                <p id="healthWarning" class="health-warning hidden">⚠️ Ammonia is toxic! Deposit it quickly!</p>
+            </div>
+
             <!-- Inventory Display -->
             <div id="inventoryDisplay" class="ui-panel">
                 <h3>Inventory</h3>
@@ -178,6 +188,7 @@
 
          <!-- Bottom Right Buttons -->
          <div id="bottomRightButtons">
+            <button id="muteButton" class="survey-button">🔊 Mute Music</button>
             <button id="preTestSurveyButton" class="survey-button">Pre-Test Survey</button>
             <button id="postTestSurveyButton" class="survey-button">Post-Test Survey</button>
             <button id="feedbackButton" class="survey-button">Feedback</button>

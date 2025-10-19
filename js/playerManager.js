@@ -9,7 +9,11 @@ let walkCycleTime = 0;
 const playerVelocity = new THREE.Vector3();
 const targetQuaternion = new THREE.Quaternion();
 const upVector = new THREE.Vector3(0, 1, 0);
-const cameraIdealOffset = new THREE.Vector3(0, 10, -12);
+
+// Camera perspectives
+let cameraMode = 'overhead'; // 'overhead' or 'behind'
+const cameraOverheadOffset = new THREE.Vector3(0, 10, -12);
+const cameraBehindOffset = new THREE.Vector3(0, 3, -6);
 const cameraIdealLookAt = new THREE.Vector3(0, 1.5, 0);
 const cameraPositionSmoothFactor = 0.08;
 const cameraTargetSmoothFactor = 0.1;
@@ -17,6 +21,12 @@ const cameraTargetSmoothFactor = 0.1;
 let playerLeftArm, playerRightArm, playerLeftLeg, playerRightLeg;
 let dustParticles = [];
 let lastFootstepTime = 0;
+
+export function toggleCameraMode() {
+    cameraMode = cameraMode === 'overhead' ? 'behind' : 'overhead';
+    const modeName = cameraMode === 'overhead' ? 'Overhead View' : 'Third Person View';
+    return modeName;
+}
 
 export function initPlayer(scene) {
     player = new THREE.Group();
@@ -64,7 +74,7 @@ export function initPlayer(scene) {
     // Initial camera position
     const playerWorldPos = new THREE.Vector3();
     player.getWorldPosition(playerWorldPos);
-    const initialCamPos = cameraIdealOffset.clone().applyQuaternion(player.quaternion).add(playerWorldPos);
+    const initialCamPos = cameraOverheadOffset.clone().applyQuaternion(player.quaternion).add(playerWorldPos);
     const initialLookAt = playerWorldPos.clone().add(cameraIdealLookAt);
     camera.position.copy(initialCamPos);
     controls.target.copy(initialLookAt);
@@ -189,7 +199,8 @@ export function updatePlayer(delta, isUserInteracting, checkCollisionCallback) {
     const playerWorldPos = new THREE.Vector3();
     player.getWorldPosition(playerWorldPos);
     const cameraTargetPos = new THREE.Vector3();
-    cameraTargetPos.copy(cameraIdealOffset).applyQuaternion(player.quaternion).add(playerWorldPos);
+    const currentCameraOffset = cameraMode === 'overhead' ? cameraOverheadOffset : cameraBehindOffset;
+    cameraTargetPos.copy(currentCameraOffset).applyQuaternion(player.quaternion).add(playerWorldPos);
     const cameraTargetLookAt = new THREE.Vector3();
     cameraTargetLookAt.copy(playerWorldPos).add(cameraIdealLookAt);
 

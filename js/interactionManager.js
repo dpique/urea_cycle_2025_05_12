@@ -4,7 +4,7 @@ import * as CONSTANTS from './constants.js';
 import { showDialogue, showFeedback, showInteractionPrompt, hideInteractionPrompt, updateDialogueContent } from './uiManager.js';
 import { createGameBoySound, playMoleculeGenerationSound, playPortalCelebration, stopBackgroundMusic, startBackgroundMusic } from './audioManager.js';
 import { advanceUreaCycleQuest, startUreaCycleQuest, startRealityRiverChallenge, hasRequiredItems, consumeItems, ureaCycleQuestData } from './questManager.js';
-import { removePortalBarrierFromWorld, createResource, interactiveObjects, originalMaterials, removeResourceFromWorld } from './worldManager.js';
+import { removePortalBarrierFromWorld, removeGateBarrierFromWorld, createResource, interactiveObjects, originalMaterials, removeResourceFromWorld } from './worldManager.js';
 import { player } from './playerManager.js';
 import { getGameState, setGameState, getCurrentQuest, getInventory, addToInventory, getPlayerLocation, setPlayerLocation } from './gameState.js';
 import { createSimpleParticleSystem, createCollectionEffect } from './utils.js';
@@ -134,8 +134,17 @@ function updateQuestIndicator(obj) {
             case CONSTANTS.QUEST_STATE.NOT_STARTED:
                 isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS;
                 break;
+            case CONSTANTS.QUEST_STATE.STEP_0_MEET_CASPER:
+            case CONSTANTS.QUEST_STATE.STEP_1C_CASPER_NEEDS_COFFEE:
             case CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS:
                 isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.CASPER_CPS1;
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_1D_TALK_TO_NAGESH:
+            case CONSTANTS.QUEST_STATE.STEP_1G_NAGESH_MAKES_NAG:
+                isQuestRelevant = obj.userData.name === CONSTANTS.NPC_NAMES.NAGESH_NAGS;
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER:
+                isQuestRelevant = obj.userData.name === 'River Guardian';
                 break;
             case CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER:
             case CONSTANTS.QUEST_STATE.STEP_6_TALK_TO_USHER_PASSAGE:
@@ -175,7 +184,10 @@ function updateQuestIndicator(obj) {
     // Check resources
     if (obj.userData.type === 'resource') {
         switch (currentQuest.state) {
-            case CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2:
+            case CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3:
+                isQuestRelevant = obj.userData.name === 'NH3';
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER:
                 isQuestRelevant = obj.userData.name === 'Water';
                 break;
             case CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2:
@@ -184,12 +196,18 @@ function updateQuestIndicator(obj) {
             case CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE:
                 isQuestRelevant = obj.userData.name === 'Bicarbonate';
                 break;
-            case CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3:
-                isQuestRelevant = obj.userData.name === 'NH3';
-                break;
             case CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP:
             case CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP:
                 isQuestRelevant = obj.userData.name === 'ATP' && obj.position.x < CONSTANTS.RIVER_CENTER_X;
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_1E_COLLECT_COFFIN_GROUNDS:
+                isQuestRelevant = obj.userData.name === 'Acidic Coffin Grounds';
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_1F_COLLECT_GLUTAMINE:
+                isQuestRelevant = obj.userData.name === 'Glutamate';
+                break;
+            case CONSTANTS.QUEST_STATE.STEP_1H_COLLECT_NAG:
+                isQuestRelevant = obj.userData.name === "Nagesh's Coffee";
                 break;
             case CONSTANTS.QUEST_STATE.STEP_3_COLLECT_CARB_PHOS:
                 isQuestRelevant = obj.userData.name === 'Carbamoyl Phosphate';
@@ -204,7 +222,12 @@ function updateQuestIndicator(obj) {
     }
     
     // Check special objects
-    if (obj.userData.name === 'CAVA Shrine' && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE) {
+    if (obj.userData.name === 'Calvin' && (
+        currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2 ||
+        currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER || // Player returning with Water
+        currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2 ||
+        currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE
+    )) {
         isQuestRelevant = true;
     }
     if (obj.userData.name === 'ORNT1 Portal' && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL) {
@@ -257,14 +280,30 @@ export function interactWithObject(object, scene) {
 
         if (userData.name === CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS) {
             if (!currentQuest || (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.NOT_STARTED)) {
-                 showDialogue("Welcome! The cell is overwhelmed with ammonia! We need to convert it to Urea. Before we begin, would you like to take a brief pre-quest survey? Your feedback is valuable!", [
-                     { text: "Take Pre-Quest Survey", action: () => { window.open(PRE_SURVEY_LINK, '_blank'); }},
-                     { text: "Accept Quest", action: () => {
-                         if(startUreaCycleQuest()) {
-                            startBackgroundMusic();
-                         }
-                     }},
-                     { text: "Decline Quest" }
+                 showDialogue("Hello, I am Professor Hepaticus. I am an expert in the liver, the main metabolic organ in the body.", [
+                     { text: "Nice to meet you!", hideOnClick: false, action: () => {
+                         showDialogue("I am also the mayor of Liverland, a vital region responsible for processing nutrients and detoxifying harmful substances.", [
+                             { text: "What's happening in Liverland?", hideOnClick: false, action: () => {
+                                 showDialogue("We have a serious problem! The amino acid dump has been releasing toxic ammonia into our cellular environment.", [
+                                     { text: "That sounds dangerous!", hideOnClick: false, action: () => {
+                                         showDialogue("Indeed! Ammonia is extremely toxic to cells. Liverland needs your help to convert this dangerous ammonia into urea, a much safer molecule that can be safely disposed of.", [
+                                             { text: "How can I help?", hideOnClick: false, action: () => {
+                                                 showDialogue("Before we begin this important quest, would you like to take a brief pre-quest survey? Your feedback is valuable!", [
+                                                     { text: "Take Pre-Quest Survey", action: () => { window.open(PRE_SURVEY_LINK, '_blank'); }},
+                                                     { text: "Accept Quest", action: () => {
+                                                         if(startUreaCycleQuest()) {
+                                                            startBackgroundMusic();
+                                                         }
+                                                     }},
+                                                     { text: "Decline Quest" }
+                                                 ], setGameInteracting);
+                                             }}
+                                         ], setGameInteracting);
+                                     }}
+                                 ], setGameInteracting);
+                             }}
+                         ], setGameInteracting);
+                     }}
                  ], setGameInteracting);
             } else if (currentQuest && currentQuest.id === 'ureaCycle') {
                 if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_14_RIVER_CHALLENGE) {
@@ -295,15 +334,41 @@ export function interactWithObject(object, scene) {
              
              if (currentQuest && currentQuest.id === 'ureaCycle') {
                 if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER) {
-                    showDialogue("Ah, you must be the one Professor Hepaticus sent. I'm the Ornithine Usher. I help Ornithine move back into the mitochondria, and Citrulline out. For you to make Citrulline, you'll need some Ornithine. Take this.", [
-                        { text: "Yes, please!", action: () => {
-                            addToInventory('Ornithine', 1);
-                            if (advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_5_MAKE_CITRULLINE)) {
-                            } else {
-                                showFeedback("Ornithine received!");
-                            }
-                        }},
-                        { text: "Not yet."}
+                    showDialogue("Ah, you're here for Otis! I'm the Ornithine Usher. I help Ornithine move back into the mitochondria, and Citrulline out.", [
+                        { text: "Can I get some Ornithine?", hideOnClick: false, action: () => {
+                            showDialogue("You know, I spend ALL DAY shuttling Ornithine from the Cytosol back into the Mitochondria... it's exhausting work, and now you want some for FREE?", [
+                                { text: "Maybe I could offer you some Nagesh's Coffee?", hideOnClick: false, action: () => {
+                                    showDialogue("*The Usher's eyes widen*\n\nNagesh's Coffee?! That vile, bitter brew? The one that smells like burnt amino acids and regret? Only Casper drinks that stuff!", [
+                                        { text: "Uh... yes?", hideOnClick: false, action: () => {
+                                            showDialogue("No thank you! *pauses* ...Actually, you know what? Never mind. Just take the Ornithine. I wouldn't wish that coffee on anyone. Consider it a professional courtesy - Otis is a good colleague, and he needs this for his work.", [
+                                                { text: "Thank you so much!", action: () => {
+                                                    addToInventory('Ornithine', 1);
+                                                    if (advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_5_MAKE_CITRULLINE)) {
+                                                    } else {
+                                                        showFeedback("Ornithine received!");
+                                                    }
+                                                }}
+                                            ], usherInteractionCallback);
+                                        }}
+                                    ], usherInteractionCallback);
+                                }},
+                                { text: "I really need it for the Urea Cycle!", hideOnClick: false, action: () => {
+                                    showDialogue("*sighs* The Urea Cycle... yes, of course. Fine, fine. I suppose that IS important work.", [
+                                        { text: "It really is!", hideOnClick: false, action: () => {
+                                            showDialogue("Ammonia detoxification keeps the whole cell alive, after all. Here, take this Ornithine. But remember - without transporters like me, none of this would work! The cycle depends on shuttling molecules between compartments!", [
+                                                { text: "I appreciate your hard work!", action: () => {
+                                                    addToInventory('Ornithine', 1);
+                                                    if (advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_5_MAKE_CITRULLINE)) {
+                                                    } else {
+                                                        showFeedback("Ornithine received!");
+                                                    }
+                                                }}
+                                            ], usherInteractionCallback);
+                                        }}
+                                    ], usherInteractionCallback);
+                                }}
+                            ], usherInteractionCallback);
+                        }}
                     ], usherInteractionCallback);
                 } else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_6_TALK_TO_USHER_PASSAGE) {
                     if (hasRequiredItems({ 'Citrulline': 1 })) {
@@ -344,17 +409,37 @@ export function interactWithObject(object, scene) {
                 if (inventory['Argininosuccinate']) {
                     showDialogue("HEE-HAW! You already have Argininosuccinate! Take it to Aslan, the Chomper (ASL) for the next step. This stubborn donkey's work is done!", [{ text: "Thanks, Donkey!" }], setGameInteracting);
                 } else if (hasRequiredItems(userData.requires)) {
-                    showDialogue("HEE-HAW! Perfect! I'm Donkey, the Synthesizer - representing Argininosuccinate Synthetase (ASS). Now listen up: I'm as stubborn as they come, and when I set my mind to joining two things together, NOTHING stops me! I'll take your Citrulline and Aspartate, and with some good ol' ATP energy, I'll KICK them together - literally! Us donkeys are patient workers - this synthesis takes time and effort, but I REFUSE to give up until these molecules are properly joined! Ready to see some stubborn donkey determination?", [
-                        { text: "KICK them together!", hideOnClick: false, action: () => {
-                            showDialogue("*Donkey positions the molecules carefully*\n\nHEE-HAW! Watch this! *KICK* *KICK* There we go! With my powerful hind legs and stubborn persistence, I've joined Citrulline and Aspartate into Argininosuccinate! See? When a donkey sets their mind to something, it gets DONE! That's the secret to good synthesis - never give up, keep kicking until the bonds form!", [
-                                { text: "Amazing work, Donkey!", action: () => {
-                                    consumeItems(userData.requires);
-                                    playMoleculeGenerationSound();
-                                    createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 2, yBase: object.position.y }, userData.productColors[userData.produces]);
-                                    // Always advance to STEP_10_TALK_TO_ASLAN if not already there
-                                    if (currentQuest.state !== CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN) {
-                                        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN);
-                                    }
+                    showDialogue("HEE-HAW! Perfect! I'm Donkey, the Synthesizer - representing Argininosuccinate Synthetase (ASS).", [
+                        { text: "Tell me about your work.", hideOnClick: false, action: () => {
+                            showDialogue("Now listen up: I'm as stubborn as they come, and when I set my mind to joining two things together, NOTHING stops me!", [
+                                { text: "How do you do it?", hideOnClick: false, action: () => {
+                                    showDialogue("I'll take your Citrulline and Aspartate, and with some good ol' ATP energy, I'll KICK them together - literally!", [
+                                        { text: "That sounds intense!", hideOnClick: false, action: () => {
+                                            showDialogue("Us donkeys are patient workers - this synthesis takes time and effort, but I REFUSE to give up until these molecules are properly joined! Ready to see some stubborn donkey determination?", [
+                                                { text: "KICK them together!", hideOnClick: false, action: () => {
+                                                    showDialogue("*Donkey positions the molecules carefully*\n\nHEE-HAW! Watch this! *KICK* *KICK*", [
+                                                        { text: "Wow!", hideOnClick: false, action: () => {
+                                                            showDialogue("There we go! With my powerful hind legs and stubborn persistence, I've joined Citrulline and Aspartate into Argininosuccinate!", [
+                                                                { text: "Impressive!", hideOnClick: false, action: () => {
+                                                                    showDialogue("See? When a donkey sets their mind to something, it gets DONE! That's the secret to good synthesis - never give up, keep kicking until the bonds form!", [
+                                                                        { text: "Amazing work, Donkey!", action: () => {
+                                                                            consumeItems(userData.requires);
+                                                                            playMoleculeGenerationSound();
+                                                                            createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 2, yBase: object.position.y }, userData.productColors[userData.produces]);
+                                                                            // Always advance to STEP_10_TALK_TO_ASLAN if not already there
+                                                                            if (currentQuest.state !== CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN) {
+                                                                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN);
+                                                                            }
+                                                                        }}
+                                                                    ], setGameInteracting);
+                                                                }}
+                                                            ], setGameInteracting);
+                                                        }}
+                                                    ], setGameInteracting);
+                                                }}
+                                            ], setGameInteracting);
+                                        }}
+                                    ], setGameInteracting);
                                 }}
                             ], setGameInteracting);
                         }}
@@ -465,6 +550,23 @@ export function interactWithObject(object, scene) {
             }
             if (!hasRequiredItems(userData.requires)) {
                 let missing = Object.keys(userData.requires).filter(item => !inventory[item] || inventory[item] < userData.requires[item]).join(' and ');
+
+                // Special guidance for Ornithine
+                if (!inventory['Ornithine'] && inventory['Carbamoyl Phosphate']) {
+                    showDialogue(`${dialogueTitle}:\n${educationalBlurb}`, [
+                        { text: "I have Carbamoyl Phosphate!", hideOnClick: false, action: () => {
+                            showDialogue("You've got Carbamoyl Phosphate - excellent! But ogres need BOTH ingredients to smush 'em together.", [
+                                { text: "What am I missing?", hideOnClick: false, action: () => {
+                                    showDialogue("You're missing Ornithine! Head over to my friend, the Ornithine Usher, near the bridge. He'll hook you up with some Ornithine, then come back and we'll make some magic happen!", [
+                                        { text: "I'll go find the Usher!" }
+                                    ], setGameInteracting);
+                                }}
+                            ], setGameInteracting);
+                        }}
+                    ], setGameInteracting);
+                    return;
+                }
+
                 showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nOgres need their ingredients! You're missing ${missing}. Can't smush what ya don't have!`, [{ text: "I'll find them!" }], setGameInteracting);
                 return;
             }
@@ -482,6 +584,182 @@ export function interactWithObject(object, scene) {
         }
         else if (userData.name === CONSTANTS.NPC_NAMES.CASPER_CPS1) {
             const dialogueTitle = "Casper (Carbamoyl Phosphate Synthetase I)";
+
+            // STEP_0_MEET_CASPER: First encounter at graveyard
+            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_MEET_CASPER) {
+                const casperObj = object;
+
+                // Initialize dialogue state if needed
+                if (!casperObj.userData.dialogueState) {
+                    casperObj.userData.dialogueState = 'initial';
+                }
+
+                switch(casperObj.userData.dialogueState) {
+                    case 'initial':
+                        showDialogue("*cough cough* Booo... oh, excuse me. I'm Casper the Ghost, and I represent Carbamoyl Phosphate Synthetase I.", [
+                            { text: "A talking ghost?!", hideOnClick: false, action: () => {
+                                casperObj.userData.dialogueState = 'graveyard';
+                                showDialogue("Welcome to the Animal Graveyard! *sniff* Do you smell that? It's AMMONIA - NH3 - from all these decomposing amino acids!", [
+                                    { text: "It does smell terrible!", hideOnClick: false, action: () => {
+                                        casperObj.userData.dialogueState = 'problem';
+                                        showDialogue("As a ghost, I don't have a physical nose, but even I can sense this overwhelming stench! The ammonia problem here is getting out of hand.", [
+                                            { text: "What can I do?", hideOnClick: false, action: () => {
+                                                casperObj.userData.dialogueState = 'request';
+                                                showDialogue("Can you help collect some of this ammonia? But BE CAREFUL - ammonia is EXTREMELY TOXIC! Even carrying it will damage your health!", [
+                                                    { text: "Wait, it will hurt me?", hideOnClick: false, action: () => {
+                                                        showDialogue("Yes! That's why we need to be smart about this. I have a cauldron here where I store the ammonia safely. You'll need to collect the NH3 molecules ONE AT A TIME and bring each one to my cauldron immediately.", [
+                                                            { text: "One at a time?", hideOnClick: false, action: () => {
+                                                                showDialogue("Exactly! Your health will decrease while you're holding ammonia. If you hold onto it too long or collect too many at once, you could die from ammonia poisoning! Bring each NH3 to my cauldron, then go get the next one. There are 5 NH3 molecules scattered around the graveyard.", [
+                                                                    { text: "I'll be careful! Let's do this.", action: () => {
+                                                                        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3);
+                                                                        casperObj.userData.dialogueState = 'accepted';
+                                                                    }},
+                                                                    { text: "Why is ammonia so dangerous?", hideOnClick: false, action: () => {
+                                                                        casperObj.userData.dialogueState = 'education';
+                                                                        showDialogue("Ammonia (NH3 or NH4+) is highly toxic! When amino acids break down - like all these poor animals here - they release nitrogen as ammonia. In living organisms, ammonia damages cells, disrupts pH balance, and causes severe neurological problems. That's why we have the Urea Cycle: to convert ammonia into urea, which is much safer to transport and excrete. Now you understand why you need to handle it carefully!", [
+                                                                            { text: "I understand! I'll collect it carefully.", action: () => {
+                                                                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3);
+                                                                                casperObj.userData.dialogueState = 'accepted';
+                                                                            }}
+                                                                        ], setGameInteracting);
+                                                                    }}
+                                                                ], setGameInteracting);
+                                                            }}
+                                                        ], setGameInteracting);
+                                                    }}
+                                                ], setGameInteracting);
+                                            }}
+                                        ], setGameInteracting);
+                                    }}
+                                ], setGameInteracting);
+                            }},
+                            { text: "Maybe later." }
+                        ], setGameInteracting);
+                        break;
+
+                    case 'graveyard':
+                    case 'problem':
+                    case 'education':
+                    case 'request':
+                        // If they return mid-conversation, resume from request
+                        showDialogue("Can you help collect some of this ammonia? We need to get rid of this toxic substance!", [
+                            { text: "I'll collect the ammonia!", action: () => {
+                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3);
+                                casperObj.userData.dialogueState = 'accepted';
+                            }},
+                            { text: "Tell me about ammonia.", hideOnClick: false, action: () => {
+                                casperObj.userData.dialogueState = 'education';
+                                showDialogue("Ammonia (NH3 or NH4+) is highly toxic! When amino acids break down - like all these poor animals here - they release nitrogen as ammonia. In living organisms, this would damage cells and disrupt pH balance. That's why we have the Urea Cycle: to convert ammonia into urea, which is much safer to transport and excrete.", [
+                                    { text: "I understand! I'll collect it.", action: () => {
+                                        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3);
+                                        casperObj.userData.dialogueState = 'accepted';
+                                    }}
+                                ], setGameInteracting);
+                            }}
+                        ], setGameInteracting);
+                        break;
+                }
+                return;
+            }
+
+            // STEP_1_COLLECT_NH3: Ammonia collection with cauldron deposit
+            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3) {
+                const ammoniaCount = getGameState().ammoniaCollectedCount;
+                const TOTAL_NH3_REQUIRED = 5;
+
+                // Player has NH3 in inventory - they need to deposit it!
+                if (hasRequiredItems({ 'NH3': 1 })) {
+                    showDialogue(`Quick! Drop that ammonia in my cauldron before it poisons you! You've deposited ${ammoniaCount} out of ${TOTAL_NH3_REQUIRED} total.`, [
+                        { text: "Deposit NH3 in cauldron!", action: () => {
+                            consumeItems({'NH3': 1});
+                            import('./gameState.js').then(({ incrementAmmoniaCollectedCount, getAmmoniaCollectedCount }) => {
+                                incrementAmmoniaCollectedCount();
+                                const newCount = getAmmoniaCollectedCount();
+                                playMoleculeGenerationSound();
+                                createGameBoySound('success');
+
+                                if (newCount >= TOTAL_NH3_REQUIRED) {
+                                    showFeedback(`All ${TOTAL_NH3_REQUIRED} NH3 deposited! The cauldron is full!`, 3000);
+                                    setTimeout(() => {
+                                        showDialogue("*sniff* Excellent work! You've collected all the ammonia safely! Now, to start the Urea Cycle, I'll need Bicarbonate (HCO3-) along with this ammonia. Calvin the chemist in the alcove can make Bicarbonate for you! He's deep in the cave to the west. Go talk to him and see what he needs!", [
+                                            { text: "I'll go talk to Calvin!", action: () => {
+                                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2);
+                                            }}
+                                        ], setGameInteracting);
+                                    }, 500);
+                                } else {
+                                    showFeedback(`NH3 deposited safely! ${newCount}/${TOTAL_NH3_REQUIRED} collected. Your health is recovering!`, 3000);
+                                }
+                            });
+                        }}
+                    ], setGameInteracting);
+                } else {
+                    // No NH3 in inventory
+                    if (ammoniaCount >= TOTAL_NH3_REQUIRED) {
+                        showDialogue("*sniff* Excellent work! You've collected all the ammonia safely! Now, to start the Urea Cycle, I'll need Bicarbonate (HCO3-). Calvin the chemist in the alcove can make it!", [
+                            { text: "I'll go talk to Calvin!", action: () => {
+                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2);
+                            }}
+                        ], setGameInteracting);
+                    } else {
+                        showDialogue(`*waves ghostly hands* Collect those ammonia molecules floating around the graveyard! Remember: ONE AT A TIME! Bring each one back to my cauldron immediately. You've deposited ${ammoniaCount}/${TOTAL_NH3_REQUIRED} so far.`, [{ text: "On it!" }], setGameInteracting);
+                    }
+                }
+                return;
+            }
+
+            // STEP_0_GATHER_WATER_CO2 through STEP_1B_COLLECT_SECOND_ATP: Waiting for materials
+            if (currentQuest && (
+                currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2 ||
+                currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER ||
+                currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2 ||
+                currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE ||
+                currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE ||
+                currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP ||
+                currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP
+            )) {
+                showDialogue("Good progress! I'm waiting here at the graveyard. Once you have Bicarbonate, Ammonia (NH3), and 2 ATP, come back and I'll make Carbamoyl Phosphate. But between you and me... *whispers* ...I'm having trouble focusing with all this graveyard gloom. I might need a little pick-me-up to do my best work...", [{ text: "I'll gather the materials!" }], setGameInteracting);
+                return;
+            }
+
+            // STEP_1C_CASPER_NEEDS_COFFEE: Has materials but needs coffee
+            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1C_CASPER_NEEDS_COFFEE) {
+                showDialogue("*Yawns ghostly* Booo... I mean, wow. You've collected everything: Bicarbonate, Ammonia, and 2 ATP!", [
+                    { text: "Can we make Carbamoyl Phosphate now?", hideOnClick: false, action: () => {
+                        showDialogue("But I'll be honest with you - I'm feeling rather lethargic from haunting this graveyard all day and night. I need a special boost to catalyze this reaction properly.", [
+                            { text: "What kind of boost?", hideOnClick: false, action: () => {
+                                showDialogue("Have you heard of Nagesh? He runs a coffee brewing station not far from here. I need his special Nagesh's Coffee - it's made with NAG (N-acetylglutamate), my allosteric activator! *sighs dramatically* I know, I know... CPS1 is high maintenance, but what can I say? Quality enzyme work requires quality cofactors!", [
+                                    { text: "Why do you need it?", hideOnClick: false, action: () => {
+                                        showDialogue("Without it, I simply can't work at full efficiency. Could you visit Nagesh and get me some?", [
+                                            { text: "I'll get you that coffee!", action: () => {
+                                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1D_TALK_TO_NAGESH);
+                                            }}
+                                        ], setGameInteracting);
+                                    }},
+                                    { text: "What's so special about this coffee?", hideOnClick: false, action: () => {
+                                        showDialogue("NAG - N-acetylglutamate - is my essential cofactor! It's like rocket fuel for CPS1 (that's me!).", [
+                                            { text: "How does it help?", hideOnClick: false, action: () => {
+                                                showDialogue("Without NAG, I'm sluggish and inefficient. With it, I can catalyze the reaction at full speed!", [
+                                                    { text: "Where does Nagesh get it?", hideOnClick: false, action: () => {
+                                                        showDialogue("Nagesh makes it by combining acetyl-CoA (Acidic Coffin Grounds from the graveyard) with Glutamate (Ghoul Milk from those spectral ghouls). The result is Nagesh's Coffee - pure NAG! It's the only thing that gets me motivated to work in this spooky place.", [
+                                                            { text: "Fascinating! I'll get it for you.", action: () => {
+                                                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1D_TALK_TO_NAGESH);
+                                                            }}
+                                                        ], setGameInteracting);
+                                                    }}
+                                                ], setGameInteracting);
+                                            }}
+                                        ], setGameInteracting);
+                                    }}
+                                ], setGameInteracting);
+                            }}
+                        ], setGameInteracting);
+                    }}
+                ], setGameInteracting);
+                return;
+            }
+
+            // STEP_2_MAKE_CARB_PHOS: Ready to make Carbamoyl Phosphate with NAG
             const educationalBlurb = "Booo! Oh, don't be scared, I'm Casper, representing Carbamoyl Phosphate Synthetase I. I might be a bit... ethereal, but my job is solid! Here in the mitochondria, I kickstart the Urea Cycle by taking Bicarbonate, one Ammonia molecule, and TWO precious ATPs to create Carbamoyl Phosphate. It's the first big step to trap that pesky ammonia!";
             const actionButtonText = `Create Carbamoyl Phosphate!`;
 
@@ -489,14 +767,26 @@ export function interactWithObject(object, scene) {
                 showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nBut oooh, the time isn't quite right. Your objective now is: ${currentQuest?.objectives[currentQuest.state] || "Begin your quest with Professor Hepaticus."}`, [{ text: "Okay, Casper." }], setGameInteracting);
                 return;
             }
-            if (!hasRequiredItems(userData.requires)) {
-                let missing = Object.keys(userData.requires).filter(item => !inventory[item] || inventory[item] < userData.requires[item]).join(' and ');
-                showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nWhoops! You're missing ${missing}. You'll need all those to get this reaction going!`, [{ text: "I'll get them." }], setGameInteracting);
+
+            // Special check: NH3 is in the cauldron, not inventory! Check other items only
+            const requirementsWithoutNH3 = { 'Bicarbonate': 1, 'ATP': 2 };
+            if (!hasRequiredItems(requirementsWithoutNH3)) {
+                let missing = Object.keys(requirementsWithoutNH3).filter(item => !inventory[item] || inventory[item] < requirementsWithoutNH3[item]).join(' and ');
+                showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nWhoops! You're missing ${missing}. You'll need all those to get this reaction going! Don't worry about the ammonia - I have plenty in my cauldron from earlier!`, [{ text: "I'll get them." }], setGameInteracting);
                 return;
             }
-            showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nYou have all the ingredients! Shall we make some Carbamoyl Phosphate? It takes a bit of energy (ATP, that is!).`, [
+
+            // Check if player has NAG (Nagesh's Coffee)
+            if (!hasRequiredItems({'Nagesh\'s Coffee': 1})) {
+                showDialogue(`${dialogueTitle}:\n*looks around eagerly* Oh! You're back! Do you have the Nagesh's Coffee? I can't start the reaction without my NAG (N-acetylglutamate) activator! I see you have all the substrates ready (Bicarbonate and 2 ATP), and I have ammonia in my cauldron, but I need that coffee to work at full efficiency!`, [{ text: "I'll bring it right away!" }], setGameInteracting);
+                return;
+            }
+
+            showDialogue(`${dialogueTitle}:\n*Sips Nagesh's Coffee* Ahhhh! Now THAT'S what I needed! I can feel the NAG activating my catalytic sites! *energized ghostly movements* With this allosteric activation, I'm ready to work at MAXIMUM EFFICIENCY! Let's convert that toxic ammonia into Carbamoyl Phosphate! You have all the ingredients!\n\n${educationalBlurb}`, [
                 { text: actionButtonText, action: () => {
-                    consumeItems(userData.requires);
+                    // Consume only items from inventory (not NH3 which is in cauldron)
+                    consumeItems(requirementsWithoutNH3);
+                    consumeItems({'Nagesh\'s Coffee': 1}); // Consume NAG
                     playMoleculeGenerationSound();
                     createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[userData.produces]);
                     if (!advanceUreaCycleQuest(userData.advancesQuestTo)) {
@@ -517,17 +807,33 @@ export function interactWithObject(object, scene) {
                 if (inventory['Malate']) {
                     showDialogue("You already have Malate! Take it to Malcolm the Shuttle Driver for the next step. That Malate is ready for its journey back into the mitochondria!", [{ text: "On it!" }], setGameInteracting);
                 } else if (hasRequiredItems(userData.requires)) {
-                    showDialogue("*The fire hydrant gleams in the light*\n\nAh, Fumarate! I'm the Fumarase Enzyme - or as some call me, the Fire Hydrant! Why? Because I'm Fumarate HYDRATase, and I literally SPRAY water onto Fumarate to hydrate it! I'm positioned here close to the river for good reason - I need H₂O to do my job. Let me splash a little water on that Fumarate to convert it to Malate, getting it ready for its journey back into the mitochondria. Ready to see the hydration in action?", [
-                        { text: "Spray the water!", hideOnClick: false, action: () => {
-                            showDialogue("*WHOOOOSH! Water sprays from the hydrant nozzles*\n\n💦 SPLASH! There we go! I've added water (H₂O) to your Fumarate, hydrating it into Malate! See how the molecule absorbed that water? That's enzyme catalysis at work! Now this Malate is ready for Malcolm the Shuttle Driver to transport it back across the membrane into the mitochondria. The cycle continues!", [
-                                { text: "Amazing! Thanks, Fire Hydrant!", action: () => {
-                                    consumeItems(userData.requires);
-                                    playMoleculeGenerationSound();
-                                    createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[userData.produces]);
-                                    // Always advance to STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE if not already there
-                                    if (currentQuest.state !== CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE) {
-                                        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE);
-                                    }
+                    showDialogue("*The fire hydrant gleams in the light*\n\nAh, Fumarate! I'm the Fumarase Enzyme - or as some call me, the Fire Hydrant!", [
+                        { text: "Why are you a fire hydrant?", hideOnClick: false, action: () => {
+                            showDialogue("Because I'm Fumarate HYDRATase, and I literally SPRAY water onto Fumarate to hydrate it!", [
+                                { text: "That's clever!", hideOnClick: false, action: () => {
+                                    showDialogue("I'm positioned here close to the river for good reason - I need H₂O to do my job. Let me splash a little water on that Fumarate to convert it to Malate, getting it ready for its journey back into the mitochondria. Ready to see the hydration in action?", [
+                                        { text: "Spray the water!", hideOnClick: false, action: () => {
+                                            showDialogue("*WHOOOOSH! Water sprays from the hydrant nozzles*\n\n💦 SPLASH! There we go!", [
+                                                { text: "Amazing!", hideOnClick: false, action: () => {
+                                                    showDialogue("I've added water (H₂O) to your Fumarate, hydrating it into Malate! See how the molecule absorbed that water? That's enzyme catalysis at work!", [
+                                                        { text: "What's next?", hideOnClick: false, action: () => {
+                                                            showDialogue("Now this Malate is ready for Malcolm the Shuttle Driver to transport it back across the membrane into the mitochondria. The cycle continues!", [
+                                                                { text: "Amazing! Thanks, Fire Hydrant!", action: () => {
+                                                                    consumeItems(userData.requires);
+                                                                    playMoleculeGenerationSound();
+                                                                    createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[userData.produces]);
+                                                                    // Always advance to STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE if not already there
+                                                                    if (currentQuest.state !== CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE) {
+                                                                        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_11B_TRANSPORT_MALATE_GET_ASPARTATE);
+                                                                    }
+                                                                }}
+                                                            ], setGameInteracting);
+                                                        }}
+                                                    ], setGameInteracting);
+                                                }}
+                                            ], setGameInteracting);
+                                        }}
+                                    ], setGameInteracting);
                                 }}
                             ], setGameInteracting);
                         }}
@@ -614,9 +920,120 @@ export function interactWithObject(object, scene) {
             }
         }
 
+        else if (userData.name === CONSTANTS.NPC_NAMES.NAGESH_NAGS) {
+            const dialogueTitle = "Nagesh (NAGS - N-acetylglutamate Synthase)";
+
+            // STEP_1D_TALK_TO_NAGESH: First visit
+            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1D_TALK_TO_NAGESH) {
+                // Check if player already has both items
+                if (inventory['Acidic Coffin Grounds'] && inventory['Glutamate']) {
+                    showDialogue("Namaste, friend! Welcome to my coffee brewing station! I am Nagesh, representing NAGS - N-acetylglutamate Synthase. I see you're a resourceful one - you've already collected Acidic Coffin Grounds and Ghoul Milk! Perfect! These are exactly what I need to brew Nagesh's Coffee (NAG), which Casper needs to activate his enzyme. Shall we begin brewing?", [
+                        { text: "Yes, let's brew it!", action: () => {
+                            advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1G_NAGESH_MAKES_NAG);
+                        }}
+                    ], setGameInteracting);
+                    return;
+                }
+
+                showDialogue("Namaste, friend! Welcome to my coffee brewing station! I am Nagesh, representing NAGS - N-acetylglutamate Synthase.", [
+                    { text: "Tell me about your coffee.", hideOnClick: false, action: () => {
+                        showDialogue("You see, I am a master coffee brewer, but not just any coffee... I make Nagesh's Coffee, the most potent brew in all the mitochondria!", [
+                            { text: "What makes it special?", hideOnClick: false, action: () => {
+                                showDialogue("This special coffee contains NAG (N-acetylglutamate), which is essential for activating Casper (CPS1). Without my brew, Casper cannot efficiently start the Urea Cycle!", [
+                                    { text: "What do you need to make it?", hideOnClick: false, action: () => {
+                                        showDialogue("Ah, excellent question! To brew Nagesh's Coffee, I need two special ingredients:", [
+                                            { text: "What are the ingredients?", hideOnClick: false, action: () => {
+                                                showDialogue("First, **Acidic Coffin Grounds** (acetyl-CoA) - You can find these near the graves of ketogenic amino acids in the graveyard. Look for Leucine the Lion, Lysine the Lynx, Isoleucine the Iguana, Phenylalanine the Pheasant, Threonine the Toucan, and Tryptophan the Triceratops!", [
+                                                    { text: "And the second ingredient?", hideOnClick: false, action: () => {
+                                                        showDialogue("Second, **Ghoul Milk** (Glutamate) - The spectral ghouls at the edges of the graveyard carry this. They're translucent, glowing spirits! Bring me both and I'll brew you the finest NAG coffee Casper has ever tasted!", [
+                                                            { text: "I'll find those ingredients!", action: () => {
+                                                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1E_COLLECT_COFFIN_GROUNDS);
+                                                            }}
+                                                        ], setGameInteracting);
+                                                    }}
+                                                ], setGameInteracting);
+                                            }}
+                                        ], setGameInteracting);
+                                    }}
+                                ], setGameInteracting);
+                            }}
+                        ], setGameInteracting);
+                    }},
+                    { text: "What exactly is NAG?", hideOnClick: false, action: () => {
+                        showDialogue("NAG - N-acetylglutamate - is the MASTER REGULATOR of the Urea Cycle! It's an allosteric activator of CPS1 (Casper).", [
+                            { text: "How does it work?", hideOnClick: false, action: () => {
+                                showDialogue("Think of it like this: Casper is a powerful enzyme, but without NAG, he's sluggish and slow. When NAG binds to him, it changes his shape, making him super-efficient!", [
+                                    { text: "How do you make it?", hideOnClick: false, action: () => {
+                                        showDialogue("I synthesize NAG by combining acetyl-CoA with Glutamate. The result? The perfect fuel to kickstart ammonia detoxification!", [
+                                            { text: "What do you need from me?", hideOnClick: false, action: () => {
+                                                showDialogue("To brew Nagesh's Coffee, I need:\n\n1. **Acidic Coffin Grounds** (acetyl-CoA) - from ketogenic amino acids\n2. **Ghoul Milk** (Glutamate) - from the spectral ghouls at the edges\n\nFind these in the graveyard and return to me!", [
+                                                    { text: "I'll get them!", action: () => {
+                                                        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1E_COLLECT_COFFIN_GROUNDS);
+                                                    }}
+                                                ], setGameInteracting);
+                                            }}
+                                        ], setGameInteracting);
+                                    }}
+                                ], setGameInteracting);
+                            }}
+                        ], setGameInteracting);
+                    }}
+                ], setGameInteracting);
+                return;
+            }
+
+            // STEP_1E_COLLECT_COFFIN_GROUNDS and STEP_1F_COLLECT_GLUTAMINE: Still collecting
+            if (currentQuest && (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1E_COLLECT_COFFIN_GROUNDS || currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1F_COLLECT_GLUTAMINE)) {
+                if (inventory['Acidic Coffin Grounds'] && inventory['Glutamate']) {
+                    showDialogue("Wonderful! You have both Acidic Coffin Grounds and Ghoul Milk! Let me brew that Nagesh's Coffee for you right away!", [
+                        { text: "Perfect! Let's brew it!", action: () => {
+                            // Just advance the quest - don't recursively call interactWithObject
+                            advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1G_NAGESH_MAKES_NAG);
+                        }}
+                    ], setGameInteracting);
+                } else if (inventory['Acidic Coffin Grounds'] && !inventory['Glutamate']) {
+                    showDialogue("Good! You found the Acidic Coffin Grounds! Now you just need Ghoul Milk from the spectral ghouls. They're the translucent, glowing spirits at the edges of the graveyard!", [{ text: "I'll find them!" }], setGameInteracting);
+                } else if (!inventory['Acidic Coffin Grounds'] && inventory['Glutamate']) {
+                    showDialogue("Excellent! You have the Ghoul Milk! Now find Acidic Coffin Grounds near the graves of ketogenic amino acids: Leucine the Lion, Lysine the Lynx, Isoleucine the Iguana, Phenylalanine the Pheasant, Threonine the Toucan, and Tryptophan the Triceratops!", [{ text: "I'll find them!" }], setGameInteracting);
+                } else {
+                    showDialogue("I'm waiting for you to bring me Acidic Coffin Grounds (acetyl-CoA) and Ghoul Milk (Glutamate) from the graveyard. Check near the ketogenic amino acid graves and look for spectral ghouls at the edges!", [{ text: "I'll find them!" }], setGameInteracting);
+                }
+                return;
+            }
+
+            // STEP_1G_NAGESH_MAKES_NAG: Ready to brew
+            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1G_NAGESH_MAKES_NAG) {
+                if (!hasRequiredItems(userData.requires)) {
+                    let missing = Object.keys(userData.requires).filter(item => !inventory[item] || inventory[item] < userData.requires[item]).join(' and ');
+                    showDialogue(`${dialogueTitle}:\n\nYou're missing ${missing}. I need both Acidic Coffin Grounds and Ghoul Milk to brew Nagesh's Coffee!`, [{ text: "I'll get them!" }], setGameInteracting);
+                    return;
+                }
+
+                showDialogue("*Nagesh takes the Acidic Coffin Grounds and Ghoul Milk*\n\nAh yes, perfect ingredients! Now watch carefully as I demonstrate the ancient art of NAG synthesis!\n\n*Pours Acidic Coffin Grounds into the coffee machine*\n*Adds Ghoul Milk while chanting*\n\n\"From acetyl-CoA and Glutamate divine,\nThrough my catalytic power, they combine!\nN-acetylglutamate shall arise,\nTo activate CPS1 before your eyes!\"\n\n*The coffee machine hisses and steams*\n*A dark, aromatic brew emerges*\n\nBehold! Nagesh's Coffee! Pure NAG, ready to energize Casper!", [
+                    { text: "That smells... surprisingly good!", action: () => {
+                        consumeItems(userData.requires);
+                        playMoleculeGenerationSound();
+                        createGameBoySound('success');
+                        createResource(scene, userData.produces, { x: object.position.x + 1, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[userData.produces]);
+                        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1H_COLLECT_NAG);
+                    }}
+                ], setGameInteracting);
+                return;
+            }
+
+            // STEP_1H_COLLECT_NAG: Waiting to collect the coffee
+            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1H_COLLECT_NAG) {
+                showDialogue("Your Nagesh's Coffee is ready! Collect it and take it to Casper. He'll be thrilled! Remember, NAG is what allows CPS1 to work at peak efficiency!", [{ text: "I'll take it to him!" }], setGameInteracting);
+                return;
+            }
+
+            // Default dialogue
+            showDialogue("Welcome to my coffee brewing station! I am Nagesh, master of NAG synthesis. When you need Nagesh's Coffee to activate Casper, you know where to find me!", [{ text: "Thanks, Nagesh!" }], setGameInteracting);
+        }
+
         else if (userData.name === 'River Guardian') {
             console.log('[RiverGuardian] Interaction started');
-            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2) {
+            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER) {
                 const guardianObj = object;
                 
                 // Initialize dialogue state if needed
@@ -631,8 +1048,8 @@ export function interactWithObject(object, scene) {
                     case 'initial':
                         console.log('[RiverGuardian] Showing initial dialogue');
                         showDialogue("Greetings, seeker. I am the River Guardian, keeper of life-giving water.", [
-                            { text: "Tell me more.", hideOnClick: false, action: () => {
-                                console.log('[RiverGuardian] Tell me more clicked');
+                            { text: "Calvin sent me for Water.", hideOnClick: false, action: () => {
+                                console.log('[RiverGuardian] Calvin sent me clicked');
                                 guardianObj.userData.dialogueState = 'explain';
                                 // Directly show next dialogue without closing first
                                 showDialogue("Water (H₂O) kick-starts the urea cycle by helping to form bicarbonate (HCO₃⁻). Without it, the cycle cannot begin. Will you accept this gift of water?", [
@@ -744,6 +1161,12 @@ export function interactWithObject(object, scene) {
             return;
         }
 
+        // Prevent collecting multiple NH3 at once
+        if (userData.name === 'NH3' && getInventory()['NH3'] && getInventory()['NH3'] > 0) {
+            showFeedback("You're already carrying ammonia! Deposit it at Casper's cauldron first!", 3000);
+            return;
+        }
+
         addToInventory(userData.name, 1);
         createGameBoySound('collect');
         
@@ -759,13 +1182,18 @@ export function interactWithObject(object, scene) {
 
         if (currentQuest?.id === 'ureaCycle') {
             if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER && userData.name === 'Water') {
-                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2)) questAdvancedGenericFeedbackSuppressed = true;
+                // Don't advance quest yet - player needs to return to Calvin first
+                // Quest will advance when talking to Calvin with Water in inventory
+                showFeedback("Water collected! Return to Calvin with it.", 3000);
+                specificFeedbackGivenForThisResource = true;
             }
             else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE && userData.name === 'Bicarbonate') {
-                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3)) questAdvancedGenericFeedbackSuppressed = true;
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP)) questAdvancedGenericFeedbackSuppressed = true;
             }
             else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3 && userData.name === 'NH3') {
-                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP)) questAdvancedGenericFeedbackSuppressed = true;
+                // Don't auto-advance - player needs to return to Casper
+                showFeedback("NH3 collected! Return to Casper at the graveyard.", 3000);
+                specificFeedbackGivenForThisResource = true;
             }
             else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP && userData.name === 'ATP') {
                 if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP)) questAdvancedGenericFeedbackSuppressed = true;
@@ -773,12 +1201,47 @@ export function interactWithObject(object, scene) {
                 specificFeedbackGivenForThisResource = true;
             }
             else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP && userData.name === 'ATP' && hasRequiredItems({ 'ATP': 2 })) {
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1C_CASPER_NEEDS_COFFEE)) questAdvancedGenericFeedbackSuppressed = true;
+                showFeedback("Both ATPs collected! Now return to Casper.", 3000);
+                specificFeedbackGivenForThisResource = true;
+            }
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1E_COLLECT_COFFIN_GROUNDS && userData.name === 'Acidic Coffin Grounds') {
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1F_COLLECT_GLUTAMINE)) questAdvancedGenericFeedbackSuppressed = true;
+                showFeedback("I never thought I would be stealing from a graveyard...", 3000);
+                setTimeout(() => {
+                    showFeedback("Acidic Coffin Grounds collected! Now find Ghoul Milk (Glutamate).", 3000);
+                }, 3200);
+                specificFeedbackGivenForThisResource = true;
+            }
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1E_COLLECT_COFFIN_GROUNDS && userData.name === 'Glutamate') {
+                // Player collected Glutamate first - advance to next step
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1F_COLLECT_GLUTAMINE)) questAdvancedGenericFeedbackSuppressed = true;
+                showFeedback("Ghoul Milk collected! Now find Acidic Coffin Grounds near the ketogenic amino acids.", 3000);
+                specificFeedbackGivenForThisResource = true;
+            }
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1F_COLLECT_GLUTAMINE && userData.name === 'Acidic Coffin Grounds') {
+                // Player has Glutamate and now collected Coffin Grounds - advance to brewing step
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1G_NAGESH_MAKES_NAG)) questAdvancedGenericFeedbackSuppressed = true;
+                showFeedback("I never thought I would be stealing from a graveyard...", 3000);
+                setTimeout(() => {
+                    showFeedback("Acidic Coffin Grounds collected! You have both ingredients! Return to Nagesh to brew the coffee.", 3000);
+                }, 3200);
+                specificFeedbackGivenForThisResource = true;
+            }
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1F_COLLECT_GLUTAMINE && userData.name === 'Glutamate') {
+                if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_1G_NAGESH_MAKES_NAG)) questAdvancedGenericFeedbackSuppressed = true;
+                showFeedback("Ghoul Milk collected! Return to Nagesh to brew the coffee.", 3000);
+                specificFeedbackGivenForThisResource = true;
+            }
+            else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1H_COLLECT_NAG && userData.name === "Nagesh's Coffee") {
                 if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS)) questAdvancedGenericFeedbackSuppressed = true;
-                showFeedback("Both ATPs collected! Now go to Casper.", 3000);
+                showFeedback("Nagesh's Coffee collected! Take it to Casper to energize him!", 3000);
                 specificFeedbackGivenForThisResource = true;
             }
             else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_3_COLLECT_CARB_PHOS && userData.name === 'Carbamoyl Phosphate') {
                 if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER)) questAdvancedGenericFeedbackSuppressed = true;
+                showFeedback("Carbamoyl Phosphate collected! Next, visit Otis (OTC) to make Citrulline. But first, you'll need Ornithine from the Ornithine Usher near the bridge.", 5000);
+                specificFeedbackGivenForThisResource = true;
             }
             else if (currentQuest.state === CONSTANTS.QUEST_STATE.STEP_8_COLLECT_CITRULLINE && userData.name === 'Citrulline') {
                 if(advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_8A_COLLECT_ATP)) questAdvancedGenericFeedbackSuppressed = true;
@@ -838,9 +1301,62 @@ export function interactWithObject(object, scene) {
         let educationalBlurb = "";
         let actionButtonText = `Activate ${userData.name}!`;
 
-        if (userData.name === "CAVA Shrine") {
-            dialogueTitle = "CAVA Shrine (Carbonic Anhydrase VA)";
-            educationalBlurb = "Welcome, seeker, to the CAVA Shrine. I see you bring gifts of Water and CO2. Within my crystalline heart, the essence of Carbonic Anhydrase VA resides. Here in the mitochondrial cave, I blend Water and CO2, transforming them into Bicarbonate (HCO3-). This is the first substrate for the Urea Cycle.";
+        if (userData.name === "Calvin") {
+            dialogueTitle = "Calvin (Carbonic Anhydrase VA)";
+
+            // STEP_0_GATHER_WATER_CO2: First visit - Calvin asks for Water only
+            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2) {
+                showDialogue("Ah, hello there! I'm Calvin, the chemist. I specialize in mixing Water and gas to create a neutralizing paste - Bicarbonate!", [
+                    { text: "Bicarbonate?", hideOnClick: false, action: () => {
+                        showDialogue("Yes! Bicarbonate (HCO3-) is the first substrate for the Urea Cycle. It's what makes Casper's ammonia conversion possible!", [
+                            { text: "Can you make some for me?", hideOnClick: false, action: () => {
+                                showDialogue("Absolutely! But first, I'll need **Water (H2O)**. Can you find some for me?", [
+                                    { text: "Where can I find Water?", hideOnClick: false, action: () => {
+                                        showDialogue("Seek the River Guardian near the river's edge, south of the bridge. He is the keeper of life-giving water. Bring it back to me!", [
+                                            { text: "I'll get the Water!", action: () => {
+                                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER);
+                                            }}
+                                        ], setGameInteracting);
+                                    }}
+                                ], setGameInteracting);
+                            }}
+                        ], setGameInteracting);
+                    }}
+                ], setGameInteracting);
+                return;
+            }
+
+            // STEP_0_COLLECT_WATER: Player collected Water and returned to Calvin
+            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER) {
+                // Check if player has Water
+                if (inventory['Water']) {
+                    showDialogue("Perfect! You brought the Water! Now I need the gas component - **CO2 (Carbon Dioxide)**.", [
+                        { text: "Where can I find CO2?", hideOnClick: false, action: () => {
+                            showDialogue("Find the Respiratory Vents deeper within this alcove. They release CO2 from cellular respiration. Once you bring it, I can mix everything together!", [
+                                { text: "I'll get the CO2!", action: () => {
+                                    advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2);
+                                }}
+                            ], setGameInteracting);
+                        }},
+                        { text: "I'll get it!" , action: () => {
+                            advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2);
+                        }}
+                    ], setGameInteracting);
+                } else {
+                    showDialogue("Welcome back! Did you get the Water from the River Guardian? Bring it to me when you have it!", [{ text: "I'll get it!" }], setGameInteracting);
+                }
+                return;
+            }
+
+            // STEP_0A_GATHER_CO2: Player is now looking for CO2
+            if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2) {
+                showDialogue("Go find the **CO2** from the Respiratory Vents deeper within this alcove. Once you bring it, I can mix everything together!", [
+                    { text: "I'll get the CO2!" }
+                ], setGameInteracting);
+                return;
+            }
+
+            educationalBlurb = "Perfect! I'll take the Water and CO2 and mix them together to create Bicarbonate (HCO3-) - the first substrate for the Urea Cycle!";
             actionButtonText = `Create Bicarbonate!`;
         }
 
@@ -850,7 +1366,25 @@ export function interactWithObject(object, scene) {
         }
         if (!hasRequiredItems(userData.requires)) {
             let missing = Object.keys(userData.requires).filter(item => !inventory[item] || inventory[item] < userData.requires[item]).join(' and ');
-            showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nYou seem to be missing: ${missing}. Gather them and return to awaken the shrine's power.`, [{ text: "I'll be back" }], setGameInteracting);
+
+            // Provide specific guidance for Calvin
+            if (userData.name === "Calvin") {
+                let guidanceText = `${dialogueTitle}:\n${educationalBlurb}\n\nYou seem to be missing: ${missing}.\n\n`;
+
+                if (!inventory['Water']) {
+                    guidanceText += "**Water**: Seek the River Guardian near the river's edge, south of the bridge. He is the keeper of life-giving water.\n\n";
+                }
+                if (!inventory['CO2']) {
+                    guidanceText += "**CO2**: Find the Respiratory Vents deeper within this alcove. They release carbon dioxide from cellular respiration.\n\n";
+                }
+
+                guidanceText += "Bring me these ingredients and I'll whip up that neutralizing paste for you!";
+
+                showDialogue(guidanceText, [{ text: "I'll find them!" }], setGameInteracting);
+                return;
+            }
+
+            showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nYou seem to be missing: ${missing}. Bring me what I need and we can get started!`, [{ text: "I'll be back" }], setGameInteracting);
             return;
         }
 
@@ -905,6 +1439,31 @@ export function interactWithObject(object, scene) {
         createResource(scene, 'Citrulline', { x: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH / 2 + 0.5, z: CONSTANTS.BRIDGE_CENTER_Z + 1, yBase: CONSTANTS.BRIDGE_HEIGHT + 0.01, name: "Citrulline_bridge" }, userData.productColor || CONSTANTS.CITRULLINE_COLOR);
 
         advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_8_COLLECT_CITRULLINE);
+    }
+    else if (userData.type === 'gate' && !interactionProcessedThisFrame) {
+        interactionProcessedThisFrame = true;
+
+        if (!userData.isOpen) {
+            // First time opening the gate - show warning dialogue about dangers
+            showDialogue("Welcome to the Amino Acid Animal Graveyard. Here lie the remains of amino acids that have been broken down through deamination, releasing ammonia (NH₃) into the mitochondria.\n\n⚠️ WARNING: The toxic ammonia fumes in this area will slowly drain your health. Collect what you need and leave quickly! Holding ammonia will cause even more damage.", [
+                { text: "Open the gate", action: () => {
+                    // Open the gate by rotating it
+                    const gateDoor = object.getObjectByName('gate_door');
+                    if (gateDoor) {
+                        // Swing the gate open (rotate 90 degrees around Y axis)
+                        gateDoor.rotation.y = Math.PI / 2;
+                        userData.isOpen = true;
+                        // Remove collision barrier
+                        removeGateBarrierFromWorld(scene);
+                        createGameBoySound('success');
+                        showFeedback("The graveyard gate swings open with a creak...");
+                    }
+                }}
+            ], setGameInteracting);
+        } else {
+            // Gate is already open - just give brief feedback
+            showFeedback("The gate to the Amino Acid Animal Graveyard stands open.");
+        }
     }
     else if (userData.type === 'wasteBucket' && !interactionProcessedThisFrame) {
         interactionProcessedThisFrame = true;

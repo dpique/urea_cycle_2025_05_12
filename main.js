@@ -3,18 +3,19 @@ import * as THREE from 'three';
 import * as CONSTANTS from './js/constants.js';
 import { initScene, scene, camera, renderer } from './js/sceneSetup.js';
 import { initWorld, wallBoundingBoxes, updateResourceHover, getPortalBarrier, interactiveObjects, getTerrainHeightAt } from './js/worldManager.js';
-import { initPlayer, player, updatePlayer } from './js/playerManager.js';
+import { initPlayer, player, updatePlayer, toggleCameraMode } from './js/playerManager.js';
 import { initNPCs, updateNPCs, getNPCs } from './js/npcManager.js';
 import { initUIManager, showFeedback, createQuestMarker, updateQuestMarker, hideQuestMarker } from './js/uiManager.js';
 import { initQuests, startUreaCycleQuest, advanceUreaCycleQuest } from './js/questManager.js';
-import { getAudioContext } from './js/audioManager.js';
+import { getAudioContext, toggleMuteMusic } from './js/audioManager.js';
 import { updateInteraction, interactWithObject, getClosestInteractiveObject } from './js/interactionManager.js';
 import { updateSimpleParticleSystems } from './js/utils.js';
 import { initMinimap, updateMinimap, toggleMinimap, addToPathHistory } from './js/minimap.js';
-import { getGameState, getCurrentQuest, getPlayerLocation, setPlayerLocation } from './js/gameState.js';
+import { getGameState, getCurrentQuest, getPlayerLocation, setPlayerLocation, getInventory, getHealth, damageHealth, healHealth } from './js/gameState.js';
 import { saveGame, loadGame } from './js/persistenceManager.js';
 import { handlePlayerDeath } from './js/gameManager.js';
 import { initCycleDisplay, updateCycleDisplay } from './js/cycleDisplay.js';
+import { NPC_LAYOUT, STATIC_OBJECTS, RESOURCE_SPAWNS, getWorldPosition } from './js/worldLayout.js';
 
 export const dialogueBox = document.getElementById('dialogueBox');
 export const realityRiverUI = document.getElementById('realityRiver');
@@ -42,6 +43,7 @@ function setupExternalLinks() {
     const feedbackButton = document.getElementById('feedbackButton');
     const preTestSurveyButton = document.getElementById('preTestSurveyButton');
     const postTestSurveyButton = document.getElementById('postTestSurveyButton');
+    const muteButton = document.getElementById('muteButton');
 
     if (feedbackButton) {
         feedbackButton.addEventListener('click', () => {
@@ -56,6 +58,16 @@ function setupExternalLinks() {
     if (postTestSurveyButton) {
         postTestSurveyButton.addEventListener('click', () => {
             window.open(POST_SURVEY_LINK, '_blank');
+        });
+    }
+    if (muteButton) {
+        muteButton.addEventListener('click', () => {
+            const isMuted = toggleMuteMusic();
+            if (isMuted) {
+                muteButton.textContent = '🔇 Unmute Music';
+            } else {
+                muteButton.textContent = '🔊 Mute Music';
+            }
         });
     }
 }
@@ -143,6 +155,11 @@ document.addEventListener('keydown', (event) => {
     if (key === 'm' && !gameState.isUserInteracting) {
         toggleMinimap();
     }
+    // C key for camera toggle
+    if (key === 'c' && !gameState.isUserInteracting) {
+        const modeName = toggleCameraMode();
+        showFeedback(`Camera: ${modeName}`, 2000);
+    }
     // F5 key for manual save
     if (event.key === 'F5' && !gameState.isUserInteracting) {
         event.preventDefault();
@@ -182,45 +199,81 @@ function getQuestTargetPosition() {
             break;
             
         case CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2:
-            // Point to River Guardian
-            const riverGuardian = npcs.find(npc => npc.userData.name === 'River Guardian');
-            return riverGuardian ? riverGuardian.position : new THREE.Vector3(CONSTANTS.RIVER_GUARDIAN_X, 0, CONSTANTS.RIVER_GUARDIAN_Z);
+            // Point to Calvin (he will tell you about Water)
+            const calvin = interactiveObjects.find(obj => obj.userData.name === 'Calvin');
+            if (calvin) return calvin.position;
+            // Fallback using worldLayout
+            const calvinPos = getWorldPosition(STATIC_OBJECTS.CALVIN);
+            return new THREE.Vector3(calvinPos.x, 0, calvinPos.z);
             
         case CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER:
-            // Point to Water resource near River Guardian
-            const water = interactiveObjects.find(obj => obj.userData.name === 'Water');
-            return water ? water.position : new THREE.Vector3(CONSTANTS.RIVER_GUARDIAN_X + 1.5, 0, CONSTANTS.RIVER_GUARDIAN_Z);
+            // Check if player has Water - if so, point back to Calvin; otherwise point to Water
+            const inventory = getInventory();
+            if (inventory['Water']) {
+                // Player has Water - return to Calvin
+                const calvin2 = interactiveObjects.find(obj => obj.userData.name === 'Calvin');
+                if (calvin2) return calvin2.position;
+                // Fallback using worldLayout
+                const calvinPos2 = getWorldPosition(STATIC_OBJECTS.CALVIN);
+                return new THREE.Vector3(calvinPos2.x, 0, calvinPos2.z);
+            } else {
+                // Player needs to get Water from River Guardian
+                const water = interactiveObjects.find(obj => obj.userData.name === 'Water');
+                if (water) return water.position;
+                // Fallback using worldLayout
+                const waterPos = getWorldPosition(RESOURCE_SPAWNS.WATER);
+                return new THREE.Vector3(waterPos.x, 0, waterPos.z);
+            }
             
         case CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2:
             // Point to CO2 Vents
             const co2Vents = interactiveObjects.find(obj => obj.userData.name === 'CO₂ Vents');
-            return co2Vents ? co2Vents.position : new THREE.Vector3(CONSTANTS.CO2_VENTS_X, 0, CONSTANTS.CO2_VENTS_Z);
+            if (co2Vents) return co2Vents.position;
+            // Fallback using worldLayout
+            const co2VentsPos = getWorldPosition(STATIC_OBJECTS.CO2_VENTS);
+            return new THREE.Vector3(co2VentsPos.x, 0, co2VentsPos.z);
             
-        case CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE:
-            // Point to CAVA Shrine
-            const cavaShrine = interactiveObjects.find(obj => obj.userData.name === 'CAVA Shrine');
-            return cavaShrine ? cavaShrine.position : new THREE.Vector3(CONSTANTS.MIN_X + 7, 0, CONSTANTS.ALCOVE_Z_CENTER);
+        case CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE: {
+            // Point to Calvin
+            const calvin3 = interactiveObjects.find(obj => obj.userData.name === 'Calvin');
+            if (calvin3) return calvin3.position;
+            // Fallback using worldLayout
+            const calvinPos3 = getWorldPosition(STATIC_OBJECTS.CALVIN);
+            return new THREE.Vector3(calvinPos3.x, 0, calvinPos3.z);
+        }
             
         case CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE:
-            // Point to Bicarbonate resource (should be near CAVA Shrine)
+            // Point to Bicarbonate resource (should be near CAVA Shrine / Calvin)
             const bicarbonate = interactiveObjects.find(obj => obj.userData.name === 'Bicarbonate');
-            return bicarbonate ? bicarbonate.position : new THREE.Vector3(CONSTANTS.MIN_X + 7, 0, CONSTANTS.ALCOVE_Z_CENTER - 1.5);
+            if (bicarbonate) return bicarbonate.position;
+            // Fallback near Calvin
+            const calvinPos4 = getWorldPosition(STATIC_OBJECTS.CALVIN);
+            return new THREE.Vector3(calvinPos4.x, 0, calvinPos4.z - 1.5);
             
         case CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3:
             // Point to NH3 resource
             const nh3 = interactiveObjects.find(obj => obj.userData.name === 'NH3');
-            return nh3 ? nh3.position : new THREE.Vector3(CONSTANTS.MIN_X + 2, 0, CONSTANTS.MIN_Z + 4);
+            if (nh3) return nh3.position;
+            // Fallback to graveyard area where NH3 spawns
+            const graveyardPos = getWorldPosition({ zone: 'GRAVEYARD', offset: { x: 0, z: 0 } });
+            return new THREE.Vector3(graveyardPos.x, 0, graveyardPos.z);
             
         case CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP:
             // Point to first ATP in mitochondria
             const firstATP = interactiveObjects.find(obj => obj.userData.name === 'ATP' && obj.position.x < CONSTANTS.RIVER_CENTER_X);
-            return firstATP ? firstATP.position : new THREE.Vector3(CONSTANTS.MIN_X + 12, 0, 8);
+            if (firstATP) return firstATP.position;
+            // Fallback to ATP_MITO spawn location
+            const atpMitoPos = getWorldPosition(RESOURCE_SPAWNS.ATP_MITO);
+            return new THREE.Vector3(atpMitoPos.x, 0, atpMitoPos.z);
             
         case CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP:
             // Point to another ATP in mitochondria (try to find one player hasn't collected)
             const atpArray = interactiveObjects.filter(obj => obj.userData.name === 'ATP' && obj.position.x < CONSTANTS.RIVER_CENTER_X);
             const secondATP = atpArray.find(atp => atp.visible) || atpArray[0];
-            return secondATP ? secondATP.position : new THREE.Vector3(CONSTANTS.MIN_X + 25, 0, -18);
+            if (secondATP) return secondATP.position;
+            // Fallback to ATP_ALCOVE spawn location
+            const atpAlcovePos = getWorldPosition(RESOURCE_SPAWNS.ATP_ALCOVE);
+            return new THREE.Vector3(atpAlcovePos.x, 0, atpAlcovePos.z);
             
         case CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS:
             targetNPC = npcs.find(npc => npc.userData.name === CONSTANTS.NPC_NAMES.CASPER_CPS1);
@@ -240,18 +293,25 @@ function getQuestTargetPosition() {
             break;
             
         case CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL:
-            // Point to portal location on bridge
-            return new THREE.Vector3(CONSTANTS.BRIDGE_CENTER_X, CONSTANTS.BRIDGE_HEIGHT + 1, CONSTANTS.BRIDGE_CENTER_Z);
+            // Point to portal location on bridge (center of bridge)
+            const bridgePos = getWorldPosition({ zone: 'BRIDGE', offset: { x: 0, z: 0 } });
+            return new THREE.Vector3(bridgePos.x, CONSTANTS.BRIDGE_HEIGHT + 1, bridgePos.z);
             
         case CONSTANTS.QUEST_STATE.STEP_8_COLLECT_CITRULLINE:
             // Point to Citrulline on cytosol side of bridge
             const citrulline = interactiveObjects.find(obj => obj.userData.name === 'Citrulline');
-            return citrulline ? citrulline.position : new THREE.Vector3(CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH/2 + 0.5, CONSTANTS.BRIDGE_HEIGHT, CONSTANTS.BRIDGE_CENTER_Z + 1);
+            if (citrulline) return citrulline.position;
+            // Fallback to east side of bridge
+            const bridgePos2 = getWorldPosition({ zone: 'BRIDGE', offset: { x: CONSTANTS.BRIDGE_LENGTH/2 + 0.5, z: 1 } });
+            return new THREE.Vector3(bridgePos2.x, CONSTANTS.BRIDGE_HEIGHT, bridgePos2.z);
             
         case CONSTANTS.QUEST_STATE.STEP_8A_COLLECT_ATP:
             // Point to ATP in cytosol
             const atp = interactiveObjects.find(obj => obj.userData.name === 'ATP' && obj.position.x > CONSTANTS.RIVER_CENTER_X);
-            return atp ? atp.position : new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 15, 0, 0);
+            if (atp) return atp.position;
+            // Fallback to ATP_CYTO spawn location
+            const atpCytoPos = getWorldPosition(RESOURCE_SPAWNS.ATP_CYTO);
+            return new THREE.Vector3(atpCytoPos.x, 0, atpCytoPos.z);
             
         case CONSTANTS.QUEST_STATE.STEP_8B_GET_ASPARTATE:
             // Point to Shuttle Driver
@@ -290,11 +350,16 @@ function getQuestTargetPosition() {
             
         case CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA:
             // Point to waste bucket
-            return new THREE.Vector3(CONSTANTS.MAX_X - 5, 0, CONSTANTS.MAX_Z - 5);
+            const wasteBucket = interactiveObjects.find(obj => obj.userData.name === 'Waste Receptacle');
+            if (wasteBucket) return wasteBucket.position;
+            // Fallback using worldLayout
+            const wasteBucketPos = getWorldPosition(STATIC_OBJECTS.WASTE_BUCKET);
+            return new THREE.Vector3(wasteBucketPos.x, 0, wasteBucketPos.z);
             
         case CONSTANTS.QUEST_STATE.STEP_14_RIVER_CHALLENGE:
             // Point to bridge for river challenge
-            return new THREE.Vector3(CONSTANTS.BRIDGE_CENTER_X, CONSTANTS.BRIDGE_HEIGHT, CONSTANTS.BRIDGE_CENTER_Z);
+            const bridgePos3 = getWorldPosition({ zone: 'BRIDGE', offset: { x: 0, z: 0 } });
+            return new THREE.Vector3(bridgePos3.x, CONSTANTS.BRIDGE_HEIGHT, bridgePos3.z);
             
         default:
             return null;
@@ -315,11 +380,83 @@ function animate() {
     }
     
     // Also check if player walked outside world bounds
-    if (player.position.x < CONSTANTS.MIN_X - 2 || 
+    if (player.position.x < CONSTANTS.MIN_X - 2 ||
         player.position.x > CONSTANTS.MAX_X + 2 ||
-        player.position.z < CONSTANTS.MIN_Z - 2 || 
+        player.position.z < CONSTANTS.MIN_Z - 2 ||
         player.position.z > CONSTANTS.MAX_Z + 2) {
         handlePlayerDeath();
+    }
+
+    // Ammonia toxicity and graveyard area system
+    const inventory = getInventory();
+    const hasAmmonia = inventory['NH3'] && inventory['NH3'] > 0;
+    const healthWarning = document.getElementById('healthWarning');
+
+    // Check if player is in graveyard area
+    const graveyardMinX = CONSTANTS.GRAVEYARD_CENTER_X - CONSTANTS.GRAVEYARD_WIDTH / 2;
+    const graveyardMaxX = CONSTANTS.GRAVEYARD_CENTER_X + CONSTANTS.GRAVEYARD_WIDTH / 2;
+    const graveyardMinZ = CONSTANTS.GRAVEYARD_CENTER_Z - CONSTANTS.GRAVEYARD_DEPTH / 2;
+    const graveyardMaxZ = CONSTANTS.GRAVEYARD_CENTER_Z + CONSTANTS.GRAVEYARD_DEPTH / 2;
+    const inGraveyard = player.position.x > graveyardMinX && player.position.x < graveyardMaxX &&
+                        player.position.z > graveyardMinZ && player.position.z < graveyardMaxZ;
+
+    // Track time for graveyard health drain (once every 10 seconds)
+    if (!gameState.lastGraveyardDamageTime) {
+        gameState.lastGraveyardDamageTime = 0;
+    }
+
+    if (hasAmmonia) {
+        // Damage health while holding ammonia - scales with amount
+        const nh3Count = inventory['NH3'];
+        let damageRate;
+        if (nh3Count >= 2) {
+            damageRate = 3; // 3 health per second for 2+ NH3
+        } else {
+            damageRate = 1; // 1 health per second for 1 NH3
+        }
+        damageHealth(damageRate * delta);
+
+        // Show health warning
+        if (healthWarning && healthWarning.classList.contains('hidden')) {
+            healthWarning.classList.remove('hidden');
+        }
+
+        // Check for death from ammonia poisoning
+        if (getHealth() <= 0) {
+            handlePlayerDeath("ammonia");
+        }
+    } else if (inGraveyard) {
+        // In graveyard but not holding ammonia - slower health drain
+        const currentTime = Date.now();
+        if (currentTime - gameState.lastGraveyardDamageTime >= 10000) {
+            damageHealth(1); // 1 health every 10 seconds
+            gameState.lastGraveyardDamageTime = currentTime;
+            if (Math.random() < 0.5) {
+                showFeedback("*cough* The toxic fumes are affecting you...", 2000);
+            }
+        }
+
+        // Don't show ammonia warning - only show when actually holding NH3
+        // Hide health warning if it's showing
+        if (healthWarning && !healthWarning.classList.contains('hidden')) {
+            healthWarning.classList.add('hidden');
+        }
+
+        // Check for death from graveyard fumes
+        if (getHealth() <= 0) {
+            handlePlayerDeath("ammonia");
+        }
+    } else {
+        // Not in graveyard and not holding ammonia - slowly recover health
+        const currentHealth = getHealth();
+        if (currentHealth < 100) {
+            healHealth(1 * delta);
+        }
+
+        // Hide health warning
+        if (healthWarning && !healthWarning.classList.contains('hidden')) {
+            healthWarning.classList.add('hidden');
+        }
     }
 
     // Player Y position adjustment for bridge with smooth transitions
@@ -436,7 +573,7 @@ function animate() {
     updateCycleDisplay();
 
     // Player location update based on X position relative to river/bridge center
-    if (!getPortalBarrier()) { 
+    if (!getPortalBarrier()) {
         const currentX = player.position.x;
         const prevLocation = getPlayerLocation();
         if (currentX > CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH / 2 && prevLocation === 'mitochondria') {
@@ -445,6 +582,27 @@ function animate() {
         } else if (currentX < CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH / 2 && prevLocation === 'cytosol') {
             setPlayerLocation('mitochondria');
             showFeedback("You are entering the Mitochondria", 3000);
+        }
+    }
+
+    // Check for first-time graveyard entry
+    if (!gameState.hasVisitedGraveyard) {
+        const playerX = player.position.x;
+        const playerZ = player.position.z;
+        const graveyardMinX = CONSTANTS.GRAVEYARD_CENTER_X - CONSTANTS.GRAVEYARD_WIDTH / 2;
+        const graveyardMaxX = CONSTANTS.GRAVEYARD_CENTER_X + CONSTANTS.GRAVEYARD_WIDTH / 2;
+        const graveyardMinZ = CONSTANTS.GRAVEYARD_CENTER_Z - CONSTANTS.GRAVEYARD_DEPTH / 2;
+        const graveyardMaxZ = CONSTANTS.GRAVEYARD_CENTER_Z + CONSTANTS.GRAVEYARD_DEPTH / 2;
+
+        // Check if player is inside graveyard bounds
+        if (playerX > graveyardMinX && playerX < graveyardMaxX &&
+            playerZ > graveyardMinZ && playerZ < graveyardMaxZ) {
+            // Mark graveyard as visited
+            gameState.hasVisitedGraveyard = true;
+            // Show atmospheric dialogue
+            setTimeout(() => {
+                showFeedback("*cough cough* ...you notice a pungent smell in the air", 4000);
+            }, 500);
         }
     }
     

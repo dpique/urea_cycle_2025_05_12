@@ -17,15 +17,22 @@ export const ureaCycleQuestData = {
     state: CONSTANTS.QUEST_STATE.NOT_STARTED,
     objectives: {
         [CONSTANTS.QUEST_STATE.NOT_STARTED]: "Talk to Professor Hepaticus.",
-        [CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2]: "Find the River Guardian near the river's edge (south of the bridge) to obtain Water.",
-        [CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER]: "Collect the Water droplet granted by the River Guardian.",
-        [CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2]: "Now collect CO2 from the Respiratory Vents in the alcove.",
-        [CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE]: "Use the CAVA Shrine in the alcove with Water and CO2 to create Bicarbonate.",
-        [CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE]: "Collect the Bicarbonate crystal that formed at the CAVA Shrine.",
-        [CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3]: "Now collect NH3 (Ammonia) in the Mitochondria.",
+        [CONSTANTS.QUEST_STATE.STEP_0_MEET_CASPER]: "Find Casper the Ghost (CPS1) at the Animal Graveyard in the Mitochondria.",
+        [CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3]: "Collect NH3 (Ammonia) from the decomposing animals scattered around the graveyard.",
+        [CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2]: "Talk to Calvin the chemist in the alcove to learn what he needs to make Bicarbonate.",
+        [CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER]: "Calvin needs Water! Find the River Guardian near the river's edge (south of the bridge).",
+        [CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2]: "Now collect CO2 from the Respiratory Vents in the alcove (near Calvin).",
+        [CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE]: "Return to Calvin with Water and CO2 so he can create Bicarbonate.",
+        [CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE]: "Collect the Bicarbonate that Calvin created.",
         [CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP]: "Collect your first ATP molecule in the Mitochondria.",
         [CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP]: "Collect one more ATP molecule (you need 2 total for Casper).",
-        [CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS]: "Great! Now speak with Casper (CPS1) to make Carbamoyl Phosphate.",
+        [CONSTANTS.QUEST_STATE.STEP_1C_CASPER_NEEDS_COFFEE]: "Return to Casper at the graveyard. He needs something to help him focus...",
+        [CONSTANTS.QUEST_STATE.STEP_1D_TALK_TO_NAGESH]: "Find Nagesh (NAGS) at his coffee brewing station in the Mitochondria.",
+        [CONSTANTS.QUEST_STATE.STEP_1E_COLLECT_COFFIN_GROUNDS]: "Collect Acidic Coffin Grounds (acetyl-CoA) from the graveyard near the ketogenic amino acids.",
+        [CONSTANTS.QUEST_STATE.STEP_1F_COLLECT_GLUTAMINE]: "Collect Glutamate (Ghoul Milk) from the spectral ghouls in the graveyard.",
+        [CONSTANTS.QUEST_STATE.STEP_1G_NAGESH_MAKES_NAG]: "Return to Nagesh with Acidic Coffin Grounds and Glutamate so he can brew Nagesh's Coffee (NAG).",
+        [CONSTANTS.QUEST_STATE.STEP_1H_COLLECT_NAG]: "Collect the Nagesh's Coffee (NAG) that Nagesh brewed.",
+        [CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS]: "Return to Casper with the Nagesh's Coffee (NAG) so he can make Carbamoyl Phosphate.",
         [CONSTANTS.QUEST_STATE.STEP_3_COLLECT_CARB_PHOS]: "Collect the Carbamoyl Phosphate.",
         [CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER]: "Speak with the Ornithine Usher to get some Ornithine.",
         [CONSTANTS.QUEST_STATE.STEP_5_MAKE_CITRULLINE]: "Speak with Otis (OTC) to make Citrulline.",
@@ -68,7 +75,7 @@ export function initQuests() {
 export function startUreaCycleQuest() {
     const currentQuest = getCurrentQuest();
     if (!currentQuest || currentQuest.state === CONSTANTS.QUEST_STATE.NOT_STARTED) {
-        const newQuest = { ...ureaCycleQuestData, state: CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2 };
+        const newQuest = { ...ureaCycleQuestData, state: CONSTANTS.QUEST_STATE.STEP_0_MEET_CASPER };
         setCurrentQuest(newQuest);
         showFeedback(`Quest Started: ${newQuest.name}`, 3500);
         updateCycleDisplay();

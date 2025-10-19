@@ -7,6 +7,10 @@ let gameState = {
     currentQuest: null,
     playerLocation: 'mitochondria',
     hasPortalPermission: false,
+    health: 100, // Player health (0-100)
+    maxHealth: 100,
+    ammoniaCollectedCount: 0, // Track how many NH3 deposited in cauldron
+    hasVisitedGraveyard: false, // Track first-time graveyard visit
 };
 
 export function getGameState() { 
@@ -68,4 +72,48 @@ export function setPortalPermission(hasPermission) {
 
 export function hasPortalPermission() {
     return gameState.hasPortalPermission;
+}
+
+export function getHealth() {
+    return gameState.health;
+}
+
+export function setHealth(health) {
+    gameState.health = Math.max(0, Math.min(gameState.maxHealth, health));
+    updateHealthUI();
+}
+
+export function damageHealth(amount) {
+    setHealth(gameState.health - amount);
+}
+
+export function healHealth(amount) {
+    setHealth(gameState.health + amount);
+}
+
+export function getAmmoniaCollectedCount() {
+    return gameState.ammoniaCollectedCount;
+}
+
+export function incrementAmmoniaCollectedCount() {
+    gameState.ammoniaCollectedCount++;
+}
+
+// Update health UI
+function updateHealthUI() {
+    const healthBar = document.getElementById('healthBar');
+    const healthText = document.getElementById('healthText');
+    if (healthBar && healthText) {
+        healthBar.style.width = `${gameState.health}%`;
+        healthText.textContent = `${Math.floor(gameState.health)}`;
+
+        // Change color based on health
+        if (gameState.health > 60) {
+            healthBar.style.backgroundColor = '#4CAF50'; // Green
+        } else if (gameState.health > 30) {
+            healthBar.style.backgroundColor = '#FFA500'; // Orange
+        } else {
+            healthBar.style.backgroundColor = '#F44336'; // Red
+        }
+    }
 }

@@ -3,10 +3,11 @@ import * as THREE from 'three';
 import * as CONSTANTS from './constants.js';
 import { createTextSprite } from './utils.js';
 import { interactiveObjects, originalMaterials, getTerrainHeightAt } from './worldManager.js';
+import { NPC_LAYOUT, getWorldPosition, getNPCPacingBounds } from './worldLayout.js';
 
 let professorHepaticusNPC, ornithineUsherNPC, aslanNPC, donkeyNPC, argusNPC;
 let otisOTC_NPC, casperCPS1_NPC;
-let fumaraseNPC, shuttleDriverNPC, riverGuardianNPC; // New NPCs
+let fumaraseNPC, shuttleDriverNPC, riverGuardianNPC, nageshNPC; // New NPCs
 
 const npcs = [];
 const npcAnims = {};
@@ -47,36 +48,52 @@ function getBoundsFromPosition(position, radius) {
 }
 
 export function initNPCs(scene) {
-    // Spread NPCs throughout the larger world
-    professorHepaticusNPC = createProfessorHepaticus(scene, new THREE.Vector3(CONSTANTS.MIN_X + 10, 0, -8));
-    
+    // Get positions from worldLayout
+    const profPos = getWorldPosition(NPC_LAYOUT.PROFESSOR);
+    professorHepaticusNPC = createProfessorHepaticus(scene, new THREE.Vector3(profPos.x, 0, profPos.z));
+
     // Ornithine Usher starts at left end of bridge
-    const usherX = CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 + 1;
-    ornithineUsherNPC = createOrnithineUsher(scene, new THREE.Vector3(usherX, CONSTANTS.BRIDGE_HEIGHT, CONSTANTS.BRIDGE_CENTER_Z));
+    const usherPos = getWorldPosition(NPC_LAYOUT.USHER);
+    const usherStartX = CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 + 2;
+    ornithineUsherNPC = createOrnithineUsher(scene, new THREE.Vector3(usherStartX, CONSTANTS.BRIDGE_HEIGHT, usherPos.z));
 
     // Cytosol NPCs - ordered by Urea Cycle sequence
     // 1. Donkey (ASS) - Argininosuccinate Synthetase - creates Argininosuccinate
-    donkeyNPC = createDonkey(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 10, 0, 5));
-    
+    const donkeyPos = getWorldPosition(NPC_LAYOUT.DONKEY);
+    donkeyNPC = createDonkey(scene, new THREE.Vector3(donkeyPos.x, 0, donkeyPos.z));
+
     // 2. Aslan (ASL) - Argininosuccinate Lyase - splits to Arginine + Fumarate
-    aslanNPC = createAslan(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 25, 0, 5));
-    
+    const aslanPos = getWorldPosition(NPC_LAYOUT.ASLAN);
+    aslanNPC = createAslan(scene, new THREE.Vector3(aslanPos.x, 0, aslanPos.z));
+
     // 3. Argus (ARG1) - Arginase - splits Arginine to Urea + Ornithine
-    argusNPC = createArgus(scene, new THREE.Vector3(CONSTANTS.MAX_X - 10, 0, -5));
+    const argusPos = getWorldPosition(NPC_LAYOUT.ARGUS);
+    argusNPC = createArgus(scene, new THREE.Vector3(argusPos.x, 0, argusPos.z));
 
     // Mitochondria NPCs spread out
-    otisOTC_NPC = createOtisOTC(scene, new THREE.Vector3(CONSTANTS.MIN_X + 20, 0, -10));
-    casperCPS1_NPC = createCasperCPS1(scene, new THREE.Vector3(CONSTANTS.MIN_X + 15, 0, 15));
+    const otisPos = getWorldPosition(NPC_LAYOUT.OTIS);
+    otisOTC_NPC = createOtisOTC(scene, new THREE.Vector3(otisPos.x, 0, otisPos.z));
+
+    // Casper is in the Animal Graveyard
+    const casperPos = getWorldPosition(NPC_LAYOUT.CASPER);
+    casperCPS1_NPC = createCasperCPS1(scene, new THREE.Vector3(casperPos.x, 0, casperPos.z));
+
+    // Nagesh at his coffee brewing station
+    const nageshPos = getWorldPosition(NPC_LAYOUT.NAGESH);
+    nageshNPC = createNagesh(scene, new THREE.Vector3(nageshPos.x, 0, nageshPos.z));
 
     // Supporting NPCs in logical positions
     // Fumarase - closer to river (fire hydrant that hydrates molecules!)
-    fumaraseNPC = createFumaraseEnzyme(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 8, 0, -8));
-    
+    const fumarasePos = getWorldPosition(NPC_LAYOUT.FUMARASE);
+    fumaraseNPC = createFumaraseEnzyme(scene, new THREE.Vector3(fumarasePos.x, 0, fumarasePos.z));
+
     // Shuttle Driver - closer to river and Donkey for Malate-Aspartate exchange
-    shuttleDriverNPC = createShuttleDriver(scene, new THREE.Vector3(CONSTANTS.CYTO_ZONE_MIN_X + 5, 0, 5));
-    
+    const shuttleDriverPos = getWorldPosition(NPC_LAYOUT.SHUTTLE_DRIVER);
+    shuttleDriverNPC = createShuttleDriver(scene, new THREE.Vector3(shuttleDriverPos.x, 0, shuttleDriverPos.z));
+
     // River Guardian by the river edge in mitochondria zone
-    riverGuardianNPC = createRiverGuardian(scene, new THREE.Vector3(CONSTANTS.RIVER_GUARDIAN_X, 0, CONSTANTS.RIVER_GUARDIAN_Z));
+    const riverGuardianPos = getWorldPosition(NPC_LAYOUT.RIVER_GUARDIAN);
+    riverGuardianNPC = createRiverGuardian(scene, new THREE.Vector3(riverGuardianPos.x, 0, riverGuardianPos.z));
 
 
     npcAnims.professor = {
@@ -85,25 +102,25 @@ export function initNPCs(scene) {
         targetPos: professorHepaticusNPC.position.clone(),
         paceTimer: 0,
         paceInterval: 2 + Math.random() * 2,
-        paceRange: 2.5,
-        bounds: getBoundsFromPosition(professorHepaticusNPC.position, 1.5)
+        paceRange: NPC_LAYOUT.PROFESSOR.paceRadius,
+        bounds: getNPCPacingBounds('PROFESSOR')
     };
     npcAnims.usher = {
         group: ornithineUsherNPC,
         basePos: ornithineUsherNPC.position.clone(),
         targetPos: new THREE.Vector3(
-            CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH / 2 + 2,
+            CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH / 2 + 4,
             CONSTANTS.BRIDGE_HEIGHT,
             CONSTANTS.BRIDGE_CENTER_Z
         ), // Start by moving to right end
         paceTimer: 0,
         paceInterval: 8, // Time to walk across bridge
-        paceRange: CONSTANTS.BRIDGE_LENGTH + 4, // Extended patrol range
+        paceRange: CONSTANTS.BRIDGE_LENGTH + 8, // Extended patrol range
         bounds: {
-            minX: CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 - 2,
-            maxX: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH / 2 + 2,
-            minZ: CONSTANTS.BRIDGE_CENTER_Z - 0.5, // Keep centered on bridge
-            maxZ: CONSTANTS.BRIDGE_CENTER_Z + 0.5
+            minX: CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 - 4,
+            maxX: CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH / 2 + 4,
+            minZ: CONSTANTS.BRIDGE_CENTER_Z - 1.0, // Keep centered on bridge
+            maxZ: CONSTANTS.BRIDGE_CENTER_Z + 1.0
         },
         patrolling: true, // New flag for back-and-forth movement
         movingRight: true, // Track direction
@@ -118,8 +135,8 @@ export function initNPCs(scene) {
         targetPos: aslanNPC.position.clone(),
         paceTimer: Math.random() * 4,
         paceInterval: 5 + Math.random() * 3,
-        paceRange: 2.0,
-        bounds: getBoundsFromPosition(aslanNPC.position, 2.0)
+        paceRange: NPC_LAYOUT.ASLAN.paceRadius,
+        bounds: getNPCPacingBounds('ASLAN')
     };
     npcAnims.donkey = {
         group: donkeyNPC,
@@ -127,8 +144,8 @@ export function initNPCs(scene) {
         targetPos: donkeyNPC.position.clone(),
         paceTimer: Math.random() * 4,
         paceInterval: 3.5 + Math.random() * 3,
-        paceRange: 2.0,
-        bounds: getBoundsFromPosition(donkeyNPC.position, 2.0)
+        paceRange: NPC_LAYOUT.DONKEY.paceRadius,
+        bounds: getNPCPacingBounds('DONKEY')
     };
     npcAnims.argus = {
         group: argusNPC,
@@ -136,8 +153,8 @@ export function initNPCs(scene) {
         targetPos: argusNPC.position.clone(),
         paceTimer: Math.random() * 4,
         paceInterval: 4.5 + Math.random() * 3,
-        paceRange: 1.8,
-        bounds: getBoundsFromPosition(argusNPC.position, 1.8)
+        paceRange: NPC_LAYOUT.ARGUS.paceRadius,
+        bounds: getNPCPacingBounds('ARGUS')
     };
     npcAnims.otis = {
         group: otisOTC_NPC,
@@ -161,10 +178,10 @@ export function initNPCs(scene) {
         group: shuttleDriverNPC,
         basePos: shuttleDriverNPC.position.clone(),
         targetPos: shuttleDriverNPC.position.clone(),
-        paceTimer: Math.random() * 5, 
-        paceInterval: 6 + Math.random()*2, 
-        paceRange: 0.5, // Minimal pacing
-        bounds: getBoundsFromPosition(shuttleDriverNPC.position, 0.5)
+        paceTimer: Math.random() * 5,
+        paceInterval: 6 + Math.random()*2,
+        paceRange: NPC_LAYOUT.SHUTTLE_DRIVER.paceRadius,
+        bounds: getNPCPacingBounds('SHUTTLE_DRIVER')
     };
     npcAnims.riverGuardian = {
         group: riverGuardianNPC,
@@ -175,11 +192,24 @@ export function initNPCs(scene) {
         paceRange: 0, // Stationary
         floatTimer: 0
     };
+    npcAnims.nagesh = {
+        group: nageshNPC,
+        basePos: nageshNPC.position.clone(),
+        targetPos: nageshNPC.position.clone(),
+        paceTimer: Math.random() * 3,
+        paceInterval: 4 + Math.random() * 2, // Paces around his station
+        paceRange: NPC_LAYOUT.NAGESH.paceRadius,
+        bounds: getNPCPacingBounds('NAGESH')
+    };
 }
 
 function createProfessorHepaticus(scene, position) {
     const professorGroup = new THREE.Group();
     positionNPCOnTerrain(professorGroup, position);
+
+    // Scale the entire professor by 1.5x to make him more prominent
+    professorGroup.scale.setScalar(1.5);
+
     const robeMaterial = new THREE.MeshStandardMaterial({ color: 0x8888cc, roughness: 0.7 });
     const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 1.5, 8), robeMaterial);
     robe.position.y = 0.75; robe.name = "robe"; professorGroup.add(robe);
@@ -220,6 +250,20 @@ function createProfessorHepaticus(scene, position) {
     const leftHand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 4), handMaterial);
     leftHand.position.set(-0.23 - Math.sin(Math.PI/4)*0.55, 1.18 - Math.cos(Math.PI/4)*0.55, 0); professorGroup.add(leftHand);
     const rightHand = leftHand.clone(); rightHand.position.x = 0.23 + Math.sin(Math.PI/4)*0.55; professorGroup.add(rightHand);
+
+    // CAPE - flowing behind the professor
+    const capeMaterial = new THREE.MeshStandardMaterial({
+        color: 0x223366,  // Dark blue to match the hat
+        roughness: 0.6,
+        side: THREE.DoubleSide  // Visible from both sides
+    });
+    // Inverted cone that flows OUT at the bottom (wider at bottom, narrow at shoulders)
+    const capeGeometry = new THREE.CylinderGeometry(0.2, 0.5, 1.3, 8, 1, true);  // Narrow top, wide bottom
+    const cape = new THREE.Mesh(capeGeometry, capeMaterial);
+    cape.position.set(0, 0.8, -0.3);  // Behind and lower on the body
+    cape.rotation.x = Math.PI / 8;  // Tilt back more for flowing effect
+    cape.name = "cape";
+    professorGroup.add(cape);
 
     const label = createTextSprite(CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS, { x: 0, y: 2.1, z: 0 }, { fontSize: 36, scale: 0.75 });
     professorGroup.add(label);
@@ -530,6 +574,46 @@ function createCasperCPS1(scene, position) {
     rightArm.rotation.z = -Math.PI / 4;
     casperGroup.add(rightArm);
 
+    // Cauldron for collecting ammonia - positioned further from Casper, larger size
+    const cauldronMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8, metalness: 0.6 });
+    const cauldronBody = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.4, 0.6, 8), cauldronMat); // Increased from 0.35/0.25/0.4
+    cauldronBody.position.set(1.2, 0.3, 0); // Adjusted height for larger cauldron
+    cauldronBody.name = "cauldron"; // Named for animation control
+    casperGroup.add(cauldronBody);
+
+    // Cauldron rim
+    const cauldronRim = new THREE.Mesh(new THREE.TorusGeometry(0.56, 0.04, 8, 8), cauldronMat); // Increased from 0.36/0.03
+    cauldronRim.position.set(1.2, 0.6, 0);
+    cauldronRim.rotation.x = Math.PI / 2;
+    cauldronRim.name = "cauldron"; // Named for animation control
+    casperGroup.add(cauldronRim);
+
+    // Cauldron legs (3 small supports)
+    const legGeo = new THREE.CylinderGeometry(0.03, 0.04, 0.25, 6); // Slightly larger to support bigger cauldron
+    for (let i = 0; i < 3; i++) {
+        const angle = (i / 3) * Math.PI * 2;
+        const cauldronLeg = new THREE.Mesh(legGeo, cauldronMat);
+        cauldronLeg.position.set(
+            1.2 + Math.cos(angle) * 0.35,
+            0.125,
+            Math.sin(angle) * 0.35
+        );
+        cauldronLeg.name = "cauldron"; // Named for animation control
+        casperGroup.add(cauldronLeg);
+    }
+
+    // Bubbling green liquid inside (toxic ammonia visualization)
+    const liquidMat = new THREE.MeshStandardMaterial({
+        color: 0x00ff00,
+        emissive: 0x00aa00,
+        emissiveIntensity: 0.3,
+        transparent: true,
+        opacity: 0.6
+    });
+    const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.38, 0.4, 8), liquidMat); // Increased from 0.32/0.24/0.25
+    liquid.position.set(1.2, 0.2, 0);
+    liquid.name = "cauldron"; // Named for animation control
+    casperGroup.add(liquid);
 
     const label = createTextSprite(CONSTANTS.NPC_NAMES.CASPER_CPS1, { x: 0, y: body.position.y + 0.8, z: 0 }, { fontSize: 36, scale: 0.6 });
     casperGroup.add(label);
@@ -771,6 +855,125 @@ function createRiverGuardian(scene, position) {
     return guardianGroup;
 }
 
+function createNagesh(scene, position) {
+    const nageshGroup = new THREE.Group();
+    positionNPCOnTerrain(nageshGroup, position);
+
+    // Coffee-themed character with brown robes
+    const robeMat = new THREE.MeshStandardMaterial({ color: 0x4a3c28, roughness: 0.7 });
+
+    // Robe/body
+    const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 1.2, 8), robeMat);
+    robe.position.y = 0.6;
+    robe.name = "nagesh_body";
+    nageshGroup.add(robe);
+
+    // Head
+    const headMat = new THREE.MeshStandardMaterial({ color: 0x8B7355, roughness: 0.5 });
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), headMat);
+    head.position.y = 1.4;
+    nageshGroup.add(head);
+
+    // Eyes
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+    const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 4), eyeMat);
+    leftEye.position.set(-0.08, 1.45, 0.18);
+    nageshGroup.add(leftEye);
+    const rightEye = leftEye.clone();
+    rightEye.position.x = 0.08;
+    nageshGroup.add(rightEye);
+
+    // Turban (coffee bag style)
+    const turbanMat = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.6 });
+    const turban = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.20, 0.25, 8), turbanMat);
+    turban.position.y = 1.65;
+    nageshGroup.add(turban);
+
+    // Coffee bean decoration on turban
+    const beanMat = new THREE.MeshStandardMaterial({ color: 0x3d2817, roughness: 0.8 });
+    const bean = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 4), beanMat);
+    bean.position.set(0, 1.7, 0.2);
+    bean.scale.set(1.2, 0.8, 0.8);
+    nageshGroup.add(bean);
+
+    // Arms
+    const armGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.5, 6);
+    const leftArm = new THREE.Mesh(armGeo, robeMat);
+    leftArm.position.set(-0.28, 0.9, 0);
+    leftArm.rotation.z = Math.PI / 4;
+    nageshGroup.add(leftArm);
+    const rightArm = leftArm.clone();
+    rightArm.position.x = 0.28;
+    rightArm.rotation.z = -Math.PI / 4;
+    nageshGroup.add(rightArm);
+
+    // Coffee brewing station - positioned beside Nagesh
+    const counterMaterial = new THREE.MeshStandardMaterial({
+        color: 0x4a3c28,
+        roughness: 0.7
+    });
+    const counter = new THREE.Mesh(
+        new THREE.BoxGeometry(2, 0.8, 1),
+        counterMaterial
+    );
+    counter.position.set(1.5, 0.4, 0); // To the right of Nagesh
+    counter.castShadow = true;
+    counter.receiveShadow = true;
+    nageshGroup.add(counter);
+
+    // Coffee machine
+    const machineMaterial = new THREE.MeshStandardMaterial({
+        color: 0x333333,
+        metalness: 0.6,
+        roughness: 0.4
+    });
+    const machine = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 0.7, 0.5),
+        machineMaterial
+    );
+    machine.position.set(2.0, 0.8 + 0.35, 0);
+    machine.castShadow = true;
+    nageshGroup.add(machine);
+
+    // Coffee pot
+    const potMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2a2a2a,
+        metalness: 0.7,
+        roughness: 0.3
+    });
+    const pot = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.15, 0.12, 0.3, 8),
+        potMaterial
+    );
+    pot.position.set(1.1, 0.8 + 0.15, 0);
+    pot.castShadow = true;
+    nageshGroup.add(pot);
+
+    // Warm light above the station
+    const stationLight = new THREE.PointLight(0xffaa66, 0.6, 4);
+    stationLight.position.set(1.5, 1.5, 0);
+    nageshGroup.add(stationLight);
+
+    const label = createTextSprite(CONSTANTS.NPC_NAMES.NAGESH_NAGS, { x: 0, y: 1.9, z: 0 }, { fontSize: 36, scale: 0.6 });
+    nageshGroup.add(label);
+
+    nageshGroup.userData = {
+        type: 'npc',
+        name: CONSTANTS.NPC_NAMES.NAGESH_NAGS,
+        mainMesh: robe,
+        requires: { 'Acidic Coffin Grounds': 1, 'Glutamate': 1 },
+        produces: "Nagesh's Coffee",
+        productColors: { "Nagesh's Coffee": CONSTANTS.NAG_COLOR }
+    };
+
+    nageshGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
+    scene.add(nageshGroup);
+    interactiveObjects.push(nageshGroup);
+    originalMaterials.set(robe, robeMat.clone());
+    npcs.push(nageshGroup);
+    return nageshGroup;
+}
+
 export function updateNPCs(delta, elapsedTime) {
     for (const npcKey in npcAnims) {
         const npc = npcAnims[npcKey];
@@ -816,9 +1019,9 @@ export function updateNPCs(delta, elapsedTime) {
                         const distanceToPortal = Math.abs(npc.group.position.x - CONSTANTS.BRIDGE_CENTER_X);
                         let lerpFactor = generalNpcPaceLerpFactor * 0.5;
                         
-                        // Slow down when within 2 units of the portal center
-                        if (distanceToPortal < 2) {
-                            lerpFactor *= (0.3 + (distanceToPortal / 2) * 0.7); // Slow down gradually near portal
+                        // Slow down when within 4 units of the portal center
+                        if (distanceToPortal < 4) {
+                            lerpFactor *= (0.3 + (distanceToPortal / 4) * 0.7); // Slow down gradually near portal
                         }
                         
                         // Smooth movement along bridge
@@ -835,8 +1038,8 @@ export function updateNPCs(delta, elapsedTime) {
                     newTargetZ = Math.max(npc.bounds.minZ, Math.min(npc.bounds.maxZ, newTargetZ));
 
                     if (npcKey === 'professor') {
-                         if (newTargetX < CONSTANTS.ALCOVE_OPENING_X_PLANE + 1 && newTargetZ > CONSTANTS.ALCOVE_Z_START -1 && newTargetZ < CONSTANTS.ALCOVE_Z_END + 1) {
-                            newTargetX = Math.max(newTargetX, CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5);
+                         if (newTargetX < CONSTANTS.ALCOVE_OPENING_X_PLANE + 2 && newTargetZ > CONSTANTS.ALCOVE_Z_START -2 && newTargetZ < CONSTANTS.ALCOVE_Z_END + 2) {
+                            newTargetX = Math.max(newTargetX, CONSTANTS.ALCOVE_OPENING_X_PLANE + 3);
                         }
                     }
                     npc.targetPos.set(newTargetX, basePaceY, newTargetZ);
@@ -885,7 +1088,20 @@ export function updateNPCs(delta, elapsedTime) {
             const head = npc.group.children.find(c => c.geometry instanceof THREE.SphereGeometry && c.material.color.getHexString() === 'ffaa55');
             if(head) head.rotation.z = Math.sin(elapsedTime * 0.8) * 0.05;
         } else if (npcKey === 'casper') {
-            npc.group.position.y = npc.basePos.y + Math.sin(elapsedTime * 1.1) * 0.08;
+            // Only bob Casper's body, not the cauldron
+            const casperBody = npc.group.children.find(c => c.name === "casper_body");
+            const leftEye = npc.group.children.find(c => c.geometry instanceof THREE.SphereGeometry && c.position.x < 0);
+            const rightEye = npc.group.children.find(c => c.geometry instanceof THREE.SphereGeometry && c.position.x > 0);
+            const leftArm = npc.group.children.find(c => c.geometry instanceof THREE.ConeGeometry && c.position.x < 0);
+            const rightArm = npc.group.children.find(c => c.geometry instanceof THREE.ConeGeometry && c.position.x > 0);
+
+            const bobAmount = Math.sin(elapsedTime * 1.1) * 0.08;
+            if (casperBody) casperBody.position.y = 0.3 + 0.8/2 * 1.3 + bobAmount;
+            if (leftEye) leftEye.position.y = 0.3 + 0.8/2 * 1.3 + 0.1 + bobAmount;
+            if (rightEye) rightEye.position.y = 0.3 + 0.8/2 * 1.3 + 0.1 + bobAmount;
+            if (leftArm) leftArm.position.y = 0.3 + 0.8/2 * 1.3 - 0.2 + bobAmount;
+            if (rightArm) rightArm.position.y = 0.3 + 0.8/2 * 1.3 - 0.2 + bobAmount;
+
             npc.group.rotation.y = Math.sin(elapsedTime * 0.4) * 0.05;
         } else if (npcKey === 'fumarase') {
             npc.group.rotation.x = Math.sin(elapsedTime * 0.5) * 0.1;
@@ -894,20 +1110,38 @@ export function updateNPCs(delta, elapsedTime) {
             // Gentle floating animation
             npc.floatTimer = elapsedTime;
             npc.group.position.y = npc.basePos.y + Math.sin(npc.floatTimer * 0.8) * 0.1;
-            
+
             // Rotate ripple rings
-            const rings = npc.group.children.filter(child => 
+            const rings = npc.group.children.filter(child =>
                 child.geometry && child.geometry.type === 'RingGeometry'
             );
             rings.forEach((ring, i) => {
                 ring.rotation.z = npc.floatTimer * (0.3 + i * 0.1);
                 ring.material.opacity = 0.3 + Math.sin(npc.floatTimer * 2 + i) * 0.1;
             });
-            
+
             // Animate particles
             const particles = npc.group.children.find(child => child.type === 'Points');
             if (particles) {
                 particles.rotation.y = npc.floatTimer * 0.2;
+            }
+        } else if (npcKey === 'nagesh') {
+            // Gentle swaying motion like tending to brewing
+            npc.group.rotation.y = Math.sin(elapsedTime * 0.5) * 0.12;
+
+            // Subtle up-down motion like stirring/pouring
+            const bodyMesh = npc.group.children.find(c => c.name === "nagesh_body");
+            if (bodyMesh) {
+                bodyMesh.position.y = 0.6 + Math.sin(elapsedTime * 0.8) * 0.02;
+            }
+
+            // Turban bean bobbing slightly
+            const turbanBean = npc.group.children.find(c =>
+                c.geometry instanceof THREE.SphereGeometry &&
+                c.scale.x > 1 && c.scale.y < 1
+            );
+            if (turbanBean) {
+                turbanBean.rotation.z = Math.sin(elapsedTime * 1.2) * 0.1;
             }
         }
     }

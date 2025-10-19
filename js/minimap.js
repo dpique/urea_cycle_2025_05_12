@@ -108,15 +108,15 @@ export function updateMinimap(player, npcs, resources) {
     };
     
     // Mitochondria zone
-    drawZone(CONSTANTS.MIN_X, -30, CONSTANTS.MITO_ZONE_MAX_X, 30, 'rgba(139, 69, 19, 0.3)');
-    
+    drawZone(CONSTANTS.MIN_X, CONSTANTS.MIN_Z, CONSTANTS.MITO_ZONE_MAX_X, CONSTANTS.MAX_Z, 'rgba(139, 69, 19, 0.3)');
+
     // Cytosol zone
-    drawZone(CONSTANTS.CYTO_ZONE_MIN_X, -30, CONSTANTS.MAX_X, 30, 'rgba(34, 139, 34, 0.3)');
-    
+    drawZone(CONSTANTS.CYTO_ZONE_MIN_X, CONSTANTS.MIN_Z, CONSTANTS.MAX_X, CONSTANTS.MAX_Z, 'rgba(34, 139, 34, 0.3)');
+
     // Draw river
     drawZone(
-        CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH/2, -30,
-        CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH/2, 30,
+        CONSTANTS.RIVER_CENTER_X - CONSTANTS.RIVER_WIDTH/2, CONSTANTS.MIN_Z,
+        CONSTANTS.RIVER_CENTER_X + CONSTANTS.RIVER_WIDTH/2, CONSTANTS.MAX_Z,
         'rgba(70, 130, 180, 0.5)'
     );
     

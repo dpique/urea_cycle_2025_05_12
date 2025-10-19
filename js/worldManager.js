@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import * as CONSTANTS from './constants.js';
 import { createTextSprite, createSimpleParticleSystem, createLightningBoltGeometry } from './utils.js';
 import { createRiverWithFlow } from './riverHelper.js';
+import { RESOURCE_SPAWNS, STATIC_OBJECTS, TREE_PLACEMENTS, getWorldPosition } from './worldLayout.js';
 // Removed initNPCs import from here, NPCs are created in npcManager.js
 
 export let collidableWalls = [];
@@ -11,6 +12,7 @@ export let resourceMeshes = [];
 export let interactiveObjects = [];
 export let originalMaterials = new Map();
 export let portalBarrier = null;
+let gateBarrier = null;
 let caveSlopePlane = null;
 let fixedAlcoveItemPositions = [];
 let bridgeMesh = null;
@@ -150,6 +152,11 @@ export function initWorld(scene) {
 
     createCaveArea(scene);
 
+    // Create Animal Graveyard with tombstones and resources
+    createAnimalGraveyard(scene);
+
+    // Nagesh's coffee brewing station is now part of his character model in npcManager.js
+
 
     const alcoveWallMaterial = new THREE.MeshStandardMaterial({ color: CONSTANTS.ROCK_COLOR, metalness: 0.1, roughness: 0.8 });
     const alcoveWallHeight = CONSTANTS.WALL_HEIGHT + CONSTANTS.CAVE_SLOPE_DROP;
@@ -212,8 +219,8 @@ export function initWorld(scene) {
     const internalWallLength = CONSTANTS.MITO_WIDTH * 0.3;
     const internalWallCenterX = CONSTANTS.MIN_X + CONSTANTS.MITO_WIDTH * 0.7;
     if (internalWallCenterX - internalWallLength/2 > CONSTANTS.ALCOVE_OPENING_X_PLANE + 1) {
-        createWall(scene, { x: internalWallCenterX, y: CONSTANTS.WALL_HEIGHT/2, z: -4 }, { x: internalWallLength, y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "H_Mito_Internal_1", alcoveWallMaterial);
-        createWall(scene, { x: internalWallCenterX, y: CONSTANTS.WALL_HEIGHT/2, z: 4 }, { x: internalWallLength, y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "H_Mito_Internal_2", alcoveWallMaterial);
+        createWall(scene, { x: internalWallCenterX, y: CONSTANTS.WALL_HEIGHT/2, z: -8 }, { x: internalWallLength, y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "H_Mito_Internal_1", alcoveWallMaterial);
+        createWall(scene, { x: internalWallCenterX, y: CONSTANTS.WALL_HEIGHT/2, z: 8 }, { x: internalWallLength, y: CONSTANTS.WALL_HEIGHT, z: CONSTANTS.WALL_THICKNESS }, 0, "H_Mito_Internal_2", alcoveWallMaterial);
     }
     // Create Professor Hepaticus's Study area
     createProfessorStudyArea(scene);
@@ -221,17 +228,23 @@ export function initWorld(scene) {
     addMitoCristae(scene);
     addCytoVesicles(scene);
 
-    // Resources now automatically use terrain height
-    createResource(scene, 'NH3', { x: CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5, z: CONSTANTS.ALCOVE_Z_END - 0.5 }, CONSTANTS.NH3_COLOR);
-    createResource(scene, 'ATP', { x: CONSTANTS.ALCOVE_OPENING_X_PLANE + 1.5, z: CONSTANTS.ALCOVE_Z_START + 0.5 }, CONSTANTS.ATP_COLOR);
-    createResource(scene, 'ATP', { x: CONSTANTS.MIN_X + 25, z: 12 }, CONSTANTS.ATP_COLOR); // Mito ATP
+    // Resources now automatically use terrain height - using zone-based positions
+    // NH3 spawn is procedural in graveyard (see spawnNH3InGraveyard)
 
-    // ATP in Cytosol - spread out more
-    createResource(scene, 'ATP', { x: CONSTANTS.CYTO_ZONE_MIN_X + 10, z: -8 }, CONSTANTS.ATP_COLOR);
+    // ATP spawns using worldLayout
+    const atpAlcovePos = getWorldPosition(RESOURCE_SPAWNS.ATP_ALCOVE);
+    createResource(scene, 'ATP', { x: atpAlcovePos.x, z: atpAlcovePos.z }, CONSTANTS.ATP_COLOR);
+
+    const atpMitoPos = getWorldPosition(RESOURCE_SPAWNS.ATP_MITO);
+    createResource(scene, 'ATP', { x: atpMitoPos.x, z: atpMitoPos.z }, CONSTANTS.ATP_COLOR);
+
+    const atpCytoPos = getWorldPosition(RESOURCE_SPAWNS.ATP_CYTO);
+    createResource(scene, 'ATP', { x: atpCytoPos.x, z: atpCytoPos.z }, CONSTANTS.ATP_COLOR);
     // Aspartate is no longer a free pickup, it comes from the shuttle
 
     // Waste Receptacle - near Argus (Arginase) for Urea disposal
-    createWasteBucket(scene, new THREE.Vector3(CONSTANTS.MAX_X - 5, 0.01, -10));
+    const wasteBucketPos = getWorldPosition(STATIC_OBJECTS.WASTE_BUCKET);
+    createWasteBucket(scene, new THREE.Vector3(wasteBucketPos.x, 0.01, wasteBucketPos.z));
 
     // NPC placement for Fumarase and Shuttle Driver will be handled by npcManager using constants
     // Example: Fumarase in Cytosol near Aslan, Shuttle near bridge Cytosol side.
@@ -332,15 +345,8 @@ function createTrees(scene) {
         createTree(scene, x, z, trunkMaterial, cytoLeafMaterial);
     }
     
-    // Add some trees in mitochondria area too
-    const mitoTreePositions = [
-        { x: CONSTANTS.MIN_X + 5, z: 10 },
-        { x: CONSTANTS.MIN_X + 25, z: -20 },
-        { x: CONSTANTS.MIN_X + 18, z: 5 },
-        { x: CONSTANTS.MIN_X + 30, z: -5 },
-    ];
-    
-    mitoTreePositions.forEach(pos => {
+    // Add some trees in mitochondria area too - using worldLayout
+    TREE_PLACEMENTS.MITO_TREES.forEach(pos => {
         createTree(scene, pos.x, pos.z, trunkMaterial, mitoLeafMaterial);
     });
     
@@ -685,6 +691,38 @@ export function createResource(scene, name, position, color, userData = {}) {
         } else if (name === 'Malate') {
             geometry = new THREE.TetrahedronGeometry(0.35, 0); // Simple shape for Malate
             material = new THREE.MeshStandardMaterial({ color: CONSTANTS.MALATE_COLOR, roughness: 0.5, metalness: 0.1 });
+        } else if (name === 'Acidic Coffin Grounds') {
+            // Dark brown coffee grounds pile
+            geometry = new THREE.SphereGeometry(0.3, 12, 8);
+            geometry.scale(1.2, 0.3, 1.2); // Flatten to look like grounds
+            material = new THREE.MeshStandardMaterial({
+                color: CONSTANTS.ACETYL_COA_COLOR,
+                roughness: 0.95,
+                metalness: 0.0
+            });
+            scale = 0.9;
+        } else if (name === 'Glutamate') {
+            // Milky white liquid/resource
+            geometry = new THREE.SphereGeometry(0.28, 12, 8);
+            material = new THREE.MeshStandardMaterial({
+                color: CONSTANTS.GLUTAMATE_COLOR,
+                transparent: true,
+                opacity: 0.8,
+                roughness: 0.1,
+                metalness: 0.0,
+                emissive: CONSTANTS.GLUTAMATE_COLOR,
+                emissiveIntensity: 0.2
+            });
+        } else if (name === "Nagesh's Coffee" || name === 'NAG') {
+            // Coffee-colored steaming cup
+            geometry = new THREE.CylinderGeometry(0.2, 0.18, 0.3, 8);
+            material = new THREE.MeshStandardMaterial({
+                color: CONSTANTS.NAG_COLOR,
+                roughness: 0.6,
+                metalness: 0.1,
+                emissive: CONSTANTS.NAG_COLOR,
+                emissiveIntensity: 0.1
+            });
         }
          else {
             geometry = new THREE.SphereGeometry(0.3, 8, 6);
@@ -756,42 +794,95 @@ export function createResource(scene, name, position, color, userData = {}) {
 }
 
 function createCavaShrine(scene, position) {
+    // Calvin - The Chemist (Carbonic Anhydrase VA personified)
     const group = new THREE.Group();
     const terrainHeight = getTerrainHeightAt(position.x, position.z);
     const stationBaseY = position.yBase !== undefined ? position.yBase : terrainHeight;
     group.position.set(position.x, stationBaseY, position.z);
 
-    const pedestalMat = new THREE.MeshStandardMaterial({ color: CONSTANTS.ROCK_COLOR, roughness: 0.8 });
-    const pedestalHeight = 0.8;
-    const pedestalGeo = new THREE.CylinderGeometry(0.6, 0.8, pedestalHeight, 8);
-    const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
-    pedestal.position.y = pedestalHeight / 2;
-    pedestal.castShadow = true; pedestal.receiveShadow = true;
-    group.add(pedestal);
+    // Lab coat white material
+    const labCoatMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.6 });
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xffe0b3, roughness: 0.5 });
 
-    const crystalMat = new THREE.MeshStandardMaterial({
+    // Body (lab coat)
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 1.0, 8), labCoatMat);
+    body.position.y = 0.5;
+    body.name = "calvin_body";
+    body.castShadow = true;
+    group.add(body);
+
+    // Head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), skinMat);
+    head.position.y = 1.22;
+    head.castShadow = true;
+    group.add(head);
+
+    // Eyes
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 4), eyeMat);
+    leftEye.position.set(-0.08, 1.25, 0.18);
+    group.add(leftEye);
+    const rightEye = leftEye.clone();
+    rightEye.position.x = 0.08;
+    group.add(rightEye);
+
+    // Safety goggles
+    const gogglesMat = new THREE.MeshStandardMaterial({
+        color: 0x88ccff,
+        transparent: true,
+        opacity: 0.6,
+        metalness: 0.3
+    });
+    const leftGoggle = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 12), gogglesMat);
+    leftGoggle.position.set(-0.08, 1.25, 0.16);
+    leftGoggle.rotation.x = Math.PI / 2;
+    group.add(leftGoggle);
+    const rightGoggle = leftGoggle.clone();
+    rightGoggle.position.x = 0.08;
+    group.add(rightGoggle);
+
+    // Arms
+    const armGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.5, 6);
+    const leftArm = new THREE.Mesh(armGeo, labCoatMat);
+    leftArm.position.set(-0.28, 0.7, 0);
+    leftArm.rotation.z = Math.PI / 4;
+    group.add(leftArm);
+    const rightArm = leftArm.clone();
+    rightArm.position.x = 0.28;
+    rightArm.rotation.z = -Math.PI / 4;
+    group.add(rightArm);
+
+    // Beaker/flask in hand (holding water & CO2)
+    const beakerMat = new THREE.MeshStandardMaterial({
+        color: 0x88ddff,
+        transparent: true,
+        opacity: 0.7
+    });
+    const beaker = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.25, 8), beakerMat);
+    beaker.position.set(0.35, 0.45, 0);
+    group.add(beaker);
+
+    // Glowing liquid inside beaker
+    const liquidMat = new THREE.MeshStandardMaterial({
         color: CONSTANTS.CAVA_SHRINE_CRYSTAL_COLOR,
         emissive: CONSTANTS.CAVA_SHRINE_CRYSTAL_COLOR,
-        emissiveIntensity: 0.5,
+        emissiveIntensity: 0.4,
         transparent: true,
-        opacity: 0.85,
-        roughness: 0.2
+        opacity: 0.6
     });
-    const crystalGeo = new THREE.OctahedronGeometry(0.45, 0);
-    const crystal = new THREE.Mesh(crystalGeo, crystalMat);
-    crystal.position.y = pedestalHeight + 0.35;
-    crystal.castShadow = true;
-    crystal.name = "cava_crystal_highlight";
-    group.add(crystal);
+    const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.095, 0.15, 8), liquidMat);
+    liquid.position.set(0.35, 0.4, 0);
+    group.add(liquid);
 
-    const light = new THREE.PointLight(CONSTANTS.CAVA_SHRINE_CRYSTAL_COLOR, 0.7, 3);
-    light.position.y = crystal.position.y;
+    // Subtle light from beaker
+    const light = new THREE.PointLight(CONSTANTS.CAVA_SHRINE_CRYSTAL_COLOR, 0.5, 2);
+    light.position.set(0.35, 0.45, 0);
     group.add(light);
 
     group.userData = {
         type: 'station',
-        name: "CAVA Shrine",
-        mainMesh: crystal,
+        name: "Calvin",
+        mainMesh: body,
         requires: { 'Water': 1, 'CO2': 1 },
         produces: 'Bicarbonate',
         productColors: { 'Bicarbonate': CONSTANTS.BICARBONATE_COLOR },
@@ -800,8 +891,8 @@ function createCavaShrine(scene, position) {
     };
     scene.add(group);
     interactiveObjects.push(group);
-    originalMaterials.set(crystal, crystal.material.clone());
-    const label = createTextSprite("CAVA Shrine", { x: position.x, y: stationBaseY + pedestalHeight + 0.9, z: position.z }, { fontSize: 36, scale: 0.65 });
+    originalMaterials.set(body, labCoatMat.clone());
+    const label = createTextSprite("Calvin (CAVA)", { x: position.x, y: stationBaseY + 1.6, z: position.z }, { fontSize: 36, scale: 0.65 });
     scene.add(label);
     return group;
 }
@@ -1004,6 +1095,449 @@ function createWasteBucket(scene, position) {
 }
 
 
+// Create graveyard gate at south entrance
+function createGraveyardGate(scene) {
+    // Gate position at south entrance - flush with fence line
+    const gateX = CONSTANTS.GRAVEYARD_CENTER_X;
+    const minZ = CONSTANTS.GRAVEYARD_CENTER_Z - CONSTANTS.GRAVEYARD_DEPTH / 2 - 1;
+    const gateZ = minZ; // Perfectly aligned with fence
+    const terrainHeight = getTerrainHeightAt(gateX, gateZ);
+
+    const gateGroup = new THREE.Group();
+    gateGroup.position.set(gateX, terrainHeight, gateZ);
+
+    // Gate posts
+    const postMaterial = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.8 });
+    const postGeometry = new THREE.CylinderGeometry(0.15, 0.15, 2.5, 8);
+
+    const leftPost = new THREE.Mesh(postGeometry, postMaterial);
+    leftPost.position.set(-2, 1.25, 0);
+    leftPost.castShadow = true;
+    gateGroup.add(leftPost);
+
+    const rightPost = new THREE.Mesh(postGeometry, postMaterial);
+    rightPost.position.set(2, 1.25, 0);
+    rightPost.castShadow = true;
+    gateGroup.add(rightPost);
+
+    // Gate door (initially closed)
+    const gateMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.7 });
+    const gateDoor = new THREE.Mesh(new THREE.BoxGeometry(3.8, 2, 0.1), gateMaterial);
+    gateDoor.position.set(0, 1, 0);
+    gateDoor.castShadow = true;
+    gateDoor.name = "gate_door";
+    gateGroup.add(gateDoor);
+
+    // Arch above gate
+    const archMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.6 });
+    const archGeometry = new THREE.TorusGeometry(2.2, 0.15, 8, 16, Math.PI);
+    const arch = new THREE.Mesh(archGeometry, archMaterial);
+    arch.position.set(0, 2.5, 0);
+    arch.rotation.x = Math.PI / 2;
+    arch.castShadow = true;
+    gateGroup.add(arch);
+
+    // Sign on gate
+    const signGeometry = new THREE.BoxGeometry(3, 0.6, 0.05);
+    const signMaterial = new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 0.8 });
+    const sign = new THREE.Mesh(signGeometry, signMaterial);
+    sign.position.set(0, 3, 0);
+    sign.castShadow = true;
+    gateGroup.add(sign);
+
+    const label = createTextSprite("Amino Acid Animal Graveyard",
+        { x: gateX, y: terrainHeight + 3.2, z: gateZ },
+        { fontSize: 28, scale: 0.5 }
+    );
+    scene.add(label);
+
+    scene.add(gateGroup);
+
+    // Add collision barrier for closed gate
+    const gateBarrierGeometry = new THREE.BoxGeometry(4, 2.5, 0.5);
+    const gateBarrierMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2a2a2a,
+        transparent: true,
+        opacity: 0 // Invisible collision
+    });
+    gateBarrier = new THREE.Mesh(gateBarrierGeometry, gateBarrierMaterial);
+    gateBarrier.position.set(gateX, terrainHeight + 1.25, gateZ);
+    gateBarrier.name = "GateBarrier";
+    scene.add(gateBarrier);
+    addCollidableWall(gateBarrier);
+
+    // Add gate to interactive objects
+    gateGroup.userData = {
+        type: 'gate',
+        name: 'Graveyard Gate',
+        mainMesh: gateDoor,
+        isOpen: false
+    };
+    interactiveObjects.push(gateGroup);
+    originalMaterials.set(gateDoor, gateMaterial.clone());
+}
+
+// Create Animal Graveyard with tombstones and ammonia
+function createAnimalGraveyard(scene) {
+    // Position tombstones in a grid-like pattern within the graveyard area
+    const rows = 5;
+    const cols = 4;
+    const spacing = CONSTANTS.GRAVEYARD_WIDTH / (cols + 1);
+    const depthSpacing = CONSTANTS.GRAVEYARD_DEPTH / (rows + 1);
+
+    let aaIndex = 0;
+
+    // Create tombstones for all 20 amino acids
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            if (aaIndex >= CONSTANTS.AMINO_ACIDS.length) break;
+
+            const aa = CONSTANTS.AMINO_ACIDS[aaIndex];
+            const x = CONSTANTS.GRAVEYARD_CENTER_X - CONSTANTS.GRAVEYARD_WIDTH / 2 + (col + 1) * spacing;
+            const z = CONSTANTS.GRAVEYARD_CENTER_Z - CONSTANTS.GRAVEYARD_DEPTH / 2 + (row + 1) * depthSpacing;
+
+            // Add some random offset for natural look
+            const offsetX = (Math.random() - 0.5) * spacing * 0.3;
+            const offsetZ = (Math.random() - 0.5) * depthSpacing * 0.3;
+
+            createTombstone(scene, aa, new THREE.Vector3(x + offsetX, 0, z + offsetZ));
+
+            aaIndex++;
+        }
+    }
+
+    // Create ammonia particles scattered around the graveyard
+    const numAmmoniaParticles = 5;
+    for (let i = 0; i < numAmmoniaParticles; i++) {
+        const x = CONSTANTS.GRAVEYARD_CENTER_X + (Math.random() - 0.5) * CONSTANTS.GRAVEYARD_WIDTH * 0.8;
+        const z = CONSTANTS.GRAVEYARD_CENTER_Z + (Math.random() - 0.5) * CONSTANTS.GRAVEYARD_DEPTH * 0.8;
+
+        createResource(scene, 'NH3', { x, z }, CONSTANTS.NH3_COLOR);
+
+        // Add green/yellow stinky particle effects
+        const terrainHeight = getTerrainHeightAt(x, z);
+        const particlePos = new THREE.Vector3(x, terrainHeight + 0.3, z);
+        createSimpleParticleSystem(scene, 10, 0xaaff88, 0.04, 0.15, 2.0, particlePos, new THREE.Vector3(0.15, 0.1, 0.15));
+    }
+
+    // Create Acidic Coffin Grounds (acetyl-CoA) resources near specific tombstones
+    const acetylCoATombstones = CONSTANTS.AMINO_ACIDS.filter(aa => aa.producesAcetylCoA);
+    acetylCoATombstones.forEach((aa, index) => {
+        // Find the tombstone position (roughly)
+        const baseX = CONSTANTS.GRAVEYARD_CENTER_X - CONSTANTS.GRAVEYARD_WIDTH / 2;
+        const baseZ = CONSTANTS.GRAVEYARD_CENTER_Z - CONSTANTS.GRAVEYARD_DEPTH / 2;
+        const aaFullIndex = CONSTANTS.AMINO_ACIDS.indexOf(aa);
+        const row = Math.floor(aaFullIndex / 4);
+        const col = aaFullIndex % 4;
+        const x = baseX + (col + 1) * spacing + 0.8;
+        const z = baseZ + (row + 1) * depthSpacing;
+
+        createResource(scene, 'Acidic Coffin Grounds', { x, z }, CONSTANTS.ACETYL_COA_COLOR);
+    });
+
+    // Create graveyard gate at south entrance
+    createGraveyardGate(scene);
+
+    // Create spectral ghouls (for Glutamine/Ghoul Milk) - placed at edges
+    const ghoulPositions = [
+        // North edge
+        {
+            x: CONSTANTS.GRAVEYARD_CENTER_X - CONSTANTS.GRAVEYARD_WIDTH * 0.35,
+            z: CONSTANTS.GRAVEYARD_CENTER_Z + CONSTANTS.GRAVEYARD_DEPTH * 0.4
+        },
+        // South edge
+        {
+            x: CONSTANTS.GRAVEYARD_CENTER_X + CONSTANTS.GRAVEYARD_WIDTH * 0.35,
+            z: CONSTANTS.GRAVEYARD_CENTER_Z - CONSTANTS.GRAVEYARD_DEPTH * 0.4
+        },
+        // East edge
+        {
+            x: CONSTANTS.GRAVEYARD_CENTER_X + CONSTANTS.GRAVEYARD_WIDTH * 0.4,
+            z: CONSTANTS.GRAVEYARD_CENTER_Z + CONSTANTS.GRAVEYARD_DEPTH * 0.2
+        }
+    ];
+
+    ghoulPositions.forEach(pos => {
+        createSpectralGhoul(scene, new THREE.Vector3(pos.x, 0, pos.z));
+    });
+
+    // Add graveyard fence
+    createGraveyardFence(scene);
+
+    // Add spooky lighting
+    const graveyardLight = new THREE.PointLight(0x88ff88, 0.4, 15);
+    const terrainHeight = getTerrainHeightAt(CONSTANTS.GRAVEYARD_CENTER_X, CONSTANTS.GRAVEYARD_CENTER_Z);
+    graveyardLight.position.set(CONSTANTS.GRAVEYARD_CENTER_X, terrainHeight + 3, CONSTANTS.GRAVEYARD_CENTER_Z);
+    scene.add(graveyardLight);
+}
+
+// Create individual tombstone with style based on amino acid type
+function createTombstone(scene, aminoAcid, position) {
+    const terrainHeight = getTerrainHeightAt(position.x, position.z);
+    const group = new THREE.Group();
+    group.position.set(position.x, terrainHeight, position.z);
+
+    // Different tombstone styles based on type
+    let stoneMaterial, tombstoneGeo, tombstoneHeight;
+
+    if (aminoAcid.type === 'glucogenic') {
+        // Rounded top tombstone for glucogenic
+        stoneMaterial = new THREE.MeshStandardMaterial({
+            color: 0x888888,
+            roughness: 0.9,
+            metalness: 0.1
+        });
+        tombstoneHeight = 1.2;
+        const stoneWidth = 0.8;
+        const stoneDepth = 0.15;
+
+        // Create rounded tombstone shape
+        const shape = new THREE.Shape();
+        const width = stoneWidth / 2;
+        const height = tombstoneHeight;
+
+        shape.moveTo(-width, 0);
+        shape.lineTo(-width, height * 0.7);
+        shape.quadraticCurveTo(-width, height, 0, height);
+        shape.quadraticCurveTo(width, height, width, height * 0.7);
+        shape.lineTo(width, 0);
+        shape.lineTo(-width, 0);
+
+        const extrudeSettings = { depth: stoneDepth, bevelEnabled: false };
+        tombstoneGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+
+    } else if (aminoAcid.type === 'ketogenic') {
+        // Pointed/obelisk style for ketogenic
+        stoneMaterial = new THREE.MeshStandardMaterial({
+            color: 0x666666,
+            roughness: 0.85,
+            metalness: 0.2
+        });
+        tombstoneHeight = 1.5;
+        tombstoneGeo = new THREE.ConeGeometry(0.3, tombstoneHeight, 4);
+
+    } else {
+        // Cross shape for both glucogenic and ketogenic
+        stoneMaterial = new THREE.MeshStandardMaterial({
+            color: 0x777777,
+            roughness: 0.87,
+            metalness: 0.15
+        });
+        tombstoneHeight = 1.3;
+
+        // Create cross shape
+        const crossGroup = new THREE.Group();
+        const verticalBar = new THREE.Mesh(
+            new THREE.BoxGeometry(0.2, tombstoneHeight, 0.15),
+            stoneMaterial
+        );
+        verticalBar.position.y = tombstoneHeight / 2;
+        crossGroup.add(verticalBar);
+
+        const horizontalBar = new THREE.Mesh(
+            new THREE.BoxGeometry(0.7, 0.2, 0.15),
+            stoneMaterial
+        );
+        horizontalBar.position.y = tombstoneHeight * 0.7;
+        crossGroup.add(horizontalBar);
+
+        crossGroup.position.y = 0;
+        group.add(crossGroup);
+
+        // Add label
+        const label = createTextSprite(aminoAcid.animalName,
+            { x: position.x, y: terrainHeight + 0.3, z: position.z + 0.3 },
+            { fontSize: 24, scale: 0.35, textColor: 'rgba(200, 200, 200, 0.9)' }
+        );
+        scene.add(label);
+
+        scene.add(group);
+        return;
+    }
+
+    const tombstone = new THREE.Mesh(tombstoneGeo, stoneMaterial);
+
+    if (aminoAcid.type === 'glucogenic') {
+        tombstone.rotation.y = Math.PI / 2;
+        tombstone.position.y = 0.01; // Just slightly above ground to prevent z-fighting
+    } else if (aminoAcid.type === 'ketogenic') {
+        tombstone.position.y = tombstoneHeight / 2; // Cone needs to be centered
+    }
+
+    tombstone.castShadow = true;
+    tombstone.receiveShadow = true;
+    group.add(tombstone);
+
+    // Add label
+    const label = createTextSprite(aminoAcid.animalName,
+        { x: position.x, y: terrainHeight + 0.3, z: position.z + 0.3 },
+        { fontSize: 24, scale: 0.35, textColor: 'rgba(200, 200, 200, 0.9)' }
+    );
+    scene.add(label);
+
+    scene.add(group);
+}
+
+// Create spectral ghoul for Ghoul Milk
+function createSpectralGhoul(scene, position) {
+    const terrainHeight = getTerrainHeightAt(position.x, position.z);
+    const group = new THREE.Group();
+    group.position.set(position.x, terrainHeight, position.z);
+
+    // Ghostly body
+    const ghoulMaterial = new THREE.MeshStandardMaterial({
+        color: 0xe8e8e8,
+        transparent: true,
+        opacity: 0.6,
+        emissive: 0xe8e8e8,
+        emissiveIntensity: 0.3,
+        roughness: 0.3
+    });
+
+    const body = new THREE.Mesh(
+        new THREE.SphereGeometry(0.4, 8, 6),
+        ghoulMaterial
+    );
+    body.position.y = 0.8;
+    body.scale.set(1, 1.3, 1);
+    group.add(body);
+
+    // Floating eyes
+    const eyeMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        emissive: 0x00ff00,
+        emissiveIntensity: 1
+    });
+
+    const leftEye = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 6, 4),
+        eyeMaterial
+    );
+    leftEye.position.set(-0.15, 0.9, 0.35);
+    group.add(leftEye);
+
+    const rightEye = leftEye.clone();
+    rightEye.position.x = 0.15;
+    group.add(rightEye);
+
+    // Add Glutamate resource nearby
+    createResource(scene, 'Glutamate', { x: position.x + 0.5, z: position.z }, CONSTANTS.GLUTAMATE_COLOR);
+
+    scene.add(group);
+
+    // Animate ghoul floating
+    group.userData.floatPhase = Math.random() * Math.PI * 2;
+}
+
+// Create fence around graveyard
+function createGraveyardFence(scene) {
+    const fenceMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2a2a2a,
+        roughness: 0.8
+    });
+
+    const fenceHeight = 1.0;
+    const postRadius = 0.08;
+    const railHeight = 0.08;
+    const spacing = 2.5;
+
+    // Create fence posts and rails around perimeter
+    const minX = CONSTANTS.GRAVEYARD_CENTER_X - CONSTANTS.GRAVEYARD_WIDTH / 2 - 1;
+    const maxX = CONSTANTS.GRAVEYARD_CENTER_X + CONSTANTS.GRAVEYARD_WIDTH / 2 + 1;
+    const minZ = CONSTANTS.GRAVEYARD_CENTER_Z - CONSTANTS.GRAVEYARD_DEPTH / 2 - 1;
+    const maxZ = CONSTANTS.GRAVEYARD_CENTER_Z + CONSTANTS.GRAVEYARD_DEPTH / 2 + 1;
+
+    // North and South fences
+    for (let x = minX; x <= maxX; x += spacing) {
+        [minZ, maxZ].forEach(z => {
+            const terrainHeight = getTerrainHeightAt(x, z);
+            const post = new THREE.Mesh(
+                new THREE.CylinderGeometry(postRadius, postRadius, fenceHeight, 6),
+                fenceMaterial
+            );
+            post.position.set(x, terrainHeight + fenceHeight / 2, z);
+            post.castShadow = true;
+            scene.add(post);
+        });
+    }
+
+    // East and West fences
+    for (let z = minZ; z <= maxZ; z += spacing) {
+        [minX, maxX].forEach(x => {
+            const terrainHeight = getTerrainHeightAt(x, z);
+            const post = new THREE.Mesh(
+                new THREE.CylinderGeometry(postRadius, postRadius, fenceHeight, 6),
+                fenceMaterial
+            );
+            post.position.set(x, terrainHeight + fenceHeight / 2, z);
+            post.castShadow = true;
+            scene.add(post);
+        });
+    }
+
+    // Add collision barriers around the fence perimeter
+    const barrierHeight = 2.5; // Tall enough to prevent jumping over
+    const barrierThickness = 0.5;
+
+    // Gate is at south side, centered at gateX with ~4 unit opening
+    // Gate door width is 3.8, posts are 0.3 diameter (0.15 radius), gate opening is approximately 4.1 units
+    const gateWidth = 4.1; // Width of gate opening (slightly wider to account for post diameter)
+
+    // North barrier (full length)
+    createWall(scene,
+        { x: CONSTANTS.GRAVEYARD_CENTER_X, y: barrierHeight / 2, z: maxZ },
+        { x: CONSTANTS.GRAVEYARD_WIDTH + 2, y: barrierHeight, z: barrierThickness },
+        0, "GraveyardFenceNorth",
+        new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8, metalness: 0.1 }), // Visible dark fence
+        true
+    );
+
+    // East barrier (full length)
+    createWall(scene,
+        { x: maxX, y: barrierHeight / 2, z: CONSTANTS.GRAVEYARD_CENTER_Z },
+        { x: barrierThickness, y: barrierHeight, z: CONSTANTS.GRAVEYARD_DEPTH + 2 },
+        0, "GraveyardFenceEast",
+        new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8, metalness: 0.1 }), // Visible dark fence
+        true
+    );
+
+    // West barrier (full length)
+    createWall(scene,
+        { x: minX, y: barrierHeight / 2, z: CONSTANTS.GRAVEYARD_CENTER_Z },
+        { x: barrierThickness, y: barrierHeight, z: CONSTANTS.GRAVEYARD_DEPTH + 2 },
+        0, "GraveyardFenceWest",
+        new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8, metalness: 0.1 }), // Visible dark fence
+        true
+    );
+
+    // South barrier - split into two sections (left and right of gate)
+    const southZ = minZ;
+    // Account for the +2 buffer in fence width (±1 on each side)
+    const totalFenceWidth = CONSTANTS.GRAVEYARD_WIDTH + 2;
+    const leftSectionWidth = (totalFenceWidth / 2) - (gateWidth / 2);
+    const rightSectionWidth = leftSectionWidth;
+
+    // Left section of south fence (west side of gate)
+    createWall(scene,
+        { x: minX + leftSectionWidth / 2, y: barrierHeight / 2, z: southZ },
+        { x: leftSectionWidth, y: barrierHeight, z: barrierThickness },
+        0, "GraveyardFenceSouthLeft",
+        new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8, metalness: 0.1 }), // Visible dark fence
+        true
+    );
+
+    // Right section of south fence (east side of gate)
+    createWall(scene,
+        { x: maxX - rightSectionWidth / 2, y: barrierHeight / 2, z: southZ },
+        { x: rightSectionWidth, y: barrierHeight, z: barrierThickness },
+        0, "GraveyardFenceSouthRight",
+        new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8, metalness: 0.1 }), // Visible dark fence
+        true
+    );
+}
+
+// createNageshStation removed - brewing station is now part of Nagesh's character model in npcManager.js
+
 function createORNT1Portal(scene) {
     const portalGeometry = new THREE.TorusGeometry(1.8, 0.35, 8, 24); // Ring shape
     const portalMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00aaaa, roughness: 0.4, metalness: 0.6, side: THREE.DoubleSide });
@@ -1071,6 +1605,27 @@ export function removePortalBarrierFromWorld(scene) {
         portalBarrier.geometry.dispose();
         portalBarrier.material.dispose();
         portalBarrier = null;
+        return true;
+    }
+    return false;
+}
+
+export function removeGateBarrierFromWorld(scene) {
+    if (gateBarrier && gateBarrier.parent === scene) {
+        const barrierIndex = collidableWalls.indexOf(gateBarrier);
+        if (barrierIndex > -1) collidableWalls.splice(barrierIndex, 1);
+
+        const boxIndexToRemove = wallBoundingBoxes.findIndex(box => {
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            return center.distanceToSquared(gateBarrier.position) < 0.1;
+        });
+        if (boxIndexToRemove > -1) wallBoundingBoxes.splice(boxIndexToRemove, 1);
+
+        scene.remove(gateBarrier);
+        gateBarrier.geometry.dispose();
+        gateBarrier.material.dispose();
+        gateBarrier = null;
         return true;
     }
     return false;
@@ -1167,16 +1722,19 @@ export function updateResourceHover(elapsedTime) {
     const hoverAmount = 0.2;
     resourceMeshes.forEach((resource, index) => {
         if (resource?.parent && resource.userData?.initialY !== undefined) {
-            // Bicarbonate doesn't hover but sparkles
+            // Bicarbonate and Acidic Coffin Grounds don't hover
             if (resource.userData.name === 'Bicarbonate') {
                 // Keep it on ground
                 resource.position.y = resource.userData.initialY;
-                
+
                 // Sparkle effect through emissive intensity
                 if (resource.material && resource.material.emissive) {
                     const sparkle = Math.sin(elapsedTime * 4 + index) * 0.5 + 0.5;
                     resource.material.emissiveIntensity = 0.05 + sparkle * 0.1;
                 }
+            } else if (resource.userData.name === 'Acidic Coffin Grounds') {
+                // Keep Acidic Coffin Grounds on ground (they're stealing from graves, they shouldn't float!)
+                resource.position.y = resource.userData.initialY;
             } else {
                 // Normal hover for other resources
                 const yPos = resource.userData.initialY + Math.sin(elapsedTime * hoverSpeed + index * 0.5) * hoverAmount;
@@ -1214,7 +1772,7 @@ export function removeResourceFromWorld(resourceObject) {
 
 // Create a terrain section with RuneScape-style tiles
 function createTerrainSection(scene, startX, width, tilesX, tilesZ, material, zone) {
-    const depth = 60; // Z depth of terrain
+    const depth = CONSTANTS.TOTAL_DEPTH; // Z depth of terrain
     const geometry = new THREE.PlaneGeometry(width, depth, tilesX - 1, tilesZ - 1);
     
     // Apply height variation and vertex colors

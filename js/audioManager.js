@@ -126,6 +126,28 @@ export function stopBackgroundMusic() {
     backgroundMusic = null;
 }
 
+export function toggleMuteMusic() {
+    if (!backgroundMusic) return false;
+
+    const masterGain = backgroundMusic.masterGain;
+    const currentVolume = masterGain.gain.value;
+
+    if (currentVolume > 0) {
+        // Mute
+        masterGain.gain.value = 0;
+        return true; // Music is now muted
+    } else {
+        // Unmute
+        masterGain.gain.value = 0.02;
+        return false; // Music is now playing
+    }
+}
+
+export function isMusicMuted() {
+    if (!backgroundMusic) return false;
+    return backgroundMusic.masterGain.gain.value === 0;
+}
+
 export function playPortalCelebration() {
     const audioContext = getAudioContext();
     const masterGain = audioContext.createGain(); masterGain.gain.value = 0.1; masterGain.connect(audioContext.destination);
