@@ -88,7 +88,6 @@ export function advanceUreaCycleQuest(newState) {
     const currentQuest = getCurrentQuest();
     if (currentQuest && currentQuest.id === ureaCycleQuestData.id && currentQuest.state !== newState) {
         advanceCurrentQuestState(newState);
-        console.log(`Advancing quest ${ureaCycleQuestData.id} from ${currentQuest.state} to ${newState}`);
 
         const objectiveText = ureaCycleQuestData.objectives[newState];
         if (newState === CONSTANTS.QUEST_STATE.COMPLETED) {
