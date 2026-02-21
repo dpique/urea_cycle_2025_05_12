@@ -28,9 +28,8 @@ export function initUIManager() {
     helpMenuEl = document.getElementById('helpMenu');
     glossaryEl = document.getElementById('glossary');
 
-    const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) loadingScreen.classList.add('hidden');
-    
+    // Loading screen is now hidden by main.js after all init completes
+
     // Make toggleHelpMenu and toggleGlossary globally available
     window.toggleHelpMenu = toggleHelpMenu;
     window.toggleGlossary = toggleGlossary;

@@ -16,6 +16,7 @@ import { saveGame, loadGame } from './js/persistenceManager.js';
 import { handlePlayerDeath } from './js/gameManager.js';
 import { initCycleDisplay, updateCycleDisplay } from './js/cycleDisplay.js';
 import { NPC_LAYOUT, STATIC_OBJECTS, RESOURCE_SPAWNS, getWorldPosition } from './js/worldLayout.js';
+import { initTouchControls } from './js/touchControls.js';
 
 export const dialogueBox = document.getElementById('dialogueBox');
 export const realityRiverUI = document.getElementById('realityRiver');
@@ -34,18 +35,60 @@ function isInGraveyard(pos) {
     return pos.x > gMinX && pos.x < gMaxX && pos.z > gMinZ && pos.z < gMaxZ;
 }
 
-const canvasElement = document.getElementById('gameCanvas');
-initScene(canvasElement);
-initUIManager(); 
-initPlayer(scene);
-initWorld(scene);
-initNPCs(scene);
-initQuests();
-initMinimap();
-initCycleDisplay();
+// --- Loading progress helpers ---
+const loadingBar = document.getElementById('loadingBar');
+const loadingStatus = document.getElementById('loadingStatus');
+function setLoadProgress(pct, msg) {
+    if (loadingBar) loadingBar.style.width = pct + '%';
+    if (loadingStatus) loadingStatus.textContent = msg;
+}
 
-// Initialize quest marker system
-createQuestMarker();
+// --- Error boundary ---
+function showFatalError(err) {
+    const errorScreen = document.getElementById('errorScreen');
+    const errorMessage = document.getElementById('errorMessage');
+    if (errorScreen && errorMessage) {
+        errorMessage.textContent = String(err?.message || err);
+        errorScreen.classList.remove('hidden');
+    }
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) loadingScreen.classList.add('hidden');
+}
+window.addEventListener('error', (e) => showFatalError(e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => showFatalError(e.reason));
+
+// --- Initialize game systems with progress tracking ---
+try {
+    setLoadProgress(5, 'Setting up scene...');
+    const canvasElement = document.getElementById('gameCanvas');
+    initScene(canvasElement);
+
+    setLoadProgress(15, 'Loading UI...');
+    initUIManager();
+
+    setLoadProgress(25, 'Creating player...');
+    initPlayer(scene);
+
+    setLoadProgress(40, 'Building world...');
+    initWorld(scene);
+
+    setLoadProgress(65, 'Spawning NPCs...');
+    initNPCs(scene);
+
+    setLoadProgress(80, 'Setting up quests...');
+    initQuests();
+    initMinimap();
+    initCycleDisplay();
+    initTouchControls();
+
+    setLoadProgress(95, 'Almost ready...');
+
+    // Initialize quest marker system
+    createQuestMarker();
+} catch (err) {
+    showFatalError(err);
+    throw err; // re-throw so the module stops
+}
 
 
 function setupExternalLinks() {
@@ -206,6 +249,11 @@ function getQuestTargetPosition() {
             // Point to Professor Hepaticus when quest hasn't started yet
             targetNPC = npcs.find(npc => npc.userData.name === CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS);
             break;
+
+        case CONSTANTS.QUEST_STATE.STEP_0_MEET_CASPER:
+            // Point to Casper at the graveyard
+            targetNPC = npcs.find(npc => npc.userData.name === CONSTANTS.NPC_NAMES.CASPER_CPS1);
+            break;
             
         case CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2:
             // Point to Calvin (he will tell you about Water)
@@ -284,6 +332,36 @@ function getQuestTargetPosition() {
             const atpAlcovePos = getWorldPosition(RESOURCE_SPAWNS.ATP_ALCOVE);
             return new THREE.Vector3(atpAlcovePos.x, 0, atpAlcovePos.z);
             
+        case CONSTANTS.QUEST_STATE.STEP_1C_CASPER_NEEDS_COFFEE:
+            targetNPC = npcs.find(npc => npc.userData.name === CONSTANTS.NPC_NAMES.CASPER_CPS1);
+            break;
+
+        case CONSTANTS.QUEST_STATE.STEP_1D_TALK_TO_NAGESH:
+        case CONSTANTS.QUEST_STATE.STEP_1G_NAGESH_MAKES_NAG:
+            targetNPC = npcs.find(npc => npc.userData.name === CONSTANTS.NPC_NAMES.NAGESH_NAGS);
+            break;
+
+        case CONSTANTS.QUEST_STATE.STEP_1E_COLLECT_COFFIN_GROUNDS: {
+            const coffinGrounds = interactiveObjects.find(obj => obj.userData.name === 'Acidic Coffin Grounds');
+            if (coffinGrounds) return coffinGrounds.position;
+            const graveyardPos2 = getWorldPosition({ zone: 'GRAVEYARD', offset: { x: 0, z: 0 } });
+            return new THREE.Vector3(graveyardPos2.x, 0, graveyardPos2.z);
+        }
+
+        case CONSTANTS.QUEST_STATE.STEP_1F_COLLECT_GLUTAMINE: {
+            const glutamate = interactiveObjects.find(obj => obj.userData.name === 'Glutamate');
+            if (glutamate) return glutamate.position;
+            const graveyardPos3 = getWorldPosition({ zone: 'GRAVEYARD', offset: { x: 0, z: 0 } });
+            return new THREE.Vector3(graveyardPos3.x, 0, graveyardPos3.z);
+        }
+
+        case CONSTANTS.QUEST_STATE.STEP_1H_COLLECT_NAG: {
+            const nag = interactiveObjects.find(obj => obj.userData.name === "Nagesh's Coffee");
+            if (nag) return nag.position;
+            targetNPC = npcs.find(npc => npc.userData.name === CONSTANTS.NPC_NAMES.NAGESH_NAGS);
+            break;
+        }
+
         case CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS:
             targetNPC = npcs.find(npc => npc.userData.name === CONSTANTS.NPC_NAMES.CASPER_CPS1);
             break;
@@ -595,6 +673,13 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-getAudioContext(); 
+getAudioContext();
+
+// Hide loading screen and start game loop
+setLoadProgress(100, 'Ready!');
+const loadingScreenEl = document.getElementById('loadingScreen');
+if (loadingScreenEl) {
+    setTimeout(() => loadingScreenEl.classList.add('hidden'), 300);
+}
+
 animate();
-// Metabolon RPG Initialized
