@@ -546,46 +546,41 @@ export function interactWithObject(object, scene) {
             }
         }
         else if (userData.name === CONSTANTS.NPC_NAMES.OTIS_OTC) {
-            const dialogueTitle = "Otis the Ogre (OTC)";
-            const educationalBlurb = "ROAR! Er, I mean... hello there! I'm Otis the Ogre, and I represent Ornithine Transcarbamoylase. Don't let my green complexion scare ya! My job here in the mitochondria is SMASHING molecules together - with my POWERFUL HANDS, I take Carbamoyl Phosphate and Ornithine and SMUSH them into Citrulline! It's ogre-ly satisfying work!";
-            const actionButtonText = `SMASH them together!`;
-
             if (!currentQuest || currentQuest.state !== userData.requiredQuestState) {
-                showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nBut hold on there, buddy! It's not the right time for my ogre strength. Your quest says: ${currentQuest?.objectives[currentQuest.state] || "Start with Professor Hepaticus."}`, [{ text: "Got it, Otis!" }], setGameInteracting);
+                showDialogue("ROAR! Er, I mean... hello! I'm Otis the Ogre (OTC). Not the right time for smashing though — check your quest!", [{ text: "Got it, Otis!" }], setGameInteracting);
                 return;
             }
             if (!hasRequiredItems(userData.requires)) {
                 let missing = Object.keys(userData.requires).filter(item => !inventory[item] || inventory[item] < userData.requires[item]).join(' and ');
 
-                // Special guidance for Ornithine
                 if (!inventory['Ornithine'] && inventory['Carbamoyl Phosphate']) {
-                    showDialogue(`${dialogueTitle}:\n${educationalBlurb}`, [
-                        { text: "I have Carbamoyl Phosphate!", hideOnClick: false, action: () => {
-                            showDialogue("You've got Carbamoyl Phosphate - excellent! But ogres need BOTH ingredients to smush 'em together.", [
-                                { text: "What am I missing?", hideOnClick: false, action: () => {
-                                    showDialogue("You're missing Ornithine! Head over to my friend, the Ornithine Usher, near the bridge. He'll hook you up with some Ornithine, then come back and we'll make some magic happen!", [
-                                        { text: "I'll go find the Usher!" }
-                                    ], setGameInteracting);
-                                }}
+                    showDialogue("You've got Carbamoyl Phosphate — excellent! But ogres need BOTH ingredients.", [
+                        { text: "What am I missing?", hideOnClick: false, action: () => {
+                            showDialogue("Ornithine! Go see the Ornithine Usher near the bridge. He'll hook you up, then come back for some ogre magic!", [
+                                { text: "I'll go find the Usher!" }
                             ], setGameInteracting);
                         }}
                     ], setGameInteracting);
                     return;
                 }
 
-                showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nOgres need their ingredients! You're missing ${missing}. Can't smush what ya don't have!`, [{ text: "I'll find them!" }], setGameInteracting);
+                showDialogue(`Ogres need their ingredients! You're missing ${missing}. Can't smush what ya don't have!`, [{ text: "I'll find them!" }], setGameInteracting);
                 return;
             }
-            showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nPerfect! You've got both molecules! Ready to watch some ogre magic? I'll SMASH Carbamoyl Phosphate and Ornithine together to make something... citrusy! Well, Citrulline, actually. Same diff!`, [
-                { text: actionButtonText, action: () => {
-                    consumeItems(userData.requires);
-                    playMoleculeGenerationSound();
-                    createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[userData.produces]);
-                    if (!advanceUreaCycleQuest(userData.advancesQuestTo)) {
-                        showFeedback(`Citrulline created! Smells citrusy... kinda.`);
-                    }
-                }},
-                { text: "Not right now, big guy." }
+            showDialogue("ROAR! You've got both Carbamoyl Phosphate and Ornithine!", [
+                { text: "What do you do with them?", hideOnClick: false, action: () => {
+                    showDialogue("I SMASH them together to make Citrulline! That's my job as Ornithine Transcarbamoylase. Ready?", [
+                        { text: "SMASH them together!", action: () => {
+                            consumeItems(userData.requires);
+                            playMoleculeGenerationSound();
+                            createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[userData.produces]);
+                            if (!advanceUreaCycleQuest(userData.advancesQuestTo)) {
+                                showFeedback(`Citrulline created! Smells citrusy... kinda.`);
+                            }
+                        }},
+                        { text: "Not right now, big guy." }
+                    ], setGameInteracting);
+                }}
             ], setGameInteracting);
         }
         else if (userData.name === CONSTANTS.NPC_NAMES.CASPER_CPS1) {
@@ -774,11 +769,10 @@ export function interactWithObject(object, scene) {
             }
 
             // STEP_2_MAKE_CARB_PHOS: Ready to make Carbamoyl Phosphate with NAG
-            const educationalBlurb = "Booo! Oh, don't be scared, I'm Casper, representing Carbamoyl Phosphate Synthetase I. I might be a bit... ethereal, but my job is solid! Here in the mitochondria, I kickstart the Urea Cycle by taking Bicarbonate, one Ammonia molecule, and TWO precious ATPs to create Carbamoyl Phosphate. It's the first big step to trap that pesky ammonia!";
             const actionButtonText = `Create Carbamoyl Phosphate!`;
 
             if (!currentQuest || currentQuest.state !== userData.requiredQuestState) {
-                showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nBut oooh, the time isn't quite right. Your objective now is: ${currentQuest?.objectives[currentQuest.state] || "Begin your quest with Professor Hepaticus."}`, [{ text: "Okay, Casper." }], setGameInteracting);
+                showDialogue("Booo! The time isn't quite right for our reaction. Check your current objective!", [{ text: "Okay, Casper." }], setGameInteracting);
                 return;
             }
 
@@ -786,28 +780,31 @@ export function interactWithObject(object, scene) {
             const requirementsWithoutNH3 = { 'Bicarbonate': 1, 'ATP': 2 };
             if (!hasRequiredItems(requirementsWithoutNH3)) {
                 let missing = Object.keys(requirementsWithoutNH3).filter(item => !inventory[item] || inventory[item] < requirementsWithoutNH3[item]).join(' and ');
-                showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nWhoops! You're missing ${missing}. You'll need all those to get this reaction going! Don't worry about the ammonia - I have plenty in my cauldron from earlier!`, [{ text: "I'll get them." }], setGameInteracting);
+                showDialogue(`Whoops! You're still missing ${missing}. I need Bicarbonate and 2 ATP — the ammonia's already in my cauldron from earlier!`, [{ text: "I'll get them." }], setGameInteracting);
                 return;
             }
 
             // Check if player has NAG (Nagesh's Coffee)
             if (!hasRequiredItems({'Nagesh\'s Coffee': 1})) {
-                showDialogue(`${dialogueTitle}:\n*looks around eagerly* Oh! You're back! Do you have the Nagesh's Coffee? I can't start the reaction without my NAG (N-acetylglutamate) activator! I see you have all the substrates ready (Bicarbonate and 2 ATP), and I have ammonia in my cauldron, but I need that coffee to work at full efficiency!`, [{ text: "I'll bring it right away!" }], setGameInteracting);
+                showDialogue("*looks around eagerly* You have the substrates, but where's my coffee?! I can't catalyze without my NAG activator!", [{ text: "I'll bring it right away!" }], setGameInteracting);
                 return;
             }
 
-            showDialogue(`${dialogueTitle}:\n*Sips Nagesh's Coffee* Ahhhh! Now THAT'S what I needed! I can feel the NAG activating my catalytic sites! *energized ghostly movements* With this allosteric activation, I'm ready to work at MAXIMUM EFFICIENCY! Let's convert that toxic ammonia into Carbamoyl Phosphate! You have all the ingredients!\n\n${educationalBlurb}`, [
-                { text: actionButtonText, action: () => {
-                    // Consume only items from inventory (not NH3 which is in cauldron)
-                    consumeItems(requirementsWithoutNH3);
-                    consumeItems({'Nagesh\'s Coffee': 1}); // Consume NAG
-                    playMoleculeGenerationSound();
-                    createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[userData.produces]);
-                    if (!advanceUreaCycleQuest(userData.advancesQuestTo)) {
-                        showFeedback(`${userData.produces} created by Casper!`);
-                    }
-                }},
-                { text: "Maybe later, ghost-friend." }
+            showDialogue("*Sips Nagesh's Coffee* Ahhhh! NOW we're talking! NAG is activating my catalytic sites!", [
+                { text: "What happens next?", hideOnClick: false, action: () => {
+                    showDialogue("I take Bicarbonate + NH3 + 2 ATP and create Carbamoyl Phosphate — the first big step to trap that pesky ammonia! Ready?", [
+                        { text: actionButtonText, action: () => {
+                            consumeItems(requirementsWithoutNH3);
+                            consumeItems({'Nagesh\'s Coffee': 1});
+                            playMoleculeGenerationSound();
+                            createResource(scene, userData.produces, { x: object.position.x, z: object.position.z - 1.5, yBase: object.position.y }, userData.productColors[userData.produces]);
+                            if (!advanceUreaCycleQuest(userData.advancesQuestTo)) {
+                                showFeedback(`${userData.produces} created by Casper!`);
+                            }
+                        }},
+                        { text: "Maybe later, ghost-friend." }
+                    ], setGameInteracting);
+                }}
             ], setGameInteracting);
         }
         else if (userData.name === CONSTANTS.NPC_NAMES.FUMARASE_ENZYME) {
@@ -1364,39 +1361,29 @@ export function interactWithObject(object, scene) {
                 return;
             }
 
-            educationalBlurb = "Perfect! I'll take the Water and CO2 and mix them together to create Bicarbonate (HCO3-) - the first substrate for the Urea Cycle!";
             actionButtonText = `Create Bicarbonate!`;
         }
 
         if (!currentQuest || currentQuest.state !== userData.requiredQuestState) {
-            showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nBut the shrine slumbers. Your current objective: ${currentQuest?.objectives[currentQuest.state] || "Start quest first."}`, [{ text: "Understood" }], setGameInteracting);
+            showDialogue(`Not the right time for this. Check your current objective!`, [{ text: "Understood" }], setGameInteracting);
             return;
         }
         if (!hasRequiredItems(userData.requires)) {
             let missing = Object.keys(userData.requires).filter(item => !inventory[item] || inventory[item] < userData.requires[item]).join(' and ');
 
-            // Provide specific guidance for Calvin
             if (userData.name === "Calvin") {
-                let guidanceText = `${dialogueTitle}:\n${educationalBlurb}\n\nYou seem to be missing: ${missing}.\n\n`;
-
-                if (!inventory['Water']) {
-                    guidanceText += "**Water**: Seek the River Guardian near the river's edge, south of the bridge. He is the keeper of life-giving water.\n\n";
-                }
-                if (!inventory['CO2']) {
-                    guidanceText += "**CO2**: Find the Respiratory Vents deeper within this alcove. They release carbon dioxide from cellular respiration.\n\n";
-                }
-
-                guidanceText += "Bring me these ingredients and I'll whip up that neutralizing paste for you!";
-
-                showDialogue(guidanceText, [{ text: "I'll find them!" }], setGameInteracting);
+                let hints = [`You're missing: ${missing}.`];
+                if (!inventory['Water']) hints.push("Water: Find the River Guardian south of the bridge.");
+                if (!inventory['CO2']) hints.push("CO2: Find the Respiratory Vents deeper in this alcove.");
+                showDialogue(hints.join('\n'), [{ text: "I'll find them!" }], setGameInteracting);
                 return;
             }
 
-            showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nYou seem to be missing: ${missing}. Bring me what I need and we can get started!`, [{ text: "I'll be back" }], setGameInteracting);
+            showDialogue(`You're missing: ${missing}. Bring me what I need!`, [{ text: "I'll be back" }], setGameInteracting);
             return;
         }
 
-        showDialogue(`${dialogueTitle}:\n${educationalBlurb}\n\nYou have all the required components. Shall the transformation begin?`, [
+        showDialogue(`You have everything I need. Ready for the transformation?`, [
             { text: actionButtonText, action: () => {
                 createGameBoySound('success');
                 playMoleculeGenerationSound();
