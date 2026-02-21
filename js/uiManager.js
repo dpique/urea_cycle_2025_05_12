@@ -170,23 +170,32 @@ function updateQuestProgress(quest) {
         return;
     }
     
-    // Calculate progress based on quest state
-    const totalSteps = Object.keys(CONSTANTS.QUEST_STATE).length - 2; // Exclude NOT_STARTED and COMPLETED
-    let currentStep = 0;
-    
+    // Calculate progress based on quest state — order must match actual QUEST_STATE keys
     const stateOrder = [
+        CONSTANTS.QUEST_STATE.STEP_0_MEET_CASPER,
+        CONSTANTS.QUEST_STATE.STEP_1_COLLECT_NH3,
         CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2,
+        CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER,
         CONSTANTS.QUEST_STATE.STEP_0A_GATHER_CO2,
         CONSTANTS.QUEST_STATE.STEP_0B_MAKE_BICARBONATE,
         CONSTANTS.QUEST_STATE.STEP_0C_COLLECT_BICARBONATE,
-        CONSTANTS.QUEST_STATE.STEP_1_GATHER_MITO_REMAINING,
+        CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP,
+        CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP,
+        CONSTANTS.QUEST_STATE.STEP_1C_CASPER_NEEDS_COFFEE,
+        CONSTANTS.QUEST_STATE.STEP_1D_TALK_TO_NAGESH,
+        CONSTANTS.QUEST_STATE.STEP_1E_COLLECT_COFFIN_GROUNDS,
+        CONSTANTS.QUEST_STATE.STEP_1F_COLLECT_GLUTAMINE,
+        CONSTANTS.QUEST_STATE.STEP_1G_NAGESH_MAKES_NAG,
+        CONSTANTS.QUEST_STATE.STEP_1H_COLLECT_NAG,
         CONSTANTS.QUEST_STATE.STEP_2_MAKE_CARB_PHOS,
         CONSTANTS.QUEST_STATE.STEP_3_COLLECT_CARB_PHOS,
         CONSTANTS.QUEST_STATE.STEP_4_MEET_USHER,
         CONSTANTS.QUEST_STATE.STEP_5_MAKE_CITRULLINE,
         CONSTANTS.QUEST_STATE.STEP_6_TALK_TO_USHER_PASSAGE,
         CONSTANTS.QUEST_STATE.STEP_7_OPEN_PORTAL,
-        CONSTANTS.QUEST_STATE.STEP_8_GATHER_CYTO,
+        CONSTANTS.QUEST_STATE.STEP_8_COLLECT_CITRULLINE,
+        CONSTANTS.QUEST_STATE.STEP_8A_COLLECT_ATP,
+        CONSTANTS.QUEST_STATE.STEP_8B_GET_ASPARTATE,
         CONSTANTS.QUEST_STATE.STEP_9_TALK_TO_DONKEY,
         CONSTANTS.QUEST_STATE.STEP_10_TALK_TO_ASLAN,
         CONSTANTS.QUEST_STATE.STEP_10B_COLLECT_PRODUCTS,
@@ -197,14 +206,17 @@ function updateQuestProgress(quest) {
         CONSTANTS.QUEST_STATE.STEP_13_DISPOSE_UREA,
         CONSTANTS.QUEST_STATE.STEP_14_RIVER_CHALLENGE
     ];
-    
+
+    const totalSteps = stateOrder.length;
+    let currentStep = 0;
+
     const currentIndex = stateOrder.indexOf(quest.state);
     if (currentIndex >= 0) {
         currentStep = currentIndex + 1;
     } else if (quest.state === CONSTANTS.QUEST_STATE.COMPLETED) {
         currentStep = totalSteps;
     }
-    
+
     const progress = Math.floor((currentStep / totalSteps) * 100);
     progressFill.style.width = progress + '%';
     progressText.textContent = progress + '%';

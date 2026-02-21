@@ -25,6 +25,15 @@ const PRE_SURVEY_LINK = "https://forms.gle/yourpretestsurvey";
 const POST_SURVEY_LINK = "https://forms.gle/yourposttestsurvey";
 const FEEDBACK_SURVEY_LINK = "https://forms.gle/yourfeedbacksurvey";
 
+// Helper: check if a position is inside the graveyard bounds
+function isInGraveyard(pos) {
+    const gMinX = CONSTANTS.GRAVEYARD_CENTER_X - CONSTANTS.GRAVEYARD_WIDTH / 2;
+    const gMaxX = CONSTANTS.GRAVEYARD_CENTER_X + CONSTANTS.GRAVEYARD_WIDTH / 2;
+    const gMinZ = CONSTANTS.GRAVEYARD_CENTER_Z - CONSTANTS.GRAVEYARD_DEPTH / 2;
+    const gMaxZ = CONSTANTS.GRAVEYARD_CENTER_Z + CONSTANTS.GRAVEYARD_DEPTH / 2;
+    return pos.x > gMinX && pos.x < gMaxX && pos.z > gMinZ && pos.z < gMaxZ;
+}
+
 const canvasElement = document.getElementById('gameCanvas');
 initScene(canvasElement);
 initUIManager(); 
@@ -139,8 +148,8 @@ document.addEventListener('keydown', (event) => {
         const onGround = Math.abs(currentHeight - terrainHeight) < 0.1 || 
                         (nearBridge && currentHeight < CONSTANTS.BRIDGE_HEIGHT + 0.1 && currentHeight > CONSTANTS.BRIDGE_HEIGHT - 0.1);
         
-        if (onGround && (!player.userData.verticalVelocity || player.userData.verticalVelocity <= 0)) { // On ground or bridge
-            player.userData.verticalVelocity = 0.32; // Higher hop strength
+        if (onGround && (!player.userData.verticalVelocity || player.userData.verticalVelocity <= 0)) {
+            player.userData.verticalVelocity = CONSTANTS.JUMP_STRENGTH;
         }
     }
     // H key for help menu
@@ -391,29 +400,20 @@ function animate() {
     const inventory = getInventory();
     const hasAmmonia = inventory['NH3'] && inventory['NH3'] > 0;
     const healthWarning = document.getElementById('healthWarning');
-
-    // Check if player is in graveyard area
-    const graveyardMinX = CONSTANTS.GRAVEYARD_CENTER_X - CONSTANTS.GRAVEYARD_WIDTH / 2;
-    const graveyardMaxX = CONSTANTS.GRAVEYARD_CENTER_X + CONSTANTS.GRAVEYARD_WIDTH / 2;
-    const graveyardMinZ = CONSTANTS.GRAVEYARD_CENTER_Z - CONSTANTS.GRAVEYARD_DEPTH / 2;
-    const graveyardMaxZ = CONSTANTS.GRAVEYARD_CENTER_Z + CONSTANTS.GRAVEYARD_DEPTH / 2;
-    const inGraveyard = player.position.x > graveyardMinX && player.position.x < graveyardMaxX &&
-                        player.position.z > graveyardMinZ && player.position.z < graveyardMaxZ;
+    const inGraveyard = isInGraveyard(player.position);
 
     // Track time for graveyard health drain (once every 10 seconds)
     if (!gameState.lastGraveyardDamageTime) {
         gameState.lastGraveyardDamageTime = 0;
     }
 
-    if (hasAmmonia) {
+    // Pause all health drain while player is in dialogue or interacting
+    if (gameState.isUserInteracting) {
+        // No damage, no healing — player is reading/talking safely
+    } else if (hasAmmonia) {
         // Damage health while holding ammonia - scales with amount
         const nh3Count = inventory['NH3'];
-        let damageRate;
-        if (nh3Count >= 2) {
-            damageRate = 3; // 3 health per second for 2+ NH3
-        } else {
-            damageRate = 1; // 1 health per second for 1 NH3
-        }
+        const damageRate = nh3Count >= 2 ? CONSTANTS.AMMONIA_DAMAGE_RATE_HIGH : CONSTANTS.AMMONIA_DAMAGE_RATE_LOW;
         damageHealth(damageRate * delta);
 
         // Show health warning
@@ -428,16 +428,15 @@ function animate() {
     } else if (inGraveyard) {
         // In graveyard but not holding ammonia - slower health drain
         const currentTime = Date.now();
-        if (currentTime - gameState.lastGraveyardDamageTime >= 10000) {
-            damageHealth(1); // 1 health every 10 seconds
+        if (currentTime - gameState.lastGraveyardDamageTime >= CONSTANTS.GRAVEYARD_DAMAGE_INTERVAL) {
+            damageHealth(CONSTANTS.GRAVEYARD_DAMAGE_AMOUNT);
             gameState.lastGraveyardDamageTime = currentTime;
             if (Math.random() < 0.5) {
                 showFeedback("*cough* The toxic fumes are affecting you...", 2000);
             }
         }
 
-        // Don't show ammonia warning - only show when actually holding NH3
-        // Hide health warning if it's showing
+        // Hide ammonia-specific health warning
         if (healthWarning && !healthWarning.classList.contains('hidden')) {
             healthWarning.classList.add('hidden');
         }
@@ -450,7 +449,7 @@ function animate() {
         // Not in graveyard and not holding ammonia - slowly recover health
         const currentHealth = getHealth();
         if (currentHealth < 100) {
-            healHealth(1 * delta);
+            healHealth(CONSTANTS.HEALTH_REGEN_RATE * delta);
         }
 
         // Hide health warning
@@ -462,7 +461,7 @@ function animate() {
     // Player Y position adjustment for bridge with smooth transitions
     const playerX = player.position.x;
     const playerZ = player.position.z;
-    const rampLength = 4.0;
+    const rampLength = CONSTANTS.BRIDGE_RAMP_LENGTH;
     const bridgeMinX = CONSTANTS.BRIDGE_CENTER_X - CONSTANTS.BRIDGE_LENGTH / 2 - rampLength;
     const bridgeMaxX = CONSTANTS.BRIDGE_CENTER_X + CONSTANTS.BRIDGE_LENGTH / 2 + rampLength;
     const bridgeMinZ = CONSTANTS.BRIDGE_CENTER_Z - CONSTANTS.BRIDGE_WIDTH / 2;
@@ -521,7 +520,7 @@ function animate() {
         if (player.position.y > targetY + 0.1) {
             // Apply gravity when above terrain
             if (!player.userData.verticalVelocity) player.userData.verticalVelocity = 0;
-            player.userData.verticalVelocity -= 0.02; // Gravity
+            player.userData.verticalVelocity -= CONSTANTS.GRAVITY;
             player.position.y += player.userData.verticalVelocity;
             
             // Ground collision with terrain
@@ -540,7 +539,7 @@ function animate() {
     // Apply jump velocity
     if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
         player.position.y += player.userData.verticalVelocity;
-        player.userData.verticalVelocity -= 0.02; // Gravity for jumps
+        player.userData.verticalVelocity -= CONSTANTS.GRAVITY;
     }
 
     updatePlayer(delta, gameState.isUserInteracting, checkPlayerCollision);
@@ -586,24 +585,11 @@ function animate() {
     }
 
     // Check for first-time graveyard entry
-    if (!gameState.hasVisitedGraveyard) {
-        const playerX = player.position.x;
-        const playerZ = player.position.z;
-        const graveyardMinX = CONSTANTS.GRAVEYARD_CENTER_X - CONSTANTS.GRAVEYARD_WIDTH / 2;
-        const graveyardMaxX = CONSTANTS.GRAVEYARD_CENTER_X + CONSTANTS.GRAVEYARD_WIDTH / 2;
-        const graveyardMinZ = CONSTANTS.GRAVEYARD_CENTER_Z - CONSTANTS.GRAVEYARD_DEPTH / 2;
-        const graveyardMaxZ = CONSTANTS.GRAVEYARD_CENTER_Z + CONSTANTS.GRAVEYARD_DEPTH / 2;
-
-        // Check if player is inside graveyard bounds
-        if (playerX > graveyardMinX && playerX < graveyardMaxX &&
-            playerZ > graveyardMinZ && playerZ < graveyardMaxZ) {
-            // Mark graveyard as visited
-            gameState.hasVisitedGraveyard = true;
-            // Show atmospheric dialogue
-            setTimeout(() => {
-                showFeedback("*cough cough* ...you notice a pungent smell in the air", 4000);
-            }, 500);
-        }
+    if (!gameState.hasVisitedGraveyard && isInGraveyard(player.position)) {
+        gameState.hasVisitedGraveyard = true;
+        setTimeout(() => {
+            showFeedback("*cough cough* ...you notice a pungent smell in the air", 4000);
+        }, 500);
     }
     
     renderer.render(scene, camera);
@@ -611,4 +597,4 @@ function animate() {
 
 getAudioContext(); 
 animate();
-console.log("Metabolon RPG Initialized (v35 - Refactored).");
+// Metabolon RPG Initialized

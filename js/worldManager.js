@@ -306,8 +306,6 @@ function createCaveArea(scene) {
         }
         if (!tooCloseToFixedItem) {
             scene.add(rock);
-        } else {
-            console.warn("Skipped placing a fixed rock due to proximity to essential alcove item:", data);
         }
     });
 }

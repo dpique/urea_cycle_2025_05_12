@@ -48,7 +48,6 @@ function highlightObject(object) {
     if (meshToHighlight && meshToHighlight.isMesh) {
         if (!originalMaterials.has(meshToHighlight) && meshToHighlight.material !== highlightMaterial) {
             originalMaterials.set(meshToHighlight, meshToHighlight.material);
-            console.warn("Highlight: Original material not found for", meshToHighlight.name, " Storing current.");
         }
         if (meshToHighlight.material !== highlightMaterial) {
              meshToHighlight.material = highlightMaterial;
@@ -254,15 +253,13 @@ function updateQuestIndicator(obj) {
 
 export function interactWithObject(object, scene) {
     const gameState = getGameState();
-    console.log('[InteractWithObject] Called with:', object?.userData?.name, 'isUserInteracting:', gameState.isUserInteracting);
-    
+
     // Special case: Allow River Guardian to continue dialogue even when already interacting
-    const isRiverGuardianContinuation = object?.userData?.name === 'River Guardian' && 
-                                       object?.userData?.dialogueState && 
+    const isRiverGuardianContinuation = object?.userData?.name === 'River Guardian' &&
+                                       object?.userData?.dialogueState &&
                                        object?.userData?.dialogueState !== 'initial';
-    
+
     if (!object || (gameState.isUserInteracting && !isRiverGuardianContinuation)) {
-        console.log('[InteractWithObject] Early return - object:', !!object, 'isInteracting:', gameState.isUserInteracting);
         return;
     }
 
@@ -1032,24 +1029,18 @@ export function interactWithObject(object, scene) {
         }
 
         else if (userData.name === 'River Guardian') {
-            console.log('[RiverGuardian] Interaction started');
             if (currentQuest && currentQuest.state === CONSTANTS.QUEST_STATE.STEP_0_COLLECT_WATER) {
                 const guardianObj = object;
-                
+
                 // Initialize dialogue state if needed
                 if (!guardianObj.userData.dialogueState) {
                     guardianObj.userData.dialogueState = 'initial';
-                    console.log('[RiverGuardian] Initialized dialogue state to: initial');
                 }
-                
-                console.log('[RiverGuardian] Current dialogue state:', guardianObj.userData.dialogueState);
-                
+
                 switch(guardianObj.userData.dialogueState) {
                     case 'initial':
-                        console.log('[RiverGuardian] Showing initial dialogue');
                         showDialogue("Greetings, seeker. I am the River Guardian, keeper of life-giving water.", [
                             { text: "Calvin sent me for Water.", hideOnClick: false, action: () => {
-                                console.log('[RiverGuardian] Calvin sent me clicked');
                                 guardianObj.userData.dialogueState = 'explain';
                                 // Directly show next dialogue without closing first
                                 showDialogue("Water (H₂O) kick-starts the urea cycle by helping to form bicarbonate (HCO₃⁻). Without it, the cycle cannot begin. Will you accept this gift of water?", [
@@ -1426,9 +1417,7 @@ export function interactWithObject(object, scene) {
         }
 
         consumeItems(userData.requires);
-        if (removePortalBarrierFromWorld(scene)) {
-            console.log("Portal barrier removed by interaction.");
-        }
+        removePortalBarrierFromWorld(scene);
         stopBackgroundMusic();
         playPortalCelebration();
 
