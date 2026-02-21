@@ -80,8 +80,17 @@ export function updateInteraction(scene) {
         if (obj?.parent === scene && obj.visible) {
             const objPos = new THREE.Vector3();
             obj.getWorldPosition(objPos);
-            const distSq = playerWorldPos.distanceToSquared(objPos);
-            if (distSq < minDistSq) {
+            // Use XZ-only distance for objects that set useXZDistance (e.g. elevated portal)
+            let distSq;
+            if (obj.userData.useXZDistance) {
+                const dx = playerWorldPos.x - objPos.x;
+                const dz = playerWorldPos.z - objPos.z;
+                distSq = dx * dx + dz * dz;
+            } else {
+                distSq = playerWorldPos.distanceToSquared(objPos);
+            }
+            const radius = obj.userData.interactionRadiusSq || CONSTANTS.INTERACTION_RADIUS_SQ;
+            if (distSq < radius && distSq < minDistSq) {
                 minDistSq = distSq;
                 foundClosest = obj;
             }
@@ -678,9 +687,13 @@ export function interactWithObject(object, scene) {
                                 if (newCount >= TOTAL_NH3_REQUIRED) {
                                     showFeedback(`All ${TOTAL_NH3_REQUIRED} NH3 deposited! The cauldron is full!`, 3000);
                                     setTimeout(() => {
-                                        showDialogue("*sniff* Excellent work! You've collected all the ammonia safely! Now, to start the Urea Cycle, I'll need Bicarbonate (HCO3-) along with this ammonia. Calvin the chemist in the alcove can make Bicarbonate for you! He's deep in the cave to the west. Go talk to him and see what he needs!", [
-                                            { text: "I'll go talk to Calvin!", action: () => {
-                                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2);
+                                        showDialogue("*sniff* Excellent work! You've collected all the ammonia safely! Now, to start the Urea Cycle, I'll need Bicarbonate (HCO3-).", [
+                                            { text: "Where do I get that?", hideOnClick: false, action: () => {
+                                                showDialogue("Ugh, I know, I know... I ask for SO much! But hey, being a ghostly enzyme is hard work. Calvin the chemist in the alcove to the west can make Bicarbonate. Go sweet-talk him for me, will you?", [
+                                                    { text: "*sigh* Fine, I'll go find Calvin.", action: () => {
+                                                        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2);
+                                                    }}
+                                                ], setGameInteracting);
                                             }}
                                         ], setGameInteracting);
                                     }, 500);
@@ -693,9 +706,13 @@ export function interactWithObject(object, scene) {
                 } else {
                     // No NH3 in inventory
                     if (ammoniaCount >= TOTAL_NH3_REQUIRED) {
-                        showDialogue("*sniff* Excellent work! You've collected all the ammonia safely! Now, to start the Urea Cycle, I'll need Bicarbonate (HCO3-). Calvin the chemist in the alcove can make it!", [
-                            { text: "I'll go talk to Calvin!", action: () => {
-                                advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2);
+                        showDialogue("*sniff* All the ammonia is collected! Now I need Bicarbonate (HCO3-).", [
+                            { text: "Where do I get that?", hideOnClick: false, action: () => {
+                                showDialogue("Ugh, I know... you ask for so much, Casper! But hey, I don't make the biochemistry rules. Calvin the chemist in the western alcove can whip up some Bicarbonate. Go pester him for me!", [
+                                    { text: "*rolls eyes* On my way.", action: () => {
+                                        advanceUreaCycleQuest(CONSTANTS.QUEST_STATE.STEP_0_GATHER_WATER_CO2);
+                                    }}
+                                ], setGameInteracting);
                             }}
                         ], setGameInteracting);
                     } else {
@@ -715,7 +732,7 @@ export function interactWithObject(object, scene) {
                 currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1A_COLLECT_FIRST_ATP ||
                 currentQuest.state === CONSTANTS.QUEST_STATE.STEP_1B_COLLECT_SECOND_ATP
             )) {
-                showDialogue("Good progress! I'm waiting here at the graveyard. Once you have Bicarbonate, Ammonia (NH3), and 2 ATP, come back and I'll make Carbamoyl Phosphate. But between you and me... *whispers* ...I'm having trouble focusing with all this graveyard gloom. I might need a little pick-me-up to do my best work...", [{ text: "I'll gather the materials!" }], setGameInteracting);
+                showDialogue("Still waiting here... spookily. I need Bicarbonate, NH3, and 2 ATP. Between you and me *whispers* ...I might also need a pick-me-up to do my best work...", [{ text: "Working on it!" }], setGameInteracting);
                 return;
             }
 
@@ -1433,21 +1450,24 @@ export function interactWithObject(object, scene) {
         interactionProcessedThisFrame = true;
 
         if (!userData.isOpen) {
-            // First time opening the gate - show warning dialogue about dangers
-            showDialogue("Welcome to the Amino Acid Animal Graveyard. Here lie the remains of amino acids that have been broken down through deamination, releasing ammonia (NH₃) into the mitochondria.\n\n⚠️ WARNING: The toxic ammonia fumes in this area will slowly drain your health. Collect what you need and leave quickly! Holding ammonia will cause even more damage.", [
-                { text: "Open the gate", action: () => {
-                    // Open the gate by rotating it
-                    const gateDoor = object.getObjectByName('gate_door');
-                    if (gateDoor) {
-                        // Swing the gate open (rotate 90 degrees around Y axis)
-                        gateDoor.rotation.y = Math.PI / 2;
-                        userData.isOpen = true;
-                        // Remove collision barrier
-                        removeGateBarrierFromWorld(scene);
-                        createGameBoySound('success');
-                        showFeedback("The graveyard gate swings open with a creak...");
-                    }
-                }}
+            // First time opening the gate — split into two dialogue steps
+            showDialogue("Welcome to the Amino Acid Animal Graveyard. Here lie the remains of amino acids broken down through deamination, releasing ammonia (NH3) into the mitochondria.", [
+                { text: "What's the danger?", hideOnClick: false, action: () => {
+                    showDialogue("The toxic ammonia fumes in this area will slowly drain your health. Collect what you need and leave quickly! Holding ammonia causes even more damage.", [
+                        { text: "Open the gate", action: () => {
+                            const gateDoor = object.getObjectByName('gate_door');
+                            if (gateDoor) {
+                                gateDoor.rotation.y = Math.PI / 2;
+                                userData.isOpen = true;
+                                removeGateBarrierFromWorld(scene);
+                                createGameBoySound('success');
+                                showFeedback("The graveyard gate swings open with a creak...");
+                            }
+                        }},
+                        { text: "Not yet..." }
+                    ], setGameInteracting);
+                }},
+                { text: "Not yet..." }
             ], setGameInteracting);
         } else {
             // Gate is already open - just give brief feedback

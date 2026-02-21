@@ -10,6 +10,7 @@ import {
 import { controls } from './sceneSetup.js';
 import { getGameState, setGameState, getCurrentQuest, setCurrentQuest, advanceCurrentQuestState, getInventory, removeFromInventory } from './gameState.js';
 import { updateCycleDisplay } from './cycleDisplay.js';
+import { createGameBoySound } from './audioManager.js';
 
 export const ureaCycleQuestData = {
     id: 'ureaCycle',
@@ -88,6 +89,7 @@ export function advanceUreaCycleQuest(newState) {
     const currentQuest = getCurrentQuest();
     if (currentQuest && currentQuest.id === ureaCycleQuestData.id && currentQuest.state !== newState) {
         advanceCurrentQuestState(newState);
+        createGameBoySound('interact'); // audio cue on quest step advance
 
         const objectiveText = ureaCycleQuestData.objectives[newState];
         if (newState === CONSTANTS.QUEST_STATE.COMPLETED) {
