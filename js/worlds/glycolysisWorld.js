@@ -2017,28 +2017,19 @@ export function update(delta, elapsedTime) {
         }
     }
 
-    // Terrain following -- player follows the hill terrain
+    // Terrain following -- player sticks to the ground, no floating
     const terrainY = getGlyTerrainHeight(player.position.x, player.position.z) + 0.01;
     if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
-        // Jumping
+        // Jumping -- apply velocity and gravity
         player.position.y += player.userData.verticalVelocity * delta;
-        player.userData.verticalVelocity -= 45.0 * delta; // strong gravity for snappy jump
-        if (player.position.y <= terrainY) {
-            player.position.y = terrainY;
-            player.userData.verticalVelocity = 0;
-        }
-    } else if (player.position.y > terrainY + 0.1) {
-        // Falling
-        if (!player.userData.verticalVelocity) player.userData.verticalVelocity = 0;
-        player.userData.verticalVelocity -= 1.2 * delta;
-        player.position.y += player.userData.verticalVelocity * delta;
+        player.userData.verticalVelocity -= 45.0 * delta;
         if (player.position.y <= terrainY) {
             player.position.y = terrainY;
             player.userData.verticalVelocity = 0;
         }
     } else {
-        // Smooth terrain following (9.0/s ≈ 0.15/frame @ 60fps)
-        player.position.y += (terrainY - player.position.y) * Math.min(1, 9.0 * delta);
+        // Not jumping -- snap to terrain. No floating, no lerp.
+        player.position.y = terrainY;
         player.userData.verticalVelocity = 0;
     }
 

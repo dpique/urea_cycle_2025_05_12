@@ -220,6 +220,21 @@ function createHat(type, color, headR) {
             group.add(rim);
             break;
         }
+        case 'pirate': {
+            // Tricorn pirate hat
+            const brim = new THREE.Mesh(new THREE.CylinderGeometry(headR * 1.3, headR * 1.2, 0.06, 3), mat);
+            brim.rotation.y = Math.PI / 6;
+            group.add(brim);
+            const crown = new THREE.Mesh(new THREE.CylinderGeometry(headR * 0.5, headR * 0.7, headR * 0.8, 6), mat);
+            crown.position.y = headR * 0.4;
+            group.add(crown);
+            // Skull emblem on front
+            const skullMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            const skull = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), skullMat);
+            skull.position.set(0, headR * 0.35, headR * 0.72);
+            group.add(skull);
+            break;
+        }
         case 'none':
         default:
             break;
@@ -291,6 +306,18 @@ function createAccessory(type, color, bodyType) {
             const medal = new THREE.Mesh(new THREE.CircleGeometry(0.08, 8), mat);
             medal.position.set(0.05, bodyType.legH + bodyType.bodyH * 0.7, bodyType.bodyD / 2 + 0.02);
             group.add(medal);
+            break;
+        }
+        case 'eyepatch': {
+            const patchMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+            const patch = new THREE.Mesh(new THREE.CircleGeometry(0.09, 6), patchMat);
+            patch.position.set(0.12, bodyType.legH + bodyType.bodyH + bodyType.headR * 0.95, bodyType.headR * 0.9);
+            group.add(patch);
+            // Strap
+            const strap = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, bodyType.headR * 2.5, 4), patchMat);
+            strap.position.set(0, bodyType.legH + bodyType.bodyH + bodyType.headR * 0.9, 0);
+            strap.rotation.z = Math.PI / 2;
+            group.add(strap);
             break;
         }
         case 'wrench': {
@@ -637,4 +664,5 @@ export const PRESETS = {
     proud: { bodyType: 'average', headShape: 'round', hat: 'crown', expression: 'smug', accessories: ['medal'], armPose: Math.PI / 5 },
     worker: { bodyType: 'wide', headShape: 'flat', hat: 'hardhat', expression: 'friendly', accessories: ['belt', 'wrench'], armPose: Math.PI / 6 },
     acrobat: { bodyType: 'small', headShape: 'round', hat: 'none', expression: 'surprised', accessories: [], armPose: Math.PI / 2 },
+    pirate: { bodyType: 'stocky', headShape: 'boxy', hat: 'pirate', expression: 'intense', accessories: ['eyepatch', 'belt'], armPose: Math.PI / 5 },
 };

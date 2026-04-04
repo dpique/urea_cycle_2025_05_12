@@ -423,6 +423,11 @@ function createEnzymeNPC(data, x, z) {
 
     group.position.set(x, 0.4, z);
 
+    // Percy gets special hand details -- 4 fingers + L prosthetic for his 5 cofactors
+    if (data.character === 'pirate') {
+        addPercyHands(group);
+    }
+
     // Face center toward the plaza center
     group.lookAt(0, group.position.y, 0);
 
@@ -436,6 +441,59 @@ function createEnzymeNPC(data, x, z) {
     };
 
     return group;
+}
+
+function addPercyHands(group) {
+    // Percy's right hand: 4 real fingers (B1, B2, B3, B5) + L-shaped prosthetic (Lipoic acid)
+    const fingerMat = new THREE.MeshStandardMaterial({ color: 0xffcc99, roughness: 0.8 });
+    const prostheticMat = new THREE.MeshStandardMaterial({ color: 0x888899, metalness: 0.6, roughness: 0.3 });
+
+    // Position near the right hand area
+    const handX = 0.45;
+    const handY = 0.85;
+
+    // 4 real fingers (tiny cylinders) -- B1, B2, B3, B5
+    const fingerLabels = ['B1', 'B2', 'B3', 'B5'];
+    const fingerColors = [0xff6666, 0x66ff66, 0x6666ff, 0xffff66];
+    for (let i = 0; i < 4; i++) {
+        const fingerIdx = i < 3 ? i : i; // Skip ring finger position (index 3)
+        const offset = (i - 1.5) * 0.06;
+        const adjustedOffset = i >= 3 ? offset + 0.06 : offset; // Gap where ring finger was
+
+        const finger = new THREE.Mesh(
+            new THREE.BoxGeometry(0.025, 0.12, 0.025),
+            new THREE.MeshStandardMaterial({ color: fingerColors[i], roughness: 0.7 })
+        );
+        finger.position.set(handX + adjustedOffset, handY + 0.08, 0.1);
+        group.add(finger);
+    }
+
+    // L-shaped prosthetic where the ring finger (4th) was -- for Lipoic acid
+    const lVertical = new THREE.Mesh(
+        new THREE.BoxGeometry(0.03, 0.1, 0.03),
+        prostheticMat
+    );
+    lVertical.position.set(handX + 0.03, handY + 0.07, 0.1);
+    group.add(lVertical);
+
+    const lHorizontal = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.03, 0.03),
+        prostheticMat
+    );
+    lHorizontal.position.set(handX + 0.045, handY + 0.02, 0.1);
+    group.add(lHorizontal);
+
+    // Small "L" label
+    const lLabel = createTextSprite('L', { x: handX + 0.03, y: handY + 0.2, z: 0.15 }, {
+        scale: 0.2, textColor: 'rgba(200,200,220,0.9)',
+    });
+    group.add(lLabel);
+
+    // Cofactor labels floating near the hand
+    const cofactorLabel = createTextSprite('B1 B2 B3 L B5', { x: handX, y: handY + 0.3, z: 0.15 }, {
+        scale: 0.25, textColor: 'rgba(255,200,100,0.8)',
+    });
+    group.add(cofactorLabel);
 }
 
 // --- Interaction Handler ---

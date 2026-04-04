@@ -8,8 +8,8 @@
       "color": "#ff6b35",
       "bodyColor": "#cc5500",
       "description": "Irreversible gatekeeper -- converts pyruvate to acetyl-CoA",
-      "greeting": "HALT! I am Percy, guardian of the Pyruvate Dehydrogenase Complex. Once you enter my domain, there's NO going back. Pyruvate becomes Acetyl-CoA here, and that reaction is IRREVERSIBLE!",
-      "character": "gatekeeper"
+      "greeting": "HALT! Name's Percy -- Percy the Dehydrated Pirate. Captain of the Pyruvate Dehydrogenase Complex. I only sail in ONE direction, because my reaction is IRREVERSIBLE.\n\nSee this hand? Four fingers and a prosthetic. B1, B2, B3, B5 -- those are my crew, my cofactors. And this L-shaped prosthetic where my ring finger was? That's Lipoic acid. My ex-wife took the finger, but she couldn't take my five cofactors.\n\nThiamine, FAD, NAD+, CoA, and Lipoic acid. Five tools. One direction. No going back.",
+      "character": "pirate"
     },
     {
       "name": "Sid (Citrate Synthase)",
