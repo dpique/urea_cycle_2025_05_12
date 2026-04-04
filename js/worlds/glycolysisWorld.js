@@ -169,6 +169,14 @@ let pullOverlay = null;
 let pullBar = null;
 let pullLabel = null;
 
+// Phosphate timing mini-game state
+let phosphateTimingActive = false;
+let phosphateTimingOverlay = null;
+let phosphateTimingCallback = null; // called on success
+let phosphateTargetVertex = 0;      // which vertex to hit
+let phosphateTargetLabel = 'C6';
+let phosphateSpinSpeed = 0;         // rad/s
+
 const PATHWAY_X = 0;
 const PATHWAY_WIDTH = 12;
 
@@ -1031,6 +1039,133 @@ function createLauncher(scene, data, x, z) {
 }
 
 // ========================
+// PHOSPHATE TIMING MINI-GAME
+// ========================
+
+function startPhosphateTiming(scene, targetVertex, carbonLabel, spinSpeed, onSuccess) {
+    if (phosphateTimingActive || !glucoseModel) return;
+    phosphateTimingActive = true;
+    phosphateTargetVertex = targetVertex;
+    phosphateTargetLabel = carbonLabel;
+    phosphateSpinSpeed = spinSpeed;
+    phosphateTimingCallback = onSuccess;
+
+    // Highlight the target carbon on the molecule
+    const verts = glucoseModel.userData.vertices;
+    if (verts && verts[targetVertex]) {
+        const highlight = new THREE.Mesh(
+            new THREE.SphereGeometry(0.15, 8, 8),
+            new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.8 })
+        );
+        highlight.position.copy(verts[targetVertex]);
+        highlight.userData.isTargetHighlight = true;
+        glucoseModel.add(highlight);
+    }
+
+    // Speed up the molecule's spin
+    glucoseModel.userData.timingSpinSpeed = spinSpeed;
+
+    // Create UI overlay
+    phosphateTimingOverlay = document.createElement('div');
+    phosphateTimingOverlay.style.cssText = `
+        position: fixed; bottom: 30%; left: 50%; transform: translateX(-50%);
+        width: 380px; padding: 16px; text-align: center; z-index: 1000;
+        background: rgba(0,0,0,0.85); border: 2px solid #ffaa00; border-radius: 12px;
+        font-family: 'Segoe UI', sans-serif; color: white;
+    `;
+    phosphateTimingOverlay.innerHTML = `
+        <div style="font-size: 22px; font-weight: bold; color: #ffaa00; margin-bottom: 8px;">
+            Place the phosphate on ${carbonLabel}!
+        </div>
+        <div style="font-size: 14px; color: #ccc; margin-bottom: 10px;">
+            Watch the spinning molecule. Press <span style="color:#ffcc00;font-weight:bold;">E</span> when the
+            <span style="color:#ff4444;font-weight:bold;">red target</span> faces you!
+        </div>
+        <div id="phosphateTimingFeedback" style="font-size: 16px; min-height: 24px;"></div>
+    `;
+    document.body.appendChild(phosphateTimingOverlay);
+
+    // Listen for E key press (single tap, not hold)
+    phosphateTimingKeyHandler = (e) => {
+        if (e.key.toLowerCase() === 'e' && phosphateTimingActive && !e.repeat) {
+            e.preventDefault();
+            e.stopPropagation();
+            checkPhosphateTiming();
+        }
+    };
+    document.addEventListener('keydown', phosphateTimingKeyHandler, true); // capture phase
+}
+
+let phosphateTimingKeyHandler = null;
+
+function checkPhosphateTiming() {
+    if (!glucoseModel || !phosphateTimingActive) return;
+
+    // Determine where the target vertex is relative to the camera
+    // The "facing you" position is when the vertex is at the front (positive Z in local space after rotation)
+    const verts = glucoseModel.userData.vertices;
+    if (!verts || !verts[phosphateTargetVertex]) return;
+
+    const targetLocal = verts[phosphateTargetVertex].clone();
+    // Apply the molecule's current Y rotation to get world-relative position
+    targetLocal.applyAxisAngle(new THREE.Vector3(0, 1, 0), glucoseModel.rotation.y);
+
+    // "Facing you" = the target vertex has the most positive Z (toward camera in default view)
+    // We check if the target is in the front-facing arc
+    const angle = Math.atan2(targetLocal.x, targetLocal.z);
+    const tolerance = 0.55; // ~32 degrees either side = generous but not free
+
+    const feedbackEl = document.getElementById('phosphateTimingFeedback');
+
+    if (Math.abs(angle) < tolerance) {
+        // HIT! Target is facing the player
+        phosphateTimingActive = false;
+
+        // Remove highlight
+        if (glucoseModel) {
+            const highlights = [];
+            glucoseModel.traverse(c => { if (c.userData && c.userData.isTargetHighlight) highlights.push(c); });
+            highlights.forEach(h => glucoseModel.remove(h));
+            glucoseModel.userData.timingSpinSpeed = null;
+        }
+
+        // Remove UI
+        if (phosphateTimingOverlay && phosphateTimingOverlay.parentNode) {
+            phosphateTimingOverlay.parentNode.removeChild(phosphateTimingOverlay);
+        }
+        phosphateTimingOverlay = null;
+
+        // Remove listener
+        if (phosphateTimingKeyHandler) {
+            document.removeEventListener('keydown', phosphateTimingKeyHandler, true);
+        }
+        phosphateTimingKeyHandler = null;
+
+        // Fire callback
+        if (phosphateTimingCallback) phosphateTimingCallback();
+    } else {
+        // MISS!
+        if (feedbackEl) {
+            feedbackEl.textContent = 'Missed! Wait for the red target to face you...';
+            feedbackEl.style.color = '#ff6666';
+            setTimeout(() => {
+                if (feedbackEl) {
+                    feedbackEl.textContent = '';
+                }
+            }, 1200);
+        }
+        import('../audioManager.js').then(({ createGameBoySound }) => createGameBoySound(100, 0.1, 'square'));
+    }
+}
+
+function updatePhosphateTiming(delta, elapsedTime) {
+    // Override the molecule's normal rotation with the faster timing spin
+    if (phosphateTimingActive && glucoseModel && glucoseModel.userData.timingSpinSpeed) {
+        glucoseModel.rotation.y += glucoseModel.userData.timingSpinSpeed * delta;
+    }
+}
+
+// ========================
 // PULL MINI-GAME
 // ========================
 
@@ -1557,10 +1692,12 @@ function handleStationInteract(idx, enzymeData, object, scene, tools) {
     stationPos.y = 1.4;
 
     switch (idx) {
-        case 0: // Hexy -- attach first phosphate
-            attachPhosphateA(scene);
-            emitSparkParticles(scene, glucoseModel ? glucoseModel.position.clone() : stationPos, COLORS.phosphate);
-            createGameBoySound(550, 0.2, 'square');
+        case 0: // Hexy -- attach first phosphate (timing mini-game)
+            startPhosphateTiming(scene, 0, 'C6', 2.0, () => {
+                attachPhosphateA(scene);
+                emitSparkParticles(scene, glucoseModel ? glucoseModel.position.clone() : stationPos, COLORS.phosphate);
+                createGameBoySound(550, 0.2, 'square');
+            });
             break;
 
         case 1: // Izzy -- squeeze to pentagon
@@ -1595,20 +1732,21 @@ function handleStationInteract(idx, enzymeData, object, scene, tools) {
             }
             break;
 
-        case 2: // Phil -- attach second phosphate
-            attachPhosphateB(scene);
-            emitSparkParticles(scene, glucoseModel ? glucoseModel.position.clone() : stationPos, COLORS.phosphate);
-            createGameBoySound(660, 0.25, 'square');
-            // Flash the model briefly
-            if (glucoseModel) {
-                glucoseModel.traverse(child => {
-                    if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined) {
-                        const origIntensity = child.material.emissiveIntensity;
-                        child.material.emissiveIntensity = 0.8;
-                        setTimeout(() => { child.material.emissiveIntensity = origIntensity; }, 400);
-                    }
-                });
-            }
+        case 2: // Phil -- attach second phosphate (timing mini-game, faster spin)
+            startPhosphateTiming(scene, 0, 'C1', 2.8, () => {
+                attachPhosphateB(scene);
+                emitSparkParticles(scene, glucoseModel ? glucoseModel.position.clone() : stationPos, COLORS.phosphate);
+                createGameBoySound(660, 0.25, 'square');
+                if (glucoseModel) {
+                    glucoseModel.traverse(child => {
+                        if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined) {
+                            const origIntensity = child.material.emissiveIntensity;
+                            child.material.emissiveIntensity = 0.8;
+                            setTimeout(() => { child.material.emissiveIntensity = origIntensity; }, 400);
+                        }
+                    });
+                }
+            });
             break;
 
         case 3: // Al -- THE SPLIT (enter pull mini-game)
@@ -2105,7 +2243,10 @@ export function update(delta, elapsedTime) {
         glucoseModel.position.x += (targetX - glucoseModel.position.x) * 0.08;
         glucoseModel.position.z += (targetZ - glucoseModel.position.z) * 0.08;
         glucoseModel.position.y = baseY + Math.sin(elapsedTime * 1.2) * 0.15;
-        glucoseModel.rotation.y = elapsedTime * 0.3;
+        // Don't override rotation during timing mini-game (it has its own spin)
+        if (!phosphateTimingActive) {
+            glucoseModel.rotation.y = elapsedTime * 0.3;
+        }
     }
 
     // Fragments follow the player (one on each side, like tiny companions)
@@ -2163,7 +2304,8 @@ export function update(delta, elapsedTime) {
         }
     }
 
-    // Pull mini-game
+    // Mini-games
+    updatePhosphateTiming(delta, elapsedTime);
     updatePullMiniGame(delta);
 
     // Process animations
@@ -2310,6 +2452,11 @@ export function cleanup(scene) {
     phosphateB = null;
     moleculeStage = 'none';
     shakeRemaining = 0;
+    // Clean up phosphate timing mini-game
+    if (phosphateTimingOverlay && phosphateTimingOverlay.parentNode) phosphateTimingOverlay.parentNode.removeChild(phosphateTimingOverlay);
+    phosphateTimingOverlay = null; phosphateTimingActive = false;
+    if (phosphateTimingKeyHandler) document.removeEventListener('keydown', phosphateTimingKeyHandler, true);
+    phosphateTimingKeyHandler = null;
     // Clean up pull mini-game
     if (pullOverlay && pullOverlay.parentNode) pullOverlay.parentNode.removeChild(pullOverlay);
     pullOverlay = null; pullBar = null; pullLabel = null;
