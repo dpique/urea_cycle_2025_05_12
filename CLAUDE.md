@@ -1,57 +1,161 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
-This is an educational 3D browser game called "Metabolon" that teaches the Urea Cycle through interactive gameplay. It uses Three.js for 3D graphics and is served as a static HTML/JavaScript application without a build system.
+**Metabolon** is a 3D browser game (Three.js) that teaches metabolic biochemistry through interactive, Zelda-like gameplay. Each metabolic pathway is a game world. The TCA Cycle is the central hub connecting all worlds. Built by StudyRare for genetics board prep (ABMGG/ABGC).
+
+**Core philosophy:** Show, don't tell. The player physically carries molecules, uses machines, and does construction work (attaching phosphates, squeezing rings, pulling molecules apart). Minimize dialogue walls. Visuals and mechanics teach the biochemistry.
 
 ## Development Setup
 
-Since this is a static web application without a build system, development is straightforward:
+```bash
+npm run dev     # Vite dev server at localhost:5173 (hot reload)
+npm run build   # Production build to dist/
+npm run preview # Preview production build
+```
 
-1. **Run locally**: Use any static web server (e.g., `python -m http.server 8000` or VS Code's Live Server extension)
-2. **No build process**: Changes to JS/HTML/CSS files are immediately reflected on refresh
-3. **No package.json**: Dependencies are loaded via CDN (Three.js v0.160.0)
+**Quick-travel:** Press `T` in-game to cycle between worlds (TCA → Urea Cycle → Glycolysis).
 
 ## Architecture
 
-### File Structure
+### Multi-World System
 
-- `index.html` - Main entry point with UI overlays
-- `main.js` - Game initialization and main loop
-- `style.css` - Styling for UI elements
-- `js/` - Modular game systems:
-  - `constants.js` - All game constants (colors, dimensions, states)
-  - `sceneSetup.js` - Three.js scene initialization
-  - `worldManager.js` - World objects (walls, resources, portals)
-  - `playerManager.js` - Player character and movement
-  - `npcManager.js` - Non-player characters
-  - `questManager.js` - Quest logic and progression
-  - `interactionManager.js` - Object interactions
-  - `uiManager.js` - UI updates and dialogs
-  - `audioManager.js` - Sound management
-  - `utils.js` - Utility functions
+The game uses a **module-per-world** architecture. Each world is a JS module exporting `{ config, init, update, cleanup }`.
 
-### Key Game Flow
+```
+main.js                    # World-agnostic game loop, input, rendering
+js/sceneManager.js         # World registration, transitions (fade effect), current world tracking
+js/worlds/
+  ureaCycleWorld.js        # DONE - Wraps the original urea cycle game
+  tcaCycleWorld.js         # DONE - Central hub with 9 enzyme NPCs in circular plaza
+  glycolysisWorld.js       # DONE - Linear gauntlet with hill terrain, machines, mini-games
+```
 
-1. Player navigates between Mitochondria and Cytosol areas separated by a river
-2. Collects resources (NH3, ATP, etc.) to complete Urea Cycle biochemistry
-3. Interacts with enzyme NPCs (CPS1, OTC, ASL, ASS, ARG1) to transform molecules
-4. Uses portals and bridges to transport molecules between cellular compartments
-5. Completes quiz challenges to demonstrate understanding
+### World Module Interface
 
-### Important Patterns
+Every world module must export:
+- `config` -- `{ id, name, skyColor, fogColor, bounds, spawnPoint, ... }`
+- `init(scene)` -- Build all 3D objects, NPCs, register interactiveObjects
+- `update(delta, elapsedTime)` -- Per-frame logic (terrain following, animations, quest UI)
+- `cleanup(scene)` -- Remove all objects, clear from interactiveObjects array
 
-- **State Management**: Central `gameState` object in main.js
-- **Constants**: All magic numbers and strings defined in constants.js
-- **Collision Detection**: Bounding box system for walls and objects
-- **Quest System**: State machine pattern with defined progression steps
-- **UI Updates**: Centralized through uiManager.js functions
+### Key Shared Systems
 
-### Adding New Features
+| File | Purpose |
+|------|---------|
+| `js/gameState.js` | Global state: inventory, health, abilities, unlockedWorlds, worldProgress, per-world quest state |
+| `js/interactionManager.js` | Proximity detection, highlighting, E-key interaction. **New worlds use `userData.onInteract` callbacks** -- no need to modify this file |
+| `js/worldManager.js` | Shared utilities: `createResource()`, `createWall()`, `interactiveObjects[]`, `originalMaterials` map, `cleanupWorld()` |
+| `js/playerManager.js` | Player mesh (tagged `userData.isPlayer`), movement, camera modes |
+| `js/sceneSetup.js` | Scene, camera, lights, clouds (tagged `userData.persistent` to survive world transitions) |
+| `js/persistenceManager.js` | Save/load to localStorage, includes multi-world state |
+| `js/uiManager.js` | Dialogue boxes, feedback messages, health bar, inventory display |
 
-- **New NPCs**: Add to `npcManager.js` and define in `CONSTANTS.NPC_NAMES`
-- **New Resources**: Define colors in constants.js, add spawn logic in worldManager.js
-- **New Quest Steps**: Update `CONSTANTS.QUEST_STATE` and `ureaCycleQuestData`
-- **New Interactions**: Add cases in `interactionManager.js`
+### Adding a New World
+
+1. Create `js/worlds/myWorld.js` exporting `config`, `init`, `update`, `cleanup`
+2. In `init`: build terrain, create stations/NPCs, push to `interactiveObjects`, set `originalMaterials`
+3. Each interactive object needs `userData: { name, type, isInteractable: true, onInteract: (obj, scene, tools) => {...} }`
+4. The `tools` parameter provides: `{ showDialogue, showFeedback, setGameInteracting, addToInventory, createResource, playMoleculeGenerationSound, createGameBoySound, ... }`
+5. Register in `main.js`: `import * as myWorld from './js/worlds/myWorld.js'; registerWorld('my-world', myWorld);`
+6. Add portal from TCA hub (or another world) to your new world
+
+### Portal Placement Convention
+
+Portals between worlds should be placed at **biologically accurate connection points**:
+- Urea Cycle portal is near **Alpha (alpha-KG DH)** in TCA because alpha-KG connects to glutamate → ammonium → urea cycle
+- Glycolysis portal is **north** in TCA because pyruvate flows into TCA via Percy (PDH)
+- Future: FA oxidation portal should be near **Sid (citrate synthase)** since FA oxidation produces acetyl-CoA
+
+### Cleanup Rules
+
+- Objects tagged `userData.persistent` survive world transitions (sceneSetup objects)
+- Objects tagged `userData.isPlayer` survive transitions (the player)
+- Scene-level lights without `userData.worldSpecific` survive transitions
+- Everything else gets removed by `cleanupWorld()`
+- Each world's `cleanup()` should also remove its objects from `interactiveObjects[]`
+
+## Current World Status
+
+### TCA Central Crossroads (HUB) -- DONE
+- Circular plaza with 8 TCA enzyme NPCs + Percy (PDH) as gatekeeper
+- Full quest: collect Acetyl-CoA → visit each enzyme → produce 3 NADH + 1 FADH2 + 1 GTP
+- Compass markers (N/S/E/W) on ground for orientation
+- Portals: N → Glycolysis, S → Urea Cycle (via alpha-KG/glutamate)
+- Unlocks: "Energy Mastery" ability
+
+### Glycolysis Gauntlet -- DONE
+- Linear pathway with **hill terrain**: uphill during investment phase, peak at the split, downhill during payoff
+- Investment phase (machines): Hexy's Workbench, Izzy's Vise, Phil (NPC gatekeeper), Al's Splitting Rack
+- Payoff phase (machines): Electron Extractor, Phosphate Popper, The Shifter, The Wringer, Pike's Launcher
+- **Glucose molecule follows the player** as a companion, physically transforms at each step
+- **Mini-games**: Phosphate timing (press E when target carbon faces you), precision pull (hold E, release in green zone)
+- PPP side path (locked portal between Hexy and Izzy)
+- C1/C6 carbon labels on the molecule
+- Unlocks: "Glucose Handling" ability
+
+### Urea Cycle -- DONE (original game)
+- 32-step quest across Mitochondria + Cytosol zones
+- 10 enzyme NPCs, river/bridge mechanics, ammonia toxicity
+- Portal to TCA in eastern cytosol
+
+## Design Principles
+
+### Narrative First
+Each world tells a **story**, not a textbook. Example: Glycolysis is "break open a stubborn glucose ring using sticks of dynamite (phosphates)." The enzymes are characters in that story or machines you operate.
+
+### Show, Don't Tell
+- Player carries molecules (glucose ring floats beside you)
+- Molecules physically transform (hexagon → pentagon → split into triangles)
+- Terrain reflects energy: uphill = spending energy, downhill = earning energy
+- Mini-games for key reactions (timing, precision)
+- Short feedback messages (1-2 sentences), not dialogue walls
+
+### Player as Agent
+The player DOES things. They're not reading about reactions -- they're strapping dynamite, squeezing rings, pulling molecules apart, extracting electrons. Enzymes are workstations the player operates, not lecturers.
+
+### Station Types
+Not everything is a humanoid NPC. Use a mix:
+- **Machines/workbenches** for mechanical reactions (phosphorylation, splitting, extraction)
+- **NPCs** for regulatory/gatekeeper enzymes (PFK-1, Pyruvate Kinase) and educational context
+- **Environmental features** for passive reactions
+
+### Biologically Accurate Connections
+Portal placement and world adjacency should reflect real metabolic connections, not arbitrary game design. Students learn pathway connections through physical geography.
+
+## Roadmap: Worlds to Build
+
+### Priority 1 (Next)
+| World | Key Concept | Connection | Mechanic Ideas |
+|-------|-------------|------------|----------------|
+| **ETC / Oxidative Phosphorylation** | Electron transport, ATP synthase | TCA produces NADH/FADH2 that feed ETC | Assembly line / factory. Electrons flow through Complexes I-IV. ATP Synthase as a turbine. |
+| **Fatty Acid Oxidation** | Beta-oxidation spiral | Produces acetyl-CoA for TCA | Repeating spiral mechanic -- chop 2 carbons off each cycle. Carnitine shuttle gate. MCAD Deficiency boss. |
+
+### Priority 2
+| World | Key Concept | Connection |
+|-------|-------------|------------|
+| **Pentose Phosphate Pathway** | NADPH + ribose-5-P | Branches from glucose-6-P (after Hexy in glycolysis) |
+| **Glycogen Metabolism** | Storage/release | Connects to glucose in glycolysis |
+| **Amino Acid Catabolism (BCAA)** | Maple Syrup Urine Disease | Feeds into TCA via succinyl-CoA |
+| **Aromatic AA Metabolism** | PKU, tyrosinemia | Connects via fumarate/acetoacetate |
+
+### Priority 3 (Organelle Dungeons)
+| World | Key Concept | Mechanic |
+|-------|-------------|----------|
+| **Lysosome Vaults** | Storage disorders (Gaucher, Fabry, Pompe) | Waste accumulation puzzle |
+| **Peroxisome Workshop** | Zellweger, X-ALD | VLCFA processing |
+| **ER/Golgi Factory** | CDG, protein folding | Assembly line / glycosylation |
+
+### Story Arc: "The Dysregulation"
+- Villain: **Mutagen** -- spreading enzyme dysfunction across the Metabolic Kingdom
+- Each world boss = a real **Inborn Error of Metabolism** (IEM)
+- Defeating a boss = understanding the broken pathway well enough to answer board-level questions
+- Abilities unlock access to subsequent worlds (Zelda-like gating)
+
+## Business Context
+
+- **StudyRare** (studyrare.com) -- genetics board prep platform
+- **Target audience**: ABMGG/ABGC board exam candidates
+- **Value prop**: "Here's the flat PDF metabolic map. Now walk through it in 3D."
+- **Revenue model**: Free marketing funnel → qbank.studyrare.com subscriptions
+- Future: Freemium (urea cycle + TCA free, advanced worlds behind subscription), institutional licensing
