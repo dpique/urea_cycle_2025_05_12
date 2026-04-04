@@ -330,7 +330,7 @@ function createPentagonalRing(radius, tubeRadius, color) {
     group.add(popSphere);
 
     // Small "C" label on the popped carbon
-    const cLabel = createTextSprite('C', { x: popEnd.x, y: popEnd.y + 0.25, z: popEnd.z }, { scale: 0.4, textColor: 'rgba(255,220,100,0.9)' });
+    const cLabel = createTextSprite('C1', { x: popEnd.x, y: popEnd.y + 0.25, z: popEnd.z }, { scale: 0.4, textColor: 'rgba(255,220,100,0.9)' });
     group.add(cLabel);
 
     // Store popped carbon position for phosphate attachment reference
@@ -1425,7 +1425,7 @@ function moveGlucoseToStation(targetZ, duration) {
 }
 
 function attachPhosphateA(scene) {
-    // Attach first phosphate to vertex 0 of the hexagonal ring
+    // Attach first phosphate to vertex 0 of the hexagonal ring (representing C6)
     if (!glucoseModel || phosphateA) return;
     const verts = glucoseModel.userData.vertices;
     if (!verts || verts.length === 0) return;
@@ -1434,7 +1434,13 @@ function attachPhosphateA(scene) {
     phosphateA = createPhosphateSphere(pos);
     glucoseModel.add(phosphateA);
 
-    // Update label
+    // Add "C6" label near the phosphate
+    const c6Label = createTextSprite('C6', { x: pos.x * 1.4, y: pos.y + 0.4, z: pos.z * 1.4 }, {
+        scale: 0.35, textColor: 'rgba(255,180,80,0.9)',
+    });
+    glucoseModel.add(c6Label);
+
+    // Update molecule label
     if (glucoseModel.userData.label) {
         glucoseModel.remove(glucoseModel.userData.label);
     }

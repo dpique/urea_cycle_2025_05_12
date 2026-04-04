@@ -208,6 +208,7 @@ export function init(scene) {
     createEnzymeStations(scene);
     createPortals(scene);
     createGlycolysisPortal(scene);
+    createCompassMarkers(scene);
     createDecorativeElements(scene);
     createWorldLighting(scene);
 
@@ -938,6 +939,56 @@ function createGlycolysisPortal(scene) {
 }
 
 // --- Decorative Elements ---
+function createCompassMarkers(scene) {
+    const compassDist = PLAZA_RADIUS + 10;
+    const markers = [
+        { label: 'N', x: 0, z: -compassDist, desc: 'Glycolysis' },
+        { label: 'S', x: 0, z: compassDist, desc: 'Urea Cycle' },
+        { label: 'E', x: compassDist, z: 0, desc: '' },
+        { label: 'W', x: -compassDist, z: 0, desc: '' },
+    ];
+
+    for (const m of markers) {
+        // Large compass letter on the ground
+        const letterLabel = createTextSprite(m.label, { x: m.x, y: 0.3, z: m.z }, {
+            scale: 2.5, textColor: 'rgba(200, 200, 255, 0.35)',
+        });
+        scene.add(letterLabel);
+        tcaObjects.push(letterLabel);
+
+        // Small pathway name below the letter
+        if (m.desc) {
+            const descLabel = createTextSprite(m.desc, { x: m.x, y: 0.15, z: m.z + (m.z < 0 ? 2.5 : -2.5) }, {
+                scale: 0.8, textColor: 'rgba(200, 200, 255, 0.25)',
+            });
+            scene.add(descLabel);
+            tcaObjects.push(descLabel);
+        }
+
+        // Ground marker disc
+        const discGeo = new THREE.CircleGeometry(1.5, 16);
+        const discMat = new THREE.MeshStandardMaterial({
+            color: 0x333355, roughness: 0.8, metalness: 0.2,
+        });
+        const disc = new THREE.Mesh(discGeo, discMat);
+        disc.rotation.x = -Math.PI / 2;
+        disc.position.set(m.x, 0.03, m.z);
+        scene.add(disc);
+        tcaObjects.push(disc);
+    }
+
+    // Central compass rose (small cross on the ground at spawn point)
+    const crossMat = new THREE.MeshStandardMaterial({ color: 0x444466, roughness: 0.6 });
+    const hBar = new THREE.Mesh(new THREE.BoxGeometry(4, 0.05, 0.3), crossMat);
+    hBar.position.set(0, 0.04, 0);
+    scene.add(hBar);
+    tcaObjects.push(hBar);
+    const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 4), crossMat);
+    vBar.position.set(0, 0.04, 0);
+    scene.add(vBar);
+    tcaObjects.push(vBar);
+}
+
 function createDecorativeElements(scene) {
     // Floating energy particles around the cycle ring
     const particleCount = 200;
