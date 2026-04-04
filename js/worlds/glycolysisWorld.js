@@ -1878,21 +1878,29 @@ export function init(scene) {
     createPPPBranchPath(scene);
     createLighting(scene);
 
-    // Opening narrative
+    // Opening narrative -- establish the crisis, give the player responsibility
     setTimeout(() => {
         const setInteracting = (state) => setGameState({ isUserInteracting: state });
         const showDialogue = (text, options, cb) => {
             import('../uiManager.js').then(({ showDialogue: sd }) => sd(text, options, cb));
         };
 
-        showDialogue("Before you sits a molecule of GLUCOSE -- a six-sided sugar ring, six carbons in a loop. Stable. Stubborn. The energy locked inside could power thousands of reactions.\n\nBut that ring does NOT want to break.", [
-            { text: "How do we break it?", hideOnClick: false, action: () => {
-                showDialogue("The plan: strap sticks of dynamite -- high-energy phosphates from ATP -- onto carbon 6 and then carbon 1. Both ends of the chain. Then squeeze it, reshape it, and RIP IT APART between the phosphates.\n\nCollect the Glucose and 2 ATP ahead. Then bring them to Hexy's Workbench.", [
-                    { text: "Let's do this.", action: () => {
-                        questState = GLY_QUEST.COLLECT_GLUCOSE;
-                        spawnResource(worldScene, 'Glucose', { x: -3, y: 0.5, z: 52 }, COLORS.glucose);
-                        spawnResource(worldScene, 'ATP', { x: 3, y: 0.5, z: 52 }, COLORS.atp);
-                        spawnResource(worldScene, 'ATP', { x: 5, y: 0.5, z: 50 }, COLORS.atp);
+        showDialogue("EMERGENCY ALERT: The cell's ATP reserves are critically low. Ion pumps are failing. Protein synthesis has stalled. Without energy, the cell will die.", [
+            { text: "What can we do?", hideOnClick: false, action: () => {
+                showDialogue("There's a shipment of glucose that just arrived -- but glucose is useless in its current form. It's a six-sided sugar ring, incredibly stable. The energy is locked inside and the ring does NOT want to break.\n\nThe TCA Cycle is starving for fuel. Percy is down there waiting for pyruvate, but none is coming.", [
+                    { text: "Can't someone else handle this?", hideOnClick: false, action: () => {
+                        showDialogue("The processing stations are all here -- workbenches, vises, extractors -- but they need an OPERATOR. Someone has to physically strap the phosphates on, squeeze the ring, pull it apart, and run the fragments through the salvage line.\n\nYou're the only Metabolic Ranger available. The cell is counting on you.", [
+                            { text: "Tell me the plan.", hideOnClick: false, action: () => {
+                                showDialogue("Here's the plan: take 2 ATP from reserves -- that's the last of our energy budget -- and use them as sticks of dynamite. Strap one phosphate onto carbon 6, squeeze the ring to expose carbon 1, strap the second phosphate there. Then PULL the molecule apart between the two phosphates.\n\nOnce it's broken, run the fragments through the salvage line to extract electrons and recover our ATP investment -- plus profit.\n\nCollect the glucose and 2 ATP ahead. Move fast.", [
+                                    { text: "I'm on it. Let's save this cell.", action: () => {
+                                        questState = GLY_QUEST.COLLECT_GLUCOSE;
+                                        spawnResource(worldScene, 'Glucose', { x: -3, y: 0.5, z: 52 }, COLORS.glucose);
+                                        spawnResource(worldScene, 'ATP', { x: 3, y: 0.5, z: 52 }, COLORS.atp);
+                                        spawnResource(worldScene, 'ATP', { x: 5, y: 0.5, z: 50 }, COLORS.atp);
+                                    }}
+                                ], setInteracting);
+                            }}
+                        ], setInteracting);
                     }}
                 ], setInteracting);
             }}
@@ -1930,7 +1938,7 @@ export function update(delta, elapsedTime) {
         glucoseModel.position.z += (targetZ - glucoseModel.position.z) * glucoseFollow;
         glucoseModel.position.y = baseY + Math.sin(elapsedTime * 1.2) * 0.15;
         // Don't override rotation during timing mini-game (it has its own spin)
-        if (!phosphateTimingActive) {
+        if (!phosphateGame.isActive) {
             glucoseModel.rotation.y = elapsedTime * 0.3;
         }
     }
