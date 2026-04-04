@@ -162,6 +162,13 @@ let activeAnimations = [];
 // Track the current molecule state for visuals
 let moleculeStage = 'none'; // none, hexagon, hexagon-1p, pentagon, pentagon-2p, split, fragment
 
+// Pull mini-game state
+let pullActive = false;
+let pullProgress = 0; // 0 to 1
+let pullOverlay = null;
+let pullBar = null;
+let pullLabel = null;
+
 const PATHWAY_X = 0;
 const PATHWAY_WIDTH = 12;
 
@@ -1024,6 +1031,163 @@ function createLauncher(scene, data, x, z) {
 }
 
 // ========================
+// PULL MINI-GAME
+// ========================
+
+function startPullMiniGame(scene, stationZ) {
+    if (pullActive) return;
+    pullActive = true;
+    pullProgress = 0;
+
+    // Create pull UI overlay
+    pullOverlay = document.createElement('div');
+    pullOverlay.id = 'pullOverlay';
+    pullOverlay.style.cssText = `
+        position: fixed; bottom: 30%; left: 50%; transform: translateX(-50%);
+        width: 400px; padding: 20px; text-align: center; z-index: 1000;
+        background: rgba(0,0,0,0.85); border: 2px solid #ff6600; border-radius: 12px;
+        font-family: 'Segoe UI', sans-serif; color: white;
+    `;
+
+    pullLabel = document.createElement('div');
+    pullLabel.style.cssText = 'font-size: 24px; font-weight: bold; margin-bottom: 12px; color: #ff8800;';
+    pullLabel.textContent = 'HOLD  E  TO PULL!';
+    pullOverlay.appendChild(pullLabel);
+
+    const barContainer = document.createElement('div');
+    barContainer.style.cssText = 'width: 100%; height: 30px; background: #333; border-radius: 6px; overflow: hidden; border: 1px solid #666;';
+
+    pullBar = document.createElement('div');
+    pullBar.style.cssText = 'width: 0%; height: 100%; background: linear-gradient(90deg, #ff4400, #ff8800, #ffcc00); transition: width 0.05s; border-radius: 4px;';
+    barContainer.appendChild(pullBar);
+    pullOverlay.appendChild(barContainer);
+
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size: 13px; color: #aaa; margin-top: 8px;';
+    hint.textContent = 'Grab each phosphate and PULL the molecule apart!';
+    pullOverlay.appendChild(hint);
+
+    document.body.appendChild(pullOverlay);
+
+    // Listen for E key hold
+    pullKeyHandler = (e) => {
+        if (e.key.toLowerCase() === 'e') {
+            e.preventDefault();
+            pullKeyHeld = true;
+        }
+    };
+    pullKeyUpHandler = (e) => {
+        if (e.key.toLowerCase() === 'e') {
+            pullKeyHeld = false;
+        }
+    };
+    document.addEventListener('keydown', pullKeyHandler);
+    document.addEventListener('keyup', pullKeyUpHandler);
+
+    // Store scene ref for completion
+    pullSceneRef = scene;
+    pullStationZ = stationZ;
+}
+
+let pullKeyHandler = null;
+let pullKeyUpHandler = null;
+let pullKeyHeld = false;
+let pullSceneRef = null;
+let pullStationZ = 0;
+
+function updatePullMiniGame(delta) {
+    if (!pullActive) return;
+
+    if (pullKeyHeld) {
+        pullProgress = Math.min(pullProgress + delta * 0.7, 1); // ~1.5 seconds to fill
+
+        // Stretch the glucose model as you pull
+        if (glucoseModel) {
+            const stretch = 1 + pullProgress * 1.2; // Stretch up to 2.2x width
+            const squish = 1 - pullProgress * 0.3;  // Squish vertically
+            glucoseModel.scale.set(stretch, squish, squish);
+
+            // Increasing red tint as it strains
+            glucoseModel.traverse(child => {
+                if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined) {
+                    child.material.emissiveIntensity = 0.05 + pullProgress * 0.5;
+                }
+            });
+        }
+
+        // Creaking sounds as you pull
+        if (pullProgress > 0.3 && pullProgress < 0.32) {
+            import('../audioManager.js').then(({ createGameBoySound }) => createGameBoySound(150, 0.1, 'sawtooth'));
+        }
+        if (pullProgress > 0.6 && pullProgress < 0.62) {
+            import('../audioManager.js').then(({ createGameBoySound }) => createGameBoySound(120, 0.15, 'sawtooth'));
+        }
+    } else {
+        // Slowly relax if not holding
+        pullProgress = Math.max(pullProgress - delta * 0.5, 0);
+
+        // Un-stretch the model
+        if (glucoseModel) {
+            const stretch = 1 + pullProgress * 1.2;
+            const squish = 1 - pullProgress * 0.3;
+            glucoseModel.scale.set(stretch, squish, squish);
+        }
+    }
+
+    // Update UI bar
+    if (pullBar) {
+        pullBar.style.width = `${pullProgress * 100}%`;
+    }
+    if (pullLabel) {
+        if (pullProgress > 0.8) {
+            pullLabel.textContent = 'ALMOST THERE...!!';
+            pullLabel.style.color = '#ffcc00';
+        } else if (pullProgress > 0.5) {
+            pullLabel.textContent = 'KEEP PULLING!';
+            pullLabel.style.color = '#ff8800';
+        } else {
+            pullLabel.textContent = 'HOLD  E  TO PULL!';
+            pullLabel.style.color = '#ff8800';
+        }
+    }
+
+    // Completion!
+    if (pullProgress >= 1) {
+        completePull();
+    }
+}
+
+function completePull() {
+    // Clean up UI
+    if (pullOverlay && pullOverlay.parentNode) {
+        pullOverlay.parentNode.removeChild(pullOverlay);
+    }
+    pullOverlay = null;
+    pullBar = null;
+    pullLabel = null;
+
+    // Remove key listeners
+    if (pullKeyHandler) document.removeEventListener('keydown', pullKeyHandler);
+    if (pullKeyUpHandler) document.removeEventListener('keyup', pullKeyUpHandler);
+    pullKeyHandler = null;
+    pullKeyUpHandler = null;
+    pullKeyHeld = false;
+    pullActive = false;
+
+    // Reset glucose scale before split
+    if (glucoseModel) {
+        glucoseModel.scale.set(1, 1, 1);
+    }
+
+    // NOW do the actual split
+    splitMolecule(pullSceneRef, pullStationZ);
+    import('../audioManager.js').then(({ createGameBoySound }) => {
+        createGameBoySound(220, 0.4, 'sawtooth');
+        setTimeout(() => createGameBoySound(110, 0.3, 'square'), 200);
+    });
+}
+
+// ========================
 // GLUCOSE MODEL MANAGEMENT
 // ========================
 
@@ -1376,10 +1540,8 @@ function handleStationInteract(idx, enzymeData, object, scene, tools) {
             }
             break;
 
-        case 3: // Al -- THE SPLIT
-            splitMolecule(scene, enzymeData.z);
-            createGameBoySound(220, 0.4, 'sawtooth');
-            setTimeout(() => createGameBoySound(110, 0.3, 'square'), 200);
+        case 3: // Al -- THE SPLIT (enter pull mini-game)
+            startPullMiniGame(scene, enzymeData.z);
             break;
 
         case 4: // Tim -- mirror convert DHAP to G3P
@@ -1930,6 +2092,9 @@ export function update(delta, elapsedTime) {
         }
     }
 
+    // Pull mini-game
+    updatePullMiniGame(delta);
+
     // Process animations
     for (let i = activeAnimations.length - 1; i >= 0; i--) {
         const done = activeAnimations[i].update();
@@ -1992,15 +2157,17 @@ function handleGlyResourceCollected(name) {
         // Spawn the hexagonal ring as soon as glucose is picked up
         if (name === 'Glucose' && !glucoseModel) {
             spawnGlucoseModel(worldScene, { x: player.position.x, y: 0, z: player.position.z });
-            showFeedback("You're carrying glucose -- a sturdy six-sided ring. Collect 2 ATP to begin breaking it down.", 3000);
-            return true;
         }
+        // Check if we have everything to advance
         if (inv['Glucose'] && inv['ATP'] >= 2) {
             questState = GLY_QUEST.VISIT_HEXY;
             showFeedback("Glucose + 2 ATP ready! Bring them to Hexy's Workbench to strap the first phosphate onto carbon 6.", 4000);
             return true;
-        } else if (name === 'ATP' && inv['ATP'] === 1) {
-            showFeedback("One ATP collected -- need one more!", 2000);
+        } else if (inv['Glucose'] && (!inv['ATP'] || inv['ATP'] < 2)) {
+            showFeedback("You're carrying glucose -- collect 2 ATP to begin.", 2000);
+            return true;
+        } else if (inv['ATP'] && !inv['Glucose']) {
+            showFeedback(`${inv['ATP']} ATP collected -- now find the Glucose!`, 2000);
             return true;
         }
     }
@@ -2072,5 +2239,11 @@ export function cleanup(scene) {
     phosphateB = null;
     moleculeStage = 'none';
     shakeRemaining = 0;
+    // Clean up pull mini-game
+    if (pullOverlay && pullOverlay.parentNode) pullOverlay.parentNode.removeChild(pullOverlay);
+    pullOverlay = null; pullBar = null; pullLabel = null;
+    if (pullKeyHandler) document.removeEventListener('keydown', pullKeyHandler);
+    if (pullKeyUpHandler) document.removeEventListener('keyup', pullKeyUpHandler);
+    pullActive = false; pullProgress = 0; pullKeyHeld = false;
     worldScene = null;
 }
