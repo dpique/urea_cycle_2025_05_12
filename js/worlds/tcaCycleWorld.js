@@ -8,7 +8,7 @@ import { player } from '../playerManager.js';
 import { showFeedback } from '../uiManager.js';
 import { getGameState, setGameState, getCurrentQuest, setCurrentQuest, advanceCurrentQuestState, getInventory, addToInventory, removeFromInventory, getHealth, damageHealth, healHealth, setWorldProgress, addAbility, unlockWorld } from '../gameState.js';
 import { handlePlayerDeath } from '../gameManager.js';
-import { buildCharacter, PRESETS } from '../characterBuilder.js';
+import { buildCharacter, PRESETS, updateCharacterIdle } from '../characterBuilder.js';
 import { camera, renderer } from '../sceneSetup.js';
 import { transitionTo } from '../sceneManager.js';
 import { updateInteraction } from '../interactionManager.js';
@@ -349,9 +349,9 @@ function createEnzymeStations(scene) {
         tcaObjects.push(npcGroup);
         tcaNPCs.push(npcGroup);
 
-        // Register as interactive
+        // Register as interactive -- use bodyMesh from characterBuilder for proper highlight
         addInteractiveObject(npcGroup);
-        const mainMesh = npcGroup.children.find(c => c.isMesh);
+        const mainMesh = npcGroup.userData.bodyMesh || npcGroup.userData.mainMesh || npcGroup.children.find(c => c.isMesh);
         if (mainMesh) {
             setOriginalMaterial(mainMesh, mainMesh.material);
             npcGroup.userData.mainMesh = mainMesh;
@@ -954,9 +954,14 @@ export function update(delta, elapsedTime) {
         centralFountain.material.emissiveIntensity = 0.3 + Math.sin(elapsedTime * 2) * 0.15;
     }
 
-    // NPC idle animations (gentle sway)
-    for (const npc of tcaNPCs) {
-        npc.rotation.y += Math.sin(elapsedTime * 0.5 + npc.position.x) * 0.001;
+    // NPC idle animations (breathing, head turn, arm sway, weight shift)
+    for (let i = 0; i < tcaNPCs.length; i++) {
+        const npc = tcaNPCs[i];
+        // Store rest position on first frame
+        if (npc.userData.restPosY === undefined) {
+            npc.userData.restPosY = npc.position.y;
+        }
+        updateCharacterIdle(npc, elapsedTime, i * 7.3 + npc.position.x);
     }
 
     // Resource hover (reuse from worldManager)

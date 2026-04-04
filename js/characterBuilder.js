@@ -312,47 +312,67 @@ export function buildCharacter(config) {
     const skinMat = new THREE.MeshStandardMaterial({ color: config.skinColor || 0xffcc99, roughness: 0.7 });
     const limbMat = new THREE.MeshStandardMaterial({ color: config.bodyColor || 0x4488cc, roughness: 0.7 });
 
-    // Legs
+    // Legs (tagged for idle animation)
     const legGeo = new THREE.CylinderGeometry(0.09, 0.11, bt.legH, 6);
-    [-0.12, 0.12].forEach(x => {
+    const legs = [];
+    [-0.12, 0.12].forEach((x, i) => {
         const leg = new THREE.Mesh(legGeo, limbMat);
         leg.position.set(x, bt.legH / 2, 0);
         leg.castShadow = true;
+        leg.userData.partType = 'leg';
+        leg.userData.partSide = i === 0 ? 'left' : 'right';
+        leg.userData.restY = bt.legH / 2;
         group.add(leg);
+        legs.push(leg);
     });
 
-    // Body
+    // Body (tagged as mainMesh for highlight system)
     const bodyGeo = new THREE.CylinderGeometry(bt.bodyW / 2 - 0.02, bt.bodyW / 2, bt.bodyH, 8);
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.y = bt.legH + bt.bodyH / 2;
     body.castShadow = true;
+    body.userData.partType = 'body';
+    body.userData.restY = bt.legH + bt.bodyH / 2;
     group.add(body);
 
-    // Arms
+    // Arms (tagged for idle animation)
     const armGeo = new THREE.CylinderGeometry(0.06, 0.07, bt.armLen, 6);
     const armPose = config.armPose !== undefined ? config.armPose : Math.PI / 6;
-    [-1, 1].forEach(side => {
+    const arms = [];
+    [-1, 1].forEach((side, i) => {
         const arm = new THREE.Mesh(armGeo, limbMat);
         arm.position.set(side * (bt.bodyW / 2 + 0.08), bt.legH + bt.bodyH * 0.85, 0);
         arm.rotation.z = side * armPose;
         arm.castShadow = true;
+        arm.userData.partType = 'arm';
+        arm.userData.partSide = i === 0 ? 'left' : 'right';
+        arm.userData.restRotZ = side * armPose;
         group.add(arm);
+        arms.push(arm);
     });
 
-    // Head
+    // Head (tagged for idle animation)
     const headR = bt.headR;
     const headGeo = (HEAD_SHAPES[config.headShape || 'round'])(headR);
     const head = new THREE.Mesh(headGeo, skinMat);
     const headY = bt.legH + bt.bodyH + headR * 0.9;
     head.position.y = headY;
     head.castShadow = true;
+    head.userData.partType = 'head';
+    head.userData.restY = headY;
     group.add(head);
 
-    // Face
+    // Face (follows head)
     const faceGroup = new THREE.Group();
     faceGroup.position.y = headY;
+    faceGroup.userData.partType = 'face';
+    faceGroup.userData.restY = headY;
     addFace(faceGroup, headR, config.expression || 'default');
     group.add(faceGroup);
+
+    // Store references for animation and highlighting
+    group.userData.bodyMesh = body;  // For highlight system
+    group.userData.parts = { body, head, faceGroup, arms, legs };
 
     // Hat
     const hat = createHat(config.hat || 'none', config.hatColor || config.bodyColor || 0x4488cc, headR);
@@ -379,7 +399,61 @@ export function buildCharacter(config) {
         group.add(sub);
     }
 
+    // Set mainMesh to the body for proper highlight (not a leg)
+    group.userData.mainMesh = body;
+
     return group;
+}
+
+/**
+ * Update idle animations for a character group.
+ * Call this each frame for each NPC. Uses a unique seed per character for variety.
+ * @param {THREE.Group} charGroup - The character group from buildCharacter()
+ * @param {number} elapsedTime - Total elapsed time
+ * @param {number} seed - Unique seed per character (use position.x + position.z or index)
+ */
+export function updateCharacterIdle(charGroup, elapsedTime, seed = 0) {
+    const parts = charGroup.userData.parts;
+    if (!parts) return;
+
+    const t = elapsedTime;
+    const s = seed;
+
+    // Breathing: body bobs up/down slightly
+    if (parts.body) {
+        parts.body.position.y = parts.body.userData.restY + Math.sin(t * 1.2 + s) * 0.015;
+    }
+
+    // Head: gentle look around (rotate Y) and slight tilt
+    if (parts.head) {
+        parts.head.position.y = parts.head.userData.restY + Math.sin(t * 1.2 + s) * 0.015;
+        // Slow look left/right
+        parts.head.rotation.y = Math.sin(t * 0.4 + s * 2.7) * 0.25;
+        // Occasional tilt
+        parts.head.rotation.z = Math.sin(t * 0.3 + s * 1.3) * 0.06;
+    }
+
+    // Face follows head
+    if (parts.faceGroup) {
+        parts.faceGroup.position.y = parts.head ? parts.head.position.y : parts.faceGroup.userData.restY;
+        parts.faceGroup.rotation.y = parts.head ? parts.head.rotation.y : 0;
+    }
+
+    // Arms: gentle sway, slightly out of phase with each other
+    if (parts.arms) {
+        parts.arms.forEach((arm, i) => {
+            const restZ = arm.userData.restRotZ || 0;
+            const phase = i === 0 ? 0 : Math.PI * 0.7;
+            arm.rotation.z = restZ + Math.sin(t * 0.8 + s + phase) * 0.08;
+            // Slight forward/back swing
+            arm.rotation.x = Math.sin(t * 0.5 + s * 1.5 + phase) * 0.06;
+        });
+    }
+
+    // Weight shift: whole character sways very slightly side to side
+    charGroup.rotation.z = Math.sin(t * 0.35 + s * 3.1) * 0.015;
+    // Tiny bounce
+    charGroup.position.y = (charGroup.userData.restPosY || charGroup.position.y) + Math.sin(t * 1.8 + s * 0.7) * 0.008;
 }
 
 // Preset character configs for common enzyme personality types
