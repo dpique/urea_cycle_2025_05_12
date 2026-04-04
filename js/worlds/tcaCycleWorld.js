@@ -29,7 +29,7 @@ export const config = {
         minZ: -60,
         maxZ: 60,
     },
-    spawnPoint: { x: 0, y: 0.5, z: 45 },
+    spawnPoint: { x: 0, y: 0.5, z: 0 },
     portals: [
         {
             targetWorld: 'urea-cycle',
@@ -807,9 +807,9 @@ function spawnResource(scene, name, position, color) {
 function createPortals(scene) {
     // Portal to Urea Cycle -- positioned near Alpha (alpha-ketoglutarate dehydrogenase)
     // because alpha-KG connects to glutamate → ammonium capture → urea cycle
-    // Alpha is at angle -PI/2, position (0, 0, 28). Portal goes just beyond.
+    // Alpha is at angle -PI/2, position (0, 0, 28). Portal goes directly south, aligned with S marker.
     const portalGroup = new THREE.Group();
-    portalGroup.position.set(8, 0, 38);
+    portalGroup.position.set(0, 0, PLAZA_RADIUS + 10);
 
     const portalGeo = new THREE.TorusGeometry(2, 0.3, 8, 20);
     const portalMat = new THREE.MeshStandardMaterial({
@@ -846,12 +846,12 @@ function createPortals(scene) {
     });
     portalGroup.add(connectionLabel);
 
-    // Connecting path from Alpha's station to the portal
-    const pathGeo = new THREE.PlaneGeometry(3, 12);
+    // Connecting path from Alpha's station (z=28) to the portal (z=45)
+    const pathGeo = new THREE.PlaneGeometry(3, 18);
     const pathMat = new THREE.MeshStandardMaterial({ color: 0x1a3a2a, roughness: 0.8 });
     const path = new THREE.Mesh(pathGeo, pathMat);
     path.rotation.x = -Math.PI / 2;
-    path.position.set(4, 0.01, 33);
+    path.position.set(0, 0.015, 36);
     scene.add(path);
     tcaObjects.push(path);
 

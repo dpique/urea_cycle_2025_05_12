@@ -162,6 +162,31 @@ let activeAnimations = [];
 // Track the current molecule state for visuals
 let moleculeStage = 'none'; // none, hexagon, hexagon-1p, pentagon, pentagon-2p, split, fragment
 
+// Terrain height function -- hill goes UP during investment, DOWN during payoff
+const SPLIT_Z = -12;  // Al's station -- the peak
+const START_Z = 50;   // entrance
+const END_Z = -100;   // end of pathway
+const PEAK_HEIGHT = 5; // meters high at the split point
+
+function getGlyTerrainHeight(x, z) {
+    // Only apply height within the pathway corridor
+    const distFromCenter = Math.abs(x);
+    if (distFromCenter > PATHWAY_WIDTH * 2) return 0;
+
+    if (z > SPLIT_Z) {
+        // Investment phase: climb uphill from 0 to PEAK_HEIGHT
+        const t = Math.max(0, Math.min(1, (START_Z - z) / (START_Z - SPLIT_Z)));
+        // Smooth ease-in curve
+        const height = PEAK_HEIGHT * (t * t * (3 - 2 * t));
+        return height;
+    } else {
+        // Payoff phase: descend from PEAK_HEIGHT down past 0
+        const t = Math.max(0, Math.min(1, (SPLIT_Z - z) / (SPLIT_Z - END_Z)));
+        const height = PEAK_HEIGHT * (1 - t * t * (3 - 2 * t)) * 1.0;
+        return Math.max(-1, height); // don't go too far below ground
+    }
+}
+
 // Pull mini-game state
 let pullActive = false;
 let pullProgress = 0; // 0 to 1
@@ -449,7 +474,7 @@ function createTriangleFragment(radius, tubeRadius, color, label) {
 function createWorkbench(scene, data, x, z) {
     // Hexy's station: a workbench with clamps where you attach the phosphate
     const group = new THREE.Group();
-    group.position.set(x - 2, 0, z);
+    group.position.set(x - 2, getGlyTerrainHeight(x, z), z);
 
     const benchMat = new THREE.MeshStandardMaterial({ color: 0x664422, roughness: 0.8, metalness: 0.1 });
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.3, metalness: 0.7 });
@@ -523,7 +548,7 @@ function createWorkbench(scene, data, x, z) {
 function createVise(scene, data, x, z) {
     // Izzy's station: a press/vise machine that squeezes the ring
     const group = new THREE.Group();
-    group.position.set(x - 2, 0, z);
+    group.position.set(x - 2, getGlyTerrainHeight(x, z), z);
 
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x777788, roughness: 0.3, metalness: 0.7 });
     const pressMat = new THREE.MeshStandardMaterial({
@@ -590,7 +615,7 @@ function createVise(scene, data, x, z) {
 function createNPCStation(scene, data, x, z, idx) {
     // Phil and payoff phase enzymes: humanoid NPC
     const group = new THREE.Group();
-    group.position.set(x + 3, 0.3, z);
+    group.position.set(x + 3, getGlyTerrainHeight(x, z) + 0.3, z);
 
     // Body
     const bodyGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.9, 8);
@@ -656,7 +681,7 @@ function createNPCStation(scene, data, x, z, idx) {
 function createSplittingRack(scene, data, x, z) {
     // Al's station: a pulling machine/rack that rips the molecule apart
     const group = new THREE.Group();
-    group.position.set(x - 2, 0, z);
+    group.position.set(x - 2, getGlyTerrainHeight(x, z), z);
 
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x996633, roughness: 0.4, metalness: 0.6 });
     const chainMat = new THREE.MeshStandardMaterial({
@@ -730,7 +755,7 @@ function createSplittingRack(scene, data, x, z) {
 function createMirrorDevice(scene, data, x, z) {
     // Tim's station: a mirror/converter that flips DHAP into G3P
     const group = new THREE.Group();
-    group.position.set(x - 2, 0, z);
+    group.position.set(x - 2, getGlyTerrainHeight(x, z), z);
 
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x8866aa, roughness: 0.5, metalness: 0.4 });
     const mirrorMat = new THREE.MeshStandardMaterial({
@@ -797,7 +822,7 @@ function createMirrorDevice(scene, data, x, z) {
 function createExtractor(scene, data, x, z) {
     // Gary's Electron Extractor -- a generator that pulls electrons off fragments
     const group = new THREE.Group();
-    group.position.set(x - 2, 0, z);
+    group.position.set(x - 2, getGlyTerrainHeight(x, z), z);
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x336633, roughness: 0.4, metalness: 0.6 });
 
     // Generator body (cylinder)
@@ -839,7 +864,7 @@ function createExtractor(scene, data, x, z) {
 function createPopper(scene, data, x, z) {
     // Peggy's Phosphate Popper -- pops a phosphate off and recharges ATP
     const group = new THREE.Group();
-    group.position.set(x - 2, 0, z);
+    group.position.set(x - 2, getGlyTerrainHeight(x, z), z);
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x227744, roughness: 0.3, metalness: 0.6 });
 
     // Chamber body
@@ -883,7 +908,7 @@ function createPopper(scene, data, x, z) {
 function createShifter(scene, data, x, z) {
     // Mutty's Shifter -- a rotating turntable that repositions the phosphate
     const group = new THREE.Group();
-    group.position.set(x - 2, 0, z);
+    group.position.set(x - 2, getGlyTerrainHeight(x, z), z);
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x4488aa, roughness: 0.3, metalness: 0.5 });
 
     // Turntable disc
@@ -925,7 +950,7 @@ function createShifter(scene, data, x, z) {
 function createWringer(scene, data, x, z) {
     // Eno's Wringer -- squeezes water out, compresses the phosphate bond into a loaded spring
     const group = new THREE.Group();
-    group.position.set(x - 2, 0, z);
+    group.position.set(x - 2, getGlyTerrainHeight(x, z), z);
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x5555aa, roughness: 0.3, metalness: 0.6 });
 
     // Two rollers
@@ -976,7 +1001,7 @@ function createWringer(scene, data, x, z) {
 function createLauncher(scene, data, x, z) {
     // Pike's Launcher -- the grand finale. NPC with a cannon/catapult that fires the last phosphate
     const group = new THREE.Group();
-    group.position.set(x + 3, 0.3, z);
+    group.position.set(x + 3, getGlyTerrainHeight(x, z) + 0.3, z);
 
     // Pike NPC body
     const bodyMat = new THREE.MeshStandardMaterial({ color: data.bodyColor, roughness: 0.6 });
@@ -1852,14 +1877,17 @@ function createEnzymeStations(scene) {
         const x = PATHWAY_X;
         const z = data.z;
 
-        // Platform under each station
+        // Get terrain height at this station
+        const stationHeight = getGlyTerrainHeight(x, z);
+
+        // Platform under each station (sits on the terrain)
         const platGeo = new THREE.BoxGeometry(PATHWAY_WIDTH - 2, 0.3, 4);
         const platMat = new THREE.MeshStandardMaterial({
             color: data.color, metalness: 0.2, roughness: 0.6,
             emissive: data.color, emissiveIntensity: 0.08,
         });
         const platform = new THREE.Mesh(platGeo, platMat);
-        platform.position.set(x, 0.15, z);
+        platform.position.set(x, stationHeight + 0.15, z);
         platform.receiveShadow = true;
         platform.castShadow = true;
         scene.add(platform);
@@ -1867,14 +1895,15 @@ function createEnzymeStations(scene) {
 
         // Station light
         const light = new THREE.PointLight(data.color, 0.4, 8);
-        light.position.set(x, 3, z);
+        light.position.set(x, stationHeight + 3, z);
         scene.add(light);
         glyObjects.push(light);
 
-        // Create the appropriate station type
+        // Create the appropriate station type (pass terrain height)
+        const sh = stationHeight;
         switch (data.stationType) {
             case 'workbench':
-                createWorkbench(scene, data, x, z);
+                createWorkbench(scene, data, x, z, sh);
                 break;
             case 'vise':
                 createVise(scene, data, x, z);
@@ -1928,43 +1957,98 @@ function createEnzymeStations(scene) {
 // ========================
 
 function createTerrain(scene) {
-    const sections = [
-        { z: 30, depth: 40, color: COLORS.investmentGround, label: 'INVESTMENT PHASE', labelZ: 42 },
-        { z: -10, depth: 30, color: COLORS.splitGround, label: 'THE SPLIT', labelZ: -5 },
-        { z: -55, depth: 70, color: COLORS.payoffGround, label: 'PAYOFF PHASE', labelZ: -40 },
+    // Height-mapped terrain: uphill during investment, peak at the split, downhill during payoff
+    const terrainWidth = PATHWAY_WIDTH * 4;
+    const terrainDepth = 170;
+    const segsX = 40;
+    const segsZ = 80;
+
+    const terrainGeo = new THREE.PlaneGeometry(terrainWidth, terrainDepth, segsX, segsZ);
+    const verts = terrainGeo.attributes.position.array;
+
+    // Apply height map and color per vertex
+    const colors = new Float32Array(verts.length); // rgb per vertex
+    for (let i = 0; i < verts.length; i += 3) {
+        const localX = verts[i];
+        const localZ = verts[i + 1]; // PlaneGeometry: x,y before rotation; y becomes z after rotation
+        const worldZ = -25 + localZ; // center of the plane is at z=-25
+        const worldX = localX;
+
+        const h = getGlyTerrainHeight(worldX, worldZ);
+        verts[i + 2] = h; // Set height (will become Y after rotation)
+
+        // Color based on phase
+        let r, g, b;
+        if (worldZ > SPLIT_Z) {
+            // Investment: reddish-brown, darker higher up
+            const t = Math.max(0, (START_Z - worldZ) / (START_Z - SPLIT_Z));
+            r = 0.24 - t * 0.08; g = 0.10 - t * 0.04; b = 0.10 - t * 0.04;
+        } else if (worldZ > SPLIT_Z - 10) {
+            // Split zone: amber
+            r = 0.24; g = 0.18; b = 0.10;
+        } else {
+            // Payoff: greenish, brighter lower down
+            const t = Math.max(0, (SPLIT_Z - worldZ) / (SPLIT_Z - END_Z));
+            r = 0.10 + t * 0.02; g = 0.18 + t * 0.08; b = 0.10 + t * 0.02;
+        }
+        colors[i] = r;
+        colors[i + 1] = g;
+        colors[i + 2] = b;
+    }
+
+    terrainGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    terrainGeo.computeVertexNormals();
+
+    const terrainMat = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.9,
+        metalness: 0.05,
+    });
+    const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+    terrain.rotation.x = -Math.PI / 2;
+    terrain.position.set(PATHWAY_X, 0, -25);
+    terrain.receiveShadow = true;
+    terrain.castShadow = true;
+    scene.add(terrain);
+    glyObjects.push(terrain);
+
+    // Path strip on top of the terrain (slightly raised)
+    const pathGeo = new THREE.PlaneGeometry(PATHWAY_WIDTH * 0.8, terrainDepth, 4, segsZ);
+    const pathVerts = pathGeo.attributes.position.array;
+    for (let i = 0; i < pathVerts.length; i += 3) {
+        const worldZ = -25 + pathVerts[i + 1];
+        pathVerts[i + 2] = getGlyTerrainHeight(0, worldZ) + 0.05;
+    }
+    pathGeo.computeVertexNormals();
+    const pathMat = new THREE.MeshStandardMaterial({ color: COLORS.path, roughness: 0.7, metalness: 0.1 });
+    const pathMesh = new THREE.Mesh(pathGeo, pathMat);
+    pathMesh.rotation.x = -Math.PI / 2;
+    pathMesh.position.set(PATHWAY_X, 0, -25);
+    pathMesh.receiveShadow = true;
+    scene.add(pathMesh);
+    glyObjects.push(pathMesh);
+
+    // Phase labels (positioned at terrain height)
+    const labels = [
+        { text: 'INVESTMENT PHASE', z: 42, color: 'rgba(255,150,150,0.5)' },
+        { text: 'THE SPLIT', z: -5, color: 'rgba(255,220,150,0.5)' },
+        { text: 'PAYOFF PHASE', z: -50, color: 'rgba(150,255,150,0.5)' },
     ];
-
-    for (const sec of sections) {
-        const geo = new THREE.PlaneGeometry(PATHWAY_WIDTH * 3, sec.depth);
-        const mat = new THREE.MeshStandardMaterial({ color: sec.color, roughness: 0.9 });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.rotation.x = -Math.PI / 2;
-        mesh.position.set(PATHWAY_X, -0.01, sec.z);
-        mesh.receiveShadow = true;
-        scene.add(mesh);
-        glyObjects.push(mesh);
-
-        const label = createTextSprite(sec.label, { x: PATHWAY_X, y: 4, z: sec.labelZ }, {
-            scale: 2, textColor: 'rgba(255,255,255,0.5)',
+    for (const l of labels) {
+        const h = getGlyTerrainHeight(0, l.z);
+        const label = createTextSprite(l.text, { x: PATHWAY_X - PATHWAY_WIDTH, y: h + 3, z: l.z }, {
+            scale: 1.8, textColor: l.color,
         });
         scene.add(label);
         glyObjects.push(label);
     }
 
-    const pathGeo = new THREE.PlaneGeometry(PATHWAY_WIDTH, 170);
-    const pathMat = new THREE.MeshStandardMaterial({ color: COLORS.path, roughness: 0.7, metalness: 0.1 });
-    const pathMesh = new THREE.Mesh(pathGeo, pathMat);
-    pathMesh.rotation.x = -Math.PI / 2;
-    pathMesh.position.set(PATHWAY_X, 0.01, -25);
-    pathMesh.receiveShadow = true;
-    scene.add(pathMesh);
-    glyObjects.push(pathMesh);
-
+    // Background terrain (flat, far below)
     const bgGeo = new THREE.PlaneGeometry(400, 400);
     const bgMat = new THREE.MeshStandardMaterial({ color: 0x1a0f00, roughness: 1, fog: true });
     const bg = new THREE.Mesh(bgGeo, bgMat);
     bg.rotation.x = -Math.PI / 2;
-    bg.position.y = -0.5;
+    bg.position.y = -2;
     bg.receiveShadow = true;
     scene.add(bg);
     glyObjects.push(bg);
@@ -2021,10 +2105,11 @@ function createDecorations(scene) {
     for (let z = 45; z >= -100; z -= 15) {
         for (const side of [-1, 1]) {
             const x = side * (PATHWAY_WIDTH / 2 + 2);
+            const th = getGlyTerrainHeight(x, z);
             const pillarGeo = new THREE.CylinderGeometry(0.3, 0.4, 2.5, 6);
             const pillarMat = new THREE.MeshStandardMaterial({ color: 0x554433, roughness: 0.7 });
             const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-            pillar.position.set(x, 1.25, z);
+            pillar.position.set(x, th + 1.25, z);
             pillar.castShadow = true;
             scene.add(pillar);
             glyObjects.push(pillar);
@@ -2037,7 +2122,7 @@ function createDecorations(scene) {
                 transparent: true, opacity: 0.85,
             });
             const flame = new THREE.Mesh(flameGeo, flameMat);
-            flame.position.set(x, 2.8, z);
+            flame.position.set(x, th + 2.8, z);
             flame.userData.isFlame = true;
             scene.add(flame);
             glyObjects.push(flame);
@@ -2330,19 +2415,29 @@ export function update(delta, elapsedTime) {
         }
     }
 
-    // Terrain following
-    player.position.y = Math.max(0.01, player.position.y);
+    // Terrain following -- player follows the hill terrain
+    const terrainY = getGlyTerrainHeight(player.position.x, player.position.z) + 0.01;
     if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
+        // Jumping
         player.position.y += player.userData.verticalVelocity;
         player.userData.verticalVelocity -= 0.02;
-    } else if (player.position.y > 0.1) {
+        if (player.position.y <= terrainY) {
+            player.position.y = terrainY;
+            player.userData.verticalVelocity = 0;
+        }
+    } else if (player.position.y > terrainY + 0.1) {
+        // Falling
         if (!player.userData.verticalVelocity) player.userData.verticalVelocity = 0;
         player.userData.verticalVelocity -= 0.02;
         player.position.y += player.userData.verticalVelocity;
-        if (player.position.y <= 0.01) {
-            player.position.y = 0.01;
+        if (player.position.y <= terrainY) {
+            player.position.y = terrainY;
             player.userData.verticalVelocity = 0;
         }
+    } else {
+        // Smooth terrain following
+        player.position.y += (terrainY - player.position.y) * 0.15;
+        player.userData.verticalVelocity = 0;
     }
 
     // Health regen
