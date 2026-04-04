@@ -58,22 +58,22 @@ const ENZYMES = [
         enzyme: 'Hexokinase', z: 30, color: 0xff6b6b, bodyColor: 0xcc4444,
         phase: 'investment', stationType: 'workbench',
         input: ['Glucose', 'ATP'], output: ['Glucose-6-P'],
-        feedback: 'Phosphate attached! The glucose is trapped in the cell now -- but the ring holds firm.',
+        feedback: 'First stick of dynamite strapped onto CARBON 6 -- the last carbon of the chain! Glucose-6-Phosphate. The ring holds firm... one wasn\'t enough.',
     },
     {
         name: 'Izzy\'s Vise (PGI)', shortName: 'Izzy\'s Vise',
         enzyme: 'Phosphoglucose Isomerase', z: 16, color: 0xffa07a, bodyColor: 0xcc7755,
         phase: 'investment', stationType: 'vise',
         input: ['Glucose-6-P'], output: ['Fructose-6-P'],
-        feedback: 'SQUEEZED! The 6-sided ring buckles into a 5-sided ring. Still intact... but weakened.',
+        feedback: 'SQUEEZED so hard a carbon POPPED OUT of the ring! Six-sided glucose becomes five-sided fructose. Still holding together... but now we can reach both ends.',
     },
     {
         name: 'Phil the Gatekeeper (PFK-1)', shortName: 'Phil',
         enzyme: 'Phosphofructokinase-1', z: 2, color: 0xff4444, bodyColor: 0xaa2222,
         phase: 'investment', stationType: 'npc',
         input: ['Fructose-6-P', 'ATP'], output: ['Fructose-1,6-BP'],
-        greeting: "I'm Phil, PFK-1. The RATE-LIMITING gatekeeper. Nothing passes without my say-so. You want to commit to breaking this sugar? Give me that ATP -- I'll strap a SECOND phosphate on the other end. Point of no return.",
-        feedback: 'SECOND phosphate attached! Two sticks of dynamite, one on each end. The molecule is primed.',
+        greeting: "I'm Phil, PFK-1. The RATE-LIMITING gatekeeper. Nothing passes without my say-so. We need dynamite on BOTH ends -- carbon 1 AND carbon 6. That's what the '1,6' means in fructose-1,6-bisphosphate!",
+        feedback: 'SECOND stick of dynamite on CARBON 1! Fructose-1,6-bisphosphate -- the 1 and the 6 tell you exactly where the phosphates sit. Both ends loaded. NOW we pull.',
     },
     {
         name: 'Al\'s Splitting Rack (Aldolase)', shortName: 'Al\'s Rack',
@@ -291,6 +291,39 @@ function createPentagonalRing(radius, tubeRadius, color) {
         group.add(sphere);
     }
 
+    // The carbon that "popped out" of the ring -- sticks out from vertex 0 (top)
+    const popVertex = vertices[0];
+    const popDir = popVertex.clone().normalize();
+    const popEnd = popVertex.clone().add(popDir.clone().multiplyScalar(radius * 0.7));
+
+    // Arm connecting ring to popped-out carbon
+    const armMid = new THREE.Vector3().addVectors(popVertex, popEnd).multiplyScalar(0.5);
+    const armDir = new THREE.Vector3().subVectors(popEnd, popVertex);
+    const armGeo = new THREE.CylinderGeometry(tubeRadius * 0.8, tubeRadius * 0.8, armDir.length(), 6);
+    const armMesh = new THREE.Mesh(armGeo, mat);
+    armMesh.position.copy(armMid);
+    armMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), armDir.clone().normalize());
+    group.add(armMesh);
+
+    // The popped-out carbon atom (slightly larger, highlighted)
+    const popMat = new THREE.MeshStandardMaterial({
+        color: 0xffcc44,
+        roughness: 0.3,
+        metalness: 0.3,
+        emissive: 0xffcc44,
+        emissiveIntensity: 0.2,
+    });
+    const popSphere = new THREE.Mesh(new THREE.SphereGeometry(tubeRadius * 2.2, 10, 8), popMat);
+    popSphere.position.copy(popEnd);
+    popSphere.castShadow = true;
+    group.add(popSphere);
+
+    // Small "C" label on the popped carbon
+    const cLabel = createTextSprite('C', { x: popEnd.x, y: popEnd.y + 0.25, z: popEnd.z }, { scale: 0.4, textColor: 'rgba(255,220,100,0.9)' });
+    group.add(cLabel);
+
+    // Store popped carbon position for phosphate attachment reference
+    group.userData.poppedCarbon = popEnd;
     group.userData.vertices = vertices;
     group.userData.tubeRadius = tubeRadius;
     return group;
@@ -772,24 +805,9 @@ function spawnGlucoseModel(scene, position) {
     moleculeStage = 'hexagon';
 }
 
-// REMOVED: moveGlucoseToStation -- the molecule now follows the player
+// No-op stub -- molecule follows the player now, no need to animate to stations
 function moveGlucoseToStation(targetZ, duration) {
-    // No-op: molecule follows player now. Kept as stub so existing calls don't break.
-    if (!glucoseModel) return;
-    const startPos = glucoseModel.position.clone();
-    const targetPos = new THREE.Vector3(PATHWAY_X, glucoseModel.userData.baseY, targetZ);
-    const startTime = performance.now();
-
-    activeAnimations.push({
-        id: 'moveGlucose',
-        update: () => {
-            const elapsed = (performance.now() - startTime) / 1000;
-            const t = Math.min(elapsed / duration, 1);
-            const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-            glucoseModel.position.lerpVectors(startPos, targetPos, eased);
-            return t >= 1;
-        },
-    });
+    // Intentionally empty
 }
 
 function attachPhosphateA(scene) {
@@ -1059,20 +1077,26 @@ function handleStationInteract(idx, enzymeData, object, scene, tools) {
 
         case 1: // Izzy -- squeeze to pentagon
             if (glucoseModel) {
-                // Quick squeeze animation
+                // Quick squeeze animation then morph
                 const squeezeStart = performance.now();
                 const origScale = glucoseModel.scale.clone();
+                let morphed = false;
                 activeAnimations.push({
                     id: 'squeeze',
                     update: () => {
                         const elapsed = (performance.now() - squeezeStart) / 1000;
-                        const t = Math.min(elapsed / 0.5, 1);
-                        if (t < 0.5) {
-                            const s = 1 - t * 0.6;
-                            glucoseModel.scale.set(s, origScale.y, 1 + t * 0.3);
-                        } else if (t >= 0.5 && t < 0.51) {
+                        const t = Math.min(elapsed / 0.6, 1);
+                        if (t < 0.4 && glucoseModel) {
+                            // Squeeze: compress horizontally, expand depth
+                            const s = 1 - t * 1.2;
+                            glucoseModel.scale.set(Math.max(0.5, s), origScale.y, 1 + t * 0.5);
+                        } else if (!morphed) {
+                            // Pop! Morph to pentagon
+                            morphed = true;
                             morphToPentagon(scene);
-                            emitSparkParticles(scene, glucoseModel.position.clone(), 0xffa07a);
+                            if (glucoseModel) {
+                                emitSparkParticles(scene, glucoseModel.position.clone(), 0xffa07a);
+                            }
                             createGameBoySound(330, 0.15, 'sawtooth');
                         }
                         return t >= 1;
@@ -1445,9 +1469,9 @@ export function init(scene) {
             import('../uiManager.js').then(({ showDialogue: sd }) => sd(text, options, cb));
         };
 
-        showDialogue("Before you sits a molecule of GLUCOSE -- a six-sided sugar ring. Stable. Stubborn. The energy locked inside could power thousands of reactions.\n\nBut that ring does NOT want to break.", [
+        showDialogue("Before you sits a molecule of GLUCOSE -- a six-sided sugar ring, six carbons in a loop. Stable. Stubborn. The energy locked inside could power thousands of reactions.\n\nBut that ring does NOT want to break.", [
             { text: "How do we break it?", hideOnClick: false, action: () => {
-                showDialogue("You'll strap sticks of dynamite -- phosphates from ATP -- onto each end. Squeeze it, prime it, then RIP IT APART.\n\nCollect the Glucose and 2 ATP ahead to begin. Then bring them to Hexy's Workbench.", [
+                showDialogue("The plan: strap sticks of dynamite -- high-energy phosphates from ATP -- onto carbon 6 and then carbon 1. Both ends of the chain. Then squeeze it, reshape it, and RIP IT APART between the phosphates.\n\nCollect the Glucose and 2 ATP ahead. Then bring them to Hexy's Workbench.", [
                     { text: "Let's do this.", action: () => {
                         questState = GLY_QUEST.COLLECT_GLUCOSE;
                         spawnResource(worldScene, 'Glucose', { x: -3, y: 0.5, z: 45 }, COLORS.glucose);

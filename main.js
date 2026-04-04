@@ -160,14 +160,18 @@ document.addEventListener('keydown', (event) => {
         event.preventDefault();
         loadGame();
     }
-    // T key: quick travel between worlds (for testing)
+    // T key: cycle through worlds (for testing)
     if (key === 't' && !gameState.isUserInteracting) {
         const currentId = getCurrentWorldId();
-        if (currentId === 'urea-cycle') {
-            transitionTo('tca-cycle', { x: 0, y: 0.5, z: 45 });
-        } else {
-            transitionTo('urea-cycle', { x: -60, y: 0.5, z: -16 });
-        }
+        const cycle = ['tca-cycle', 'urea-cycle', 'glycolysis'];
+        const nextIdx = (cycle.indexOf(currentId) + 1) % cycle.length;
+        const nextId = cycle[nextIdx];
+        const spawns = {
+            'tca-cycle': { x: 0, y: 0.5, z: 45 },
+            'urea-cycle': { x: -60, y: 0.5, z: -16 },
+            'glycolysis': { x: 0, y: 0.5, z: 50 },
+        };
+        transitionTo(nextId, spawns[nextId]);
     }
 });
 
