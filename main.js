@@ -7,7 +7,8 @@ import { initPlayer, player, updatePlayer, toggleCameraMode } from './js/playerM
 import { initUIManager, showFeedback, updateHealthUI } from './js/uiManager.js';
 import { getAudioContext, toggleMuteMusic } from './js/audioManager.js';
 import { getClosestInteractiveObject, interactWithObject } from './js/interactionManager.js';
-import { getGameState, getCurrentQuest, subscribeToHealthChanges } from './js/gameState.js';
+import { getGameState, getCurrentQuest } from './js/gameState.js';
+import { on as onEvent } from './js/eventBus.js';
 import { saveGame, loadGame } from './js/persistenceManager.js';
 import { handlePlayerDeath } from './js/gameManager.js';
 import { registerWorld, loadWorld, updateCurrentWorld, getCurrentWorld, getCurrentWorldId, getIsTransitioning, transitionTo } from './js/sceneManager.js';
@@ -27,7 +28,7 @@ export const realityRiverUI = document.getElementById('realityRiver');
 const canvasElement = document.getElementById('gameCanvas');
 initScene(canvasElement);
 initUIManager();
-subscribeToHealthChanges(updateHealthUI);
+onEvent('health:change', updateHealthUI);
 initPlayer(scene);
 
 // --- Register worlds ---
@@ -157,18 +158,15 @@ document.addEventListener('keydown', (event) => {
         event.preventDefault();
         loadGame();
     }
-    // T key: cycle through worlds (for testing)
-    if (key === 't' && !gameState.isUserInteracting) {
+    // T key: cycle through worlds (DEV-only teleport)
+    if (import.meta.env.DEV && key === 't' && !gameState.isUserInteracting) {
         const currentId = getCurrentWorldId();
         const cycle = ['tca-cycle', 'urea-cycle', 'glycolysis'];
         const nextIdx = (cycle.indexOf(currentId) + 1) % cycle.length;
         const nextId = cycle[nextIdx];
-        const spawns = {
-            'tca-cycle': { x: 0, y: 0.5, z: 45 },
-            'urea-cycle': { x: -60, y: 0.5, z: -16 },
-            'glycolysis': { x: 0, y: 0.5, z: 55 },
-        };
-        transitionTo(nextId, spawns[nextId]);
+        const worldMods = { 'tca-cycle': tcaCycleWorld, 'urea-cycle': ureaCycleWorld, 'glycolysis': glycolysisWorld };
+        const spawnPoint = worldMods[nextId]?.config?.spawnPoint || { x: 0, y: 0.5, z: 0 };
+        transitionTo(nextId, spawnPoint);
     }
 });
 

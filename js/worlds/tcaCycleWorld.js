@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { createTextSprite, createSimpleParticleSystem } from '../utils.js';
-import { createWall, createResource, interactiveObjects, originalMaterials, setWorldTerrainFn } from '../worldManager.js';
+import { createWall, createResource, interactiveObjects, originalMaterials, setWorldTerrainFn, addInteractiveObject, removeInteractiveObjectAt, setOriginalMaterial } from '../worldManager.js';
 import { player } from '../playerManager.js';
 import { showFeedback } from '../uiManager.js';
 import { getGameState, setGameState, getCurrentQuest, setCurrentQuest, advanceCurrentQuestState, getInventory, addToInventory, removeFromInventory, getHealth, damageHealth, healHealth, setWorldProgress, addAbility, unlockWorld } from '../gameState.js';
@@ -440,10 +440,10 @@ function createEnzymeStations(scene) {
         tcaNPCs.push(npcGroup);
 
         // Register as interactive
-        interactiveObjects.push(npcGroup);
+        addInteractiveObject(npcGroup);
         const mainMesh = npcGroup.children.find(c => c.isMesh);
         if (mainMesh) {
-            originalMaterials.set(mainMesh, mainMesh.material);
+            setOriginalMaterial(mainMesh, mainMesh.material);
             npcGroup.userData.mainMesh = mainMesh;
         }
 
@@ -882,7 +882,7 @@ function createPortals(scene) {
             ], setGameInteracting);
         }
     };
-    interactiveObjects.push(portalGroup);
+    addInteractiveObject(portalGroup);
 }
 
 // Urea cycle constants (needed for portal spawn point)
@@ -935,8 +935,8 @@ function createGlycolysisPortal(scene) {
             ], setGameInteracting);
         }
     };
-    interactiveObjects.push(portalGroup);
-    originalMaterials.set(ring, ring.material);
+    addInteractiveObject(portalGroup);
+    setOriginalMaterial(ring, ring.material);
     portalGroup.userData.mainMesh = ring;
 }
 
@@ -1147,7 +1147,7 @@ export function update(delta, elapsedTime) {
 
                 // Remove from scene
                 if (obj.parent) obj.parent.remove(obj);
-                interactiveObjects.splice(i, 1);
+                removeInteractiveObjectAt(i);
 
                 // Advance quest -- this shows the appropriate feedback message
                 const questAdvanced = handleResourceCollected(name, worldScene);
@@ -1252,7 +1252,7 @@ export function cleanup(scene) {
     for (let i = interactiveObjects.length - 1; i >= 0; i--) {
         const obj = interactiveObjects[i];
         if (obj.userData && (obj.userData.worldId === 'tca-cycle' || tcaNPCs.includes(obj) || tcaObjects.includes(obj))) {
-            interactiveObjects.splice(i, 1);
+            removeInteractiveObjectAt(i);
         }
     }
 

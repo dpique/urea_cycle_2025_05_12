@@ -25,6 +25,20 @@ export function getWorldTerrainHeight(x, z) {
     return worldTerrainFn ? worldTerrainFn(x, z) : 0;
 }
 
+// --- Controlled accessors for shared mutable state ---
+// External code must use these instead of directly pushing/splicing the raw arrays.
+
+export function addInteractiveObject(obj) { interactiveObjects.push(obj); }
+export function removeInteractiveObject(obj) {
+    const idx = interactiveObjects.indexOf(obj);
+    if (idx !== -1) interactiveObjects.splice(idx, 1);
+}
+export function removeInteractiveObjectAt(i) { interactiveObjects.splice(i, 1); }
+
+export function setOriginalMaterial(mesh, mat) { originalMaterials.set(mesh, mat); }
+export function getOriginalMaterial(mesh) { return originalMaterials.get(mesh); }
+export function hasOriginalMaterial(mesh) { return originalMaterials.has(mesh); }
+
 
 function addCollidableWall(wall) {
     collidableWalls.push(wall);

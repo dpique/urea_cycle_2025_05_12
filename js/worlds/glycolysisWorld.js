@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { createTextSprite, createSimpleParticleSystem } from '../utils.js';
-import { createResource, interactiveObjects, originalMaterials, setWorldTerrainFn } from '../worldManager.js';
+import { createResource, interactiveObjects, originalMaterials, setWorldTerrainFn, addInteractiveObject, removeInteractiveObjectAt, setOriginalMaterial } from '../worldManager.js';
 import { player } from '../playerManager.js';
 import { showFeedback } from '../uiManager.js';
 import { getGameState, setGameState, getInventory, addToInventory, removeFromInventory, getHealth, healHealth, setWorldProgress, addAbility, unlockWorld } from '../gameState.js';
@@ -146,6 +146,13 @@ let worldScene = null;
 let glyObjects = [];
 let glyNPCs = [];
 let questState = GLY_QUEST.NOT_STARTED;
+
+// Typed animation lists — built at init time to avoid per-frame glyObjects traversal
+let glyFlames = [];
+let glyDynamite = [];
+let glyMirrors = [];
+let glyTurntables = [];
+let glyWaterDrops = [];
 
 // The central glucose model that transforms at each station
 let glucoseModel = null;
@@ -518,6 +525,7 @@ function createWorkbench(scene, data, x, z) {
     dynamite.position.set(0.5, 1.3, 0.5);
     dynamite.rotation.z = Math.PI / 6;
     dynamite.userData.isDynamite = true;
+    glyDynamite.push(dynamite);
     group.add(dynamite);
 
     // Label
@@ -534,8 +542,8 @@ function createWorkbench(scene, data, x, z) {
     glyObjects.push(group);
 
     // Make interactive
-    interactiveObjects.push(group);
-    originalMaterials.set(top, top.material);
+    addInteractiveObject(group);
+    setOriginalMaterial(top, top.material);
     group.userData = {
         name: data.name, type: 'station', enzyme: data.enzyme,
         isInteractable: true, mainMesh: top,
@@ -601,8 +609,8 @@ function createVise(scene, data, x, z) {
     scene.add(group);
     glyObjects.push(group);
 
-    interactiveObjects.push(group);
-    originalMaterials.set(base, base.material);
+    addInteractiveObject(group);
+    setOriginalMaterial(base, base.material);
     group.userData = {
         name: data.name, type: 'station', enzyme: data.enzyme,
         isInteractable: true, mainMesh: base,
@@ -666,9 +674,9 @@ function createNPCStation(scene, data, x, z, idx) {
     glyObjects.push(group);
     glyNPCs.push(group);
 
-    interactiveObjects.push(group);
+    addInteractiveObject(group);
     const mainMesh = body;
-    originalMaterials.set(mainMesh, mainMesh.material);
+    setOriginalMaterial(mainMesh, mainMesh.material);
     group.userData = {
         name: data.name, type: 'npc', enzyme: data.enzyme,
         isInteractable: true, mainMesh: mainMesh,
@@ -741,8 +749,8 @@ function createSplittingRack(scene, data, x, z) {
     scene.add(group);
     glyObjects.push(group);
 
-    interactiveObjects.push(group);
-    originalMaterials.set(base, base.material);
+    addInteractiveObject(group);
+    setOriginalMaterial(base, base.material);
     group.userData = {
         name: data.name, type: 'station', enzyme: data.enzyme,
         isInteractable: true, mainMesh: base,
@@ -785,6 +793,7 @@ function createMirrorDevice(scene, data, x, z) {
     const mirror = new THREE.Mesh(new THREE.CircleGeometry(1.0, 16), mirrorMat);
     mirror.position.y = 1.5;
     mirror.userData.isMirror = true;
+    glyMirrors.push(mirror);
     group.add(mirror);
 
     // "= / =" symmetry symbols
@@ -804,8 +813,8 @@ function createMirrorDevice(scene, data, x, z) {
     scene.add(group);
     glyObjects.push(group);
 
-    interactiveObjects.push(group);
-    originalMaterials.set(frame, frame.material);
+    addInteractiveObject(group);
+    setOriginalMaterial(frame, frame.material);
     group.userData = {
         name: data.name, type: 'station', enzyme: data.enzyme,
         isInteractable: true, mainMesh: frame,
@@ -855,8 +864,8 @@ function createExtractor(scene, data, x, z) {
 
     scene.add(group);
     glyObjects.push(group);
-    interactiveObjects.push(group);
-    originalMaterials.set(body, body.material);
+    addInteractiveObject(group);
+    setOriginalMaterial(body, body.material);
     group.userData = { name: data.name, type: 'station', enzyme: data.enzyme, isInteractable: true, mainMesh: body,
         onInteract: (obj, scn, tools) => handleStationInteract(5, data, obj, scn, tools) };
 }
@@ -899,8 +908,8 @@ function createPopper(scene, data, x, z) {
 
     scene.add(group);
     glyObjects.push(group);
-    interactiveObjects.push(group);
-    originalMaterials.set(chamber, chamber.material);
+    addInteractiveObject(group);
+    setOriginalMaterial(chamber, chamber.material);
     group.userData = { name: data.name, type: 'station', enzyme: data.enzyme, isInteractable: true, mainMesh: chamber,
         onInteract: (obj, scn, tools) => handleStationInteract(6, data, obj, scn, tools) };
 }
@@ -916,6 +925,7 @@ function createShifter(scene, data, x, z) {
     disc.position.y = 0.3;
     disc.castShadow = true;
     disc.userData.isTurntable = true;
+    glyTurntables.push(disc);
     group.add(disc);
 
     // Center spindle
@@ -941,8 +951,8 @@ function createShifter(scene, data, x, z) {
 
     scene.add(group);
     glyObjects.push(group);
-    interactiveObjects.push(group);
-    originalMaterials.set(disc, disc.material);
+    addInteractiveObject(group);
+    setOriginalMaterial(disc, disc.material);
     group.userData = { name: data.name, type: 'station', enzyme: data.enzyme, isInteractable: true, mainMesh: disc,
         onInteract: (obj, scn, tools) => handleStationInteract(7, data, obj, scn, tools) };
 }
@@ -978,6 +988,7 @@ function createWringer(scene, data, x, z) {
         const drop = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), dropMat);
         drop.position.set((Math.random() - 0.5) * 0.5, -0.1 - i * 0.15, 0);
         drop.userData.isWaterDrop = true;
+        glyWaterDrops.push(drop);
         group.add(drop);
     }
 
@@ -992,8 +1003,8 @@ function createWringer(scene, data, x, z) {
 
     scene.add(group);
     glyObjects.push(group);
-    interactiveObjects.push(group);
-    originalMaterials.set(group.children[0], group.children[0].material);
+    addInteractiveObject(group);
+    setOriginalMaterial(group.children[0], group.children[0].material);
     group.userData = { name: data.name, type: 'station', enzyme: data.enzyme, isInteractable: true, mainMesh: group.children[0],
         onInteract: (obj, scn, tools) => handleStationInteract(8, data, obj, scn, tools) };
 }
@@ -1057,8 +1068,8 @@ function createLauncher(scene, data, x, z) {
     scene.add(group);
     glyObjects.push(group);
     glyNPCs.push(group);
-    interactiveObjects.push(group);
-    originalMaterials.set(body, body.material);
+    addInteractiveObject(group);
+    setOriginalMaterial(body, body.material);
     group.userData = { name: data.name, type: 'npc', enzyme: data.enzyme, isInteractable: true, mainMesh: body,
         onInteract: (obj, scn, tools) => handleStationInteract(9, data, obj, scn, tools) };
 }
@@ -2096,8 +2107,8 @@ function createPortalToTCA(scene) {
             ], setGameInteracting);
         },
     };
-    interactiveObjects.push(portalGroup);
-    originalMaterials.set(ring, ring.material);
+    addInteractiveObject(portalGroup);
+    setOriginalMaterial(ring, ring.material);
     portalGroup.userData.mainMesh = ring;
 }
 
@@ -2124,6 +2135,7 @@ function createDecorations(scene) {
             const flame = new THREE.Mesh(flameGeo, flameMat);
             flame.position.set(x, th + 2.8, z);
             flame.userData.isFlame = true;
+            glyFlames.push(flame);
             scene.add(flame);
             glyObjects.push(flame);
 
@@ -2231,8 +2243,8 @@ function createPPPBranchPath(scene) {
             ], setGameInteracting);
         },
     };
-    interactiveObjects.push(portal);
-    originalMaterials.set(portal, portal.material);
+    addInteractiveObject(portal);
+    setOriginalMaterial(portal, portal.material);
     portal.userData.mainMesh = portal;
 }
 
@@ -2275,6 +2287,12 @@ export function init(scene) {
     shakeRemaining = 0;
     questState = GLY_QUEST.NOT_STARTED;
 
+    glyFlames = [];
+    glyDynamite = [];
+    glyMirrors = [];
+    glyTurntables = [];
+    glyWaterDrops = [];
+
     setWorldTerrainFn(getGlyTerrainHeight);
 
     createTerrain(scene);
@@ -2313,11 +2331,9 @@ export function init(scene) {
 export function update(delta, elapsedTime) {
     if (!worldScene) return;
 
-    // Animate flames
-    for (const obj of glyObjects) {
-        if (obj.userData && obj.userData.isFlame) {
-            obj.scale.y = 1 + Math.sin(elapsedTime * 5 + obj.position.x + obj.position.z) * 0.2;
-        }
+    // Animate flames (typed list — no full glyObjects scan needed)
+    for (const obj of glyFlames) {
+        obj.scale.y = 1 + Math.sin(elapsedTime * 5 + obj.position.x + obj.position.z) * 0.2;
     }
 
     // NPC idle sway
@@ -2377,25 +2393,19 @@ export function update(delta, elapsedTime) {
         });
     }
 
-    // Animate dynamite on workbench
-    for (const obj of glyObjects) {
-        if (obj.traverse) {
-            obj.traverse(child => {
-                if (child.userData && child.userData.isDynamite) {
-                    child.material.emissiveIntensity = 0.3 + Math.sin(elapsedTime * 4) * 0.2;
-                }
-                if (child.userData && child.userData.isMirror) {
-                    child.material.opacity = 0.5 + Math.sin(elapsedTime * 2) * 0.2;
-                }
-                if (child.userData && child.userData.isTurntable) {
-                    child.rotation.y = elapsedTime * 0.5;
-                }
-                if (child.userData && child.userData.isWaterDrop) {
-                    child.position.y = -0.1 - ((elapsedTime * 0.5 + child.position.x * 10) % 0.5);
-                    child.material.opacity = 0.6 - child.position.y * -0.5;
-                }
-            });
-        }
+    // Animate typed objects (typed lists — no full glyObjects traversal needed)
+    for (const obj of glyDynamite) {
+        obj.material.emissiveIntensity = 0.3 + Math.sin(elapsedTime * 4) * 0.2;
+    }
+    for (const obj of glyMirrors) {
+        obj.material.opacity = 0.5 + Math.sin(elapsedTime * 2) * 0.2;
+    }
+    for (const obj of glyTurntables) {
+        obj.rotation.y = elapsedTime * 0.5;
+    }
+    for (const obj of glyWaterDrops) {
+        obj.position.y = -0.1 - ((elapsedTime * 0.5 + obj.position.x * 10) % 0.5);
+        obj.material.opacity = 0.6 - obj.position.y * -0.5;
     }
 
     // Mini-games
@@ -2454,7 +2464,7 @@ export function update(delta, elapsedTime) {
                 const name = obj.userData.name;
                 addToInventory(name);
                 if (obj.parent) obj.parent.remove(obj);
-                interactiveObjects.splice(i, 1);
+                removeInteractiveObjectAt(i);
 
                 const advanced = handleGlyResourceCollected(name);
                 if (!advanced) {
@@ -2542,7 +2552,7 @@ export function cleanup(scene) {
     }
     for (let i = interactiveObjects.length - 1; i >= 0; i--) {
         if (glyNPCs.includes(interactiveObjects[i]) || glyObjects.includes(interactiveObjects[i])) {
-            interactiveObjects.splice(i, 1);
+            removeInteractiveObjectAt(i);
         }
     }
     glyObjects = [];
@@ -2569,6 +2579,11 @@ export function cleanup(scene) {
     pullActive = false; pullProgress = 0; pullKeyHeld = false;
     worldScene = null;
     setWorldTerrainFn(null);
+    glyFlames = [];
+    glyDynamite = [];
+    glyMirrors = [];
+    glyTurntables = [];
+    glyWaterDrops = [];
 }
 
 export function getSnapshot() {

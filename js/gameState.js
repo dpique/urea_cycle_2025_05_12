@@ -1,11 +1,6 @@
 // js/gameState.js
 import { updateInventoryUI, updateQuestUI } from './uiManager.js';
-
-// Health change observer -- wired up by main.js after initUIManager()
-let healthUpdateCallback = null;
-export function subscribeToHealthChanges(callback) {
-    healthUpdateCallback = callback;
-}
+import { emit } from './eventBus.js';
 
 let gameState = {
     isUserInteracting: false,
@@ -41,6 +36,7 @@ export function getInventory() {
 export function addToInventory(itemName, quantity = 1) {
     gameState.inventory[itemName] = (gameState.inventory[itemName] || 0) + quantity;
     updateInventoryUI(gameState.inventory);
+    emit('item:pickup', { name: itemName, quantity });
 }
 
 export function removeFromInventory(itemName, quantity = 1) {
@@ -93,7 +89,7 @@ export function getHealth() {
 
 export function setHealth(health) {
     gameState.health = Math.max(0, Math.min(gameState.maxHealth, health));
-    if (healthUpdateCallback) healthUpdateCallback(gameState.health);
+    emit('health:change', gameState.health);
 }
 
 export function damageHealth(amount) {

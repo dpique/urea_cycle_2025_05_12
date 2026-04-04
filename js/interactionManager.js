@@ -4,7 +4,7 @@ import * as CONSTANTS from './constants.js';
 import { showDialogue, showFeedback, showInteractionPrompt, hideInteractionPrompt, updateDialogueContent } from './uiManager.js';
 import { createGameBoySound, playMoleculeGenerationSound, playPortalCelebration, stopBackgroundMusic, startBackgroundMusic } from './audioManager.js';
 import { advanceUreaCycleQuest, startUreaCycleQuest, startRealityRiverChallenge, hasRequiredItems, consumeItems, ureaCycleQuestData } from './questManager.js';
-import { removePortalBarrierFromWorld, removeGateBarrierFromWorld, createResource, interactiveObjects, originalMaterials, removeResourceFromWorld } from './worldManager.js';
+import { removePortalBarrierFromWorld, removeGateBarrierFromWorld, createResource, interactiveObjects, originalMaterials, removeResourceFromWorld, setOriginalMaterial, getOriginalMaterial, hasOriginalMaterial } from './worldManager.js';
 import { player } from './playerManager.js';
 import { getGameState, setGameState, getCurrentQuest, getInventory, addToInventory, getPlayerLocation, setPlayerLocation } from './gameState.js';
 import { createSimpleParticleSystem, createCollectionEffect } from './utils.js';
@@ -30,7 +30,7 @@ function getMeshToHighlight(interactiveObj) {
     }
     if (interactiveObj.isGroup) {
         for (const child of interactiveObj.children) {
-            if (child.isMesh && originalMaterials.has(child)) {
+            if (child.isMesh && hasOriginalMaterial(child)) {
                 return child;
             }
         }
@@ -43,8 +43,8 @@ function getMeshToHighlight(interactiveObj) {
 function highlightObject(object) {
     const meshToHighlight = getMeshToHighlight(object);
     if (meshToHighlight && meshToHighlight.isMesh) {
-        if (!originalMaterials.has(meshToHighlight) && meshToHighlight.material !== highlightMaterial) {
-            originalMaterials.set(meshToHighlight, meshToHighlight.material);
+        if (!hasOriginalMaterial(meshToHighlight) && meshToHighlight.material !== highlightMaterial) {
+            setOriginalMaterial(meshToHighlight, meshToHighlight.material);
             console.warn("Highlight: Original material not found for", meshToHighlight.name, " Storing current.");
         }
         if (meshToHighlight.material !== highlightMaterial) {
@@ -55,9 +55,9 @@ function highlightObject(object) {
 
 function unhighlightObject(object) {
     const meshToHighlight = getMeshToHighlight(object);
-     if (meshToHighlight && meshToHighlight.isMesh && originalMaterials.has(meshToHighlight)) {
+     if (meshToHighlight && meshToHighlight.isMesh && hasOriginalMaterial(meshToHighlight)) {
          if (meshToHighlight.material === highlightMaterial) {
-            meshToHighlight.material = originalMaterials.get(meshToHighlight);
+            meshToHighlight.material = getOriginalMaterial(meshToHighlight);
         }
     }
 }

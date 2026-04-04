@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import * as CONSTANTS from './constants.js';
 import { createTextSprite } from './utils.js';
-import { interactiveObjects, originalMaterials, getTerrainHeightAt } from './worldManager.js';
+import { addInteractiveObject, setOriginalMaterial, getTerrainHeightAt } from './worldManager.js';
 import { NPC_LAYOUT, getWorldPosition, getNPCPacingBounds } from './worldLayout.js';
 
 let professorHepaticusNPC, ornithineUsherNPC, aslanNPC, donkeyNPC, argusNPC;
@@ -270,8 +270,8 @@ function createProfessorHepaticus(scene, position) {
     professorGroup.userData = { type: 'npc', name: CONSTANTS.NPC_NAMES.PROFESSOR_HEPATICUS, questId: 'ureaCycle', mainMesh: robe };
     professorGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(professorGroup);
-    interactiveObjects.push(professorGroup);
-    originalMaterials.set(robe, robe.material.clone());
+    addInteractiveObject(professorGroup);
+    setOriginalMaterial(robe, robe.material.clone());
     npcs.push(professorGroup);
     return professorGroup;
 }
@@ -322,8 +322,8 @@ function createOrnithineUsher(scene, position) {
     usherGroup.userData = { type: 'npc', name: CONSTANTS.NPC_NAMES.ORNITHINE_USHER, mainMesh: torso };
     usherGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(usherGroup);
-    interactiveObjects.push(usherGroup);
-    originalMaterials.set(torso, torso.material.clone());
+    addInteractiveObject(usherGroup);
+    setOriginalMaterial(torso, torso.material.clone());
     npcs.push(usherGroup);
     return usherGroup;
 }
@@ -368,8 +368,8 @@ function createAslan(scene, position) {
     aslanGroup.add(label);
     aslanGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(aslanGroup);
-    interactiveObjects.push(aslanGroup);
-    originalMaterials.set(body, bodyMat.clone());
+    addInteractiveObject(aslanGroup);
+    setOriginalMaterial(body, bodyMat.clone());
     npcs.push(aslanGroup);
     return aslanGroup;
 }
@@ -411,8 +411,8 @@ function createDonkey(scene, position) {
     donkeyGroup.add(label);
     donkeyGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(donkeyGroup);
-    interactiveObjects.push(donkeyGroup);
-    originalMaterials.set(body, bodyMat.clone());
+    addInteractiveObject(donkeyGroup);
+    setOriginalMaterial(body, bodyMat.clone());
     npcs.push(donkeyGroup);
     return donkeyGroup;
 }
@@ -458,8 +458,8 @@ function createArgus(scene, position) {
     argusGroup.add(label);
     argusGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(argusGroup);
-    interactiveObjects.push(argusGroup);
-    originalMaterials.set(torso, torsoMat.clone());
+    addInteractiveObject(argusGroup);
+    setOriginalMaterial(torso, torsoMat.clone());
     npcs.push(argusGroup);
     return argusGroup;
 }
@@ -530,8 +530,8 @@ function createOtisOTC(scene, position) {
     };
     otisGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(otisGroup);
-    interactiveObjects.push(otisGroup);
-    originalMaterials.set(body, ogreSkin.clone());
+    addInteractiveObject(otisGroup);
+    setOriginalMaterial(body, ogreSkin.clone());
     npcs.push(otisGroup);
     return otisGroup;
 }
@@ -629,8 +629,8 @@ function createCasperCPS1(scene, position) {
     };
     casperGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(casperGroup);
-    interactiveObjects.push(casperGroup);
-    originalMaterials.set(body, ghostMat.clone());
+    addInteractiveObject(casperGroup);
+    setOriginalMaterial(body, ghostMat.clone());
     npcs.push(casperGroup);
     return casperGroup;
 }
@@ -698,8 +698,8 @@ function createFumaraseEnzyme(scene, position) {
     };
     fumaraseGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(fumaraseGroup);
-    interactiveObjects.push(fumaraseGroup);
-    originalMaterials.set(mainBody, hydrantRed.clone());
+    addInteractiveObject(fumaraseGroup);
+    setOriginalMaterial(mainBody, hydrantRed.clone());
     npcs.push(fumaraseGroup);
     return fumaraseGroup;
 }
@@ -755,8 +755,8 @@ function createShuttleDriver(scene, position) {
     };
     driverGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(driverGroup);
-    interactiveObjects.push(driverGroup);
-    originalMaterials.set(body, bodyMat.clone());
+    addInteractiveObject(driverGroup);
+    setOriginalMaterial(body, bodyMat.clone());
     npcs.push(driverGroup);
     return driverGroup;
 }
@@ -849,8 +849,8 @@ function createRiverGuardian(scene, position) {
     });
     
     scene.add(guardianGroup);
-    interactiveObjects.push(guardianGroup);
-    originalMaterials.set(body, spiritMat.clone());
+    addInteractiveObject(guardianGroup);
+    setOriginalMaterial(body, spiritMat.clone());
     npcs.push(guardianGroup);
     return guardianGroup;
 }
@@ -968,8 +968,8 @@ function createNagesh(scene, position) {
 
     nageshGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
     scene.add(nageshGroup);
-    interactiveObjects.push(nageshGroup);
-    originalMaterials.set(robe, robeMat.clone());
+    addInteractiveObject(nageshGroup);
+    setOriginalMaterial(robe, robeMat.clone());
     npcs.push(nageshGroup);
     return nageshGroup;
 }

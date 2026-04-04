@@ -6,6 +6,7 @@ import { scene, camera, renderer, ambientLight, directionalLight } from './scene
 import { player } from './playerManager.js';
 import { showFeedback } from './uiManager.js';
 import { getGameState, setGameState } from './gameState.js';
+import { emit } from './eventBus.js';
 
 let currentWorld = null;
 let currentWorldId = null;
@@ -90,6 +91,7 @@ export async function loadWorld(worldId, spawnPoint) {
 
     // Update game state
     setGameState({ currentWorldId: worldId });
+    emit('world:transition', { worldId });
 
     return true;
 }

@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import * as CONSTANTS from '../constants.js';
-import { initWorld, cleanupWorld, wallBoundingBoxes, updateResourceHover, getPortalBarrier, interactiveObjects, originalMaterials, getTerrainHeightAt, setWorldTerrainFn } from '../worldManager.js';
+import { initWorld, cleanupWorld, wallBoundingBoxes, updateResourceHover, getPortalBarrier, interactiveObjects, originalMaterials, getTerrainHeightAt, setWorldTerrainFn, addInteractiveObject, setOriginalMaterial } from '../worldManager.js';
 import { initNPCs, updateNPCs, getNPCs, cleanupNPCs } from '../npcManager.js';
 import { initQuests, startUreaCycleQuest, advanceUreaCycleQuest } from '../questManager.js';
 import { initMinimap, updateMinimap, toggleMinimap, addToPathHistory } from '../minimap.js';
@@ -122,10 +122,10 @@ function createTCAPortal(scene) {
             ], setGameInteracting);
         }
     };
-    interactiveObjects.push(portalGroup);
+    addInteractiveObject(portalGroup);
 
     const mainMesh = portalRing;
-    originalMaterials.set(mainMesh, mainMesh.material);
+    setOriginalMaterial(mainMesh, mainMesh.material);
     portalGroup.userData.mainMesh = mainMesh;
 }
 
