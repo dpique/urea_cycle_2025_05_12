@@ -1,8 +1,9 @@
 // js/worlds/glycolysisWorld.js
-// The Glycolysis Gauntlet -- a linear pathway from Glucose to Pyruvate
+// The Glycolysis Gauntlet -- a visual, player-centered pathway from Glucose to Pyruvate
+// The glucose ring physically transforms at each station
 
 import * as THREE from 'three';
-import { createTextSprite } from '../utils.js';
+import { createTextSprite, createSimpleParticleSystem } from '../utils.js';
 import { createResource, interactiveObjects, originalMaterials } from '../worldManager.js';
 import { player } from '../playerManager.js';
 import { showFeedback } from '../uiManager.js';
@@ -16,7 +17,7 @@ export const config = {
     id: 'glycolysis',
     name: 'Glycolysis Gauntlet',
     description: 'Break down glucose into pyruvate -- the universal energy harvest',
-    skyColor: 0x2d1b00,       // Warm dark brown sky
+    skyColor: 0x2d1b00,
     fogColor: 0x2d1b00,
     fogNear: 50,
     fogFar: 200,
@@ -43,120 +44,105 @@ const GLY_QUEST = Object.freeze({
     COMPLETED: 'GLY_COMPLETED',
 });
 
+const QUEST_FOR_ENZYME = [
+    GLY_QUEST.VISIT_HEXY, GLY_QUEST.VISIT_IZZY, GLY_QUEST.VISIT_PHIL,
+    GLY_QUEST.VISIT_AL, GLY_QUEST.VISIT_TIM, GLY_QUEST.VISIT_GARY,
+    GLY_QUEST.VISIT_PEGGY, GLY_QUEST.VISIT_MUTTY, GLY_QUEST.VISIT_ENO,
+    GLY_QUEST.VISIT_PIKE,
+];
+
 // --- Enzyme Data ---
-// Stations are placed linearly from north (z=40) to south (z=-100)
 const ENZYMES = [
     {
-        name: 'Hexy (Hexokinase)', shortName: 'Hexy',
+        name: 'Hexy\'s Workbench (Hexokinase)', shortName: 'Hexy\'s Bench',
         enzyme: 'Hexokinase', z: 30, color: 0xff6b6b, bodyColor: 0xcc4444,
-        phase: 'investment',
-        reaction: 'Glucose + ATP -> Glucose-6-Phosphate + ADP',
-        greeting: "See that glucose? Beautiful six-sided ring. Incredibly stable. The energy locked inside it could power the whole cell -- but good luck getting it out. That ring does NOT want to break.",
-        questDialogue: "Here's what we do. We take a stick of dynamite -- a high-energy phosphate from ATP -- and we strap it onto one end of the glucose. *CLICK*\n\nThere. Glucose-6-Phosphate. Now that glucose can't escape the cell, and we've started destabilizing it. One stick of dynamite attached... let's see if it's enough.",
-        questResult: "...nothing. The glucose just sits there with its stick of dynamite, still in its stubborn six-sided ring. One phosphate wasn't enough. We need a new approach.",
+        phase: 'investment', stationType: 'workbench',
         input: ['Glucose', 'ATP'], output: ['Glucose-6-P'],
+        feedback: 'Phosphate attached! The glucose is trapped in the cell now -- but the ring holds firm.',
     },
     {
-        name: 'Izzy (PGI)', shortName: 'Izzy',
+        name: 'Izzy\'s Vise (PGI)', shortName: 'Izzy\'s Vise',
         enzyme: 'Phosphoglucose Isomerase', z: 16, color: 0xffa07a, bodyColor: 0xcc7755,
-        phase: 'investment',
-        reaction: 'Glucose-6-P -> Fructose-6-P',
-        greeting: "That dynamite didn't crack it? Not surprising. That six-sided ring is tough. But watch this -- I have strong hands.",
-        questDialogue: "Give me that glucose-6-phosphate. I'm going to SQUEEZE it. Really hard.\n\n*SQUEEZE*\n\nSee that? One of the carbons just popped out of the ring! We went from a six-sided ring to a five-sided ring. It's now Fructose-6-Phosphate.\n\n...but it's STILL a ring. Still holding together. We need more firepower.",
-        questResult: "A five-sided ring now, but still intact. Frustrating. We need to try something bigger.",
+        phase: 'investment', stationType: 'vise',
         input: ['Glucose-6-P'], output: ['Fructose-6-P'],
+        feedback: 'SQUEEZED! The 6-sided ring buckles into a 5-sided ring. Still intact... but weakened.',
     },
     {
-        name: 'Phil the Frustrator (PFK-1)', shortName: 'Phil',
+        name: 'Phil the Gatekeeper (PFK-1)', shortName: 'Phil',
         enzyme: 'Phosphofructokinase-1', z: 2, color: 0xff4444, bodyColor: 0xaa2222,
-        phase: 'investment',
-        reaction: 'Fructose-6-P + ATP -> Fructose-1,6-BP + ADP',
-        greeting: "I'm Phil. PFK-1. I'm the gatekeeper -- the RATE-LIMITING STEP. Nothing happens without my say-so. I'm regulated by everything: ATP, AMP, citrate... I decide whether we commit to breaking this sugar or not.",
-        questDialogue: "One stick of dynamite didn't work? Fine. Let's double up.\n\nI'm going to strap a SECOND stick of dynamite onto the OTHER end of the molecule. Carbon 1 has a phosphate, carbon 6 has a phosphate. That's Fructose-1,6-bisphosphate.\n\nThis is the POINT OF NO RETURN. After me, there's no going back. We're committed to breaking this sugar open. Hand me that last ATP.",
-        questResult: "Two sticks of dynamite. One on each end. The molecule is primed... but it's STILL holding together. Time for brute force.",
+        phase: 'investment', stationType: 'npc',
         input: ['Fructose-6-P', 'ATP'], output: ['Fructose-1,6-BP'],
+        greeting: "I'm Phil, PFK-1. The RATE-LIMITING gatekeeper. Nothing passes without my say-so. You want to commit to breaking this sugar? Give me that ATP -- I'll strap a SECOND phosphate on the other end. Point of no return.",
+        feedback: 'SECOND phosphate attached! Two sticks of dynamite, one on each end. The molecule is primed.',
     },
     {
-        name: 'Al (Aldolase)', shortName: 'Al',
+        name: 'Al\'s Splitting Rack (Aldolase)', shortName: 'Al\'s Rack',
         enzyme: 'Aldolase', z: -12, color: 0xff8c00, bodyColor: 0xcc6600,
-        phase: 'split',
-        reaction: 'Fructose-1,6-BP -> DHAP + G3P',
-        greeting: "Two sticks of dynamite and the sugar's STILL in one piece? Hand it here. I don't do subtle.",
-        questDialogue: "Squeezing didn't work. Dynamite didn't work. So this time, we PULL.\n\nI grab one phosphate with my left hand, the other phosphate with my right hand, and I PULL with everything I've got --\n\n*CRACK!*\n\nTHE GLUCOSE BREAKS IN HALF! Two 3-carbon pieces! G3P and DHAP -- each one still carrying a stick of dynamite.\n\nFrom here on, everything happens TWICE. You broke one 6-carbon sugar into two 3-carbon fragments. The investment phase is OVER.",
-        questResult: "FINALLY! The glucose is in pieces! Two 3-carbon fragments, each with one phosphate. Now we can start extracting the energy.",
+        phase: 'split', stationType: 'rack',
         input: ['Fructose-1,6-BP'], output: ['DHAP', 'G3P'],
+        feedback: 'THE GLUCOSE BREAKS IN HALF! Two 3-carbon fragments fly apart! The investment phase is OVER.',
     },
     {
-        name: 'Tim (TPI)', shortName: 'Tim',
+        name: 'Tim\'s Mirror (TPI)', shortName: 'Tim\'s Mirror',
         enzyme: 'Triose Phosphate Isomerase', z: -24, color: 0xffb347, bodyColor: 0xcc8833,
-        phase: 'split',
-        reaction: 'DHAP -> G3P',
-        greeting: "Those two fragments -- G3P and DHAP -- they're almost identical. Three carbons, one phosphate each. So similar they can become each other.",
-        questDialogue: "DHAP and G3P are like fraternal twins -- almost the same molecule. I can convert one into the other instantly.\n\nI'm called 'catalytically perfect' because I work as fast as molecules can physically bump into me. No enzyme in glycolysis is faster.\n\nThe name 'triose phosphate' means 3-carbon ('tri-ose') molecule with a phosphate. That's what both G3P and DHAP are.",
-        questResult: "Now you have two G3P molecules. Two identical fragments, ready for the payoff phase. This is where you start earning energy BACK.",
+        phase: 'split', stationType: 'mirror',
         input: ['DHAP'], output: ['G3P'],
+        feedback: 'The DHAP twin converts to match its sibling. Two identical G3P fragments, ready for harvest.',
     },
     {
         name: 'Gary (GAPDH)', shortName: 'Gary',
         enzyme: 'G3P Dehydrogenase', z: -38, color: 0x00cc66, bodyColor: 0x009944,
-        phase: 'payoff',
-        reaction: 'G3P + NAD+ + Pi -> 1,3-BPG + NADH (x2)',
-        greeting: "Welcome to the PAYOFF PHASE. You spent 2 ATP breaking glucose apart. Now it's time to earn it back -- and then some.",
-        questDialogue: "Here's where we start harvesting energy from the wreckage.\n\nI pull electrons off the G3P fragments and hand them to NAD+, making NADH -- that's stored energy that'll be worth ATP later in the electron transport chain.\n\nI also attach ANOTHER phosphate, giving you 1,3-BPG -- a molecule with TWO high-energy phosphates. Remember, this happens TWICE because you have two fragments.",
-        questResult: "First energy harvest! 2 NADH produced (one per fragment). And each fragment now carries two phosphates -- loaded with transferable energy.",
+        phase: 'payoff', stationType: 'npc',
         input: ['G3P'], output: ['1,3-BPG', 'NADH'],
+        greeting: "Welcome to the PAYOFF. I pull electrons off the fragments and hand them to NAD+, making NADH. That's stored energy for later.",
+        feedback: 'Electrons harvested! NADH produced. A new phosphate attaches -- each fragment now has TWO.',
     },
     {
         name: 'Peggy (PGK)', shortName: 'Peggy',
         enzyme: 'Phosphoglycerate Kinase', z: -52, color: 0x00ff88, bodyColor: 0x00cc66,
-        phase: 'payoff',
-        reaction: '1,3-BPG + ADP -> 3-PG + ATP (x2)',
-        greeting: "1,3-BPG has TWO phosphates. One of them is incredibly high-energy. I'm going to rip it off and use it to make ATP.",
-        questDialogue: "This is SUBSTRATE-LEVEL PHOSPHORYLATION -- I transfer a phosphate directly from the substrate to ADP, making ATP. No mitochondria needed, no electron transport chain. Just raw, direct energy transfer.\n\nThis happens twice (one per fragment), so you get 2 ATP here. That's your investment PAID BACK -- you spent 2 ATP earlier, and now you've earned 2 ATP. We're break-even. Everything from here is PROFIT.",
-        questResult: "Break even! 2 ATP earned, 2 ATP spent. But we're not done -- there's more energy to extract.",
+        phase: 'payoff', stationType: 'npc',
         input: ['1,3-BPG'], output: ['3-PG', 'ATP'],
+        greeting: "Substrate-level phosphorylation! I rip the high-energy phosphate right off and slam it onto ADP. Direct energy transfer -- 2 ATP earned. You're break-even!",
+        feedback: 'ATP generated! 2 ATP earned = 2 ATP spent. Break even. Everything from here is PROFIT.',
     },
     {
         name: 'Mutty (PGM)', shortName: 'Mutty',
         enzyme: 'Phosphoglycerate Mutase', z: -64, color: 0x66ccff, bodyColor: 0x4499cc,
-        phase: 'payoff',
-        reaction: '3-PG -> 2-PG (x2)',
-        greeting: "Still one phosphate left on each fragment. But it's in the wrong position to release its energy. I need to move it.",
-        questDialogue: "I shift the phosphate from carbon 3 to carbon 2. Doesn't sound like much, but it's essential -- it sets up the next reaction where Eno will create a HIGH-ENERGY bond.\n\nThink of it like repositioning a lever before you pull it.",
-        questResult: "Phosphate repositioned. The stage is set for Eno to create something special.",
+        phase: 'payoff', stationType: 'npc',
         input: ['3-PG'], output: ['2-PG'],
+        greeting: "I shift the phosphate from carbon 3 to carbon 2. Small move, big consequences -- it sets up the loaded spring.",
+        feedback: 'Phosphate repositioned. The stage is set for the energy cannon.',
     },
     {
         name: 'Eno (Enolase)', shortName: 'Eno',
         enzyme: 'Enolase', z: -78, color: 0x9999ff, bodyColor: 0x6666cc,
-        phase: 'payoff',
-        reaction: '2-PG -> PEP + H2O (x2)',
-        greeting: "Watch carefully. I'm about to create the most energetically loaded molecule in all of common metabolism.",
-        questDialogue: "I remove a water molecule from 2-PG and create PEP -- Phosphoenolpyruvate.\n\nPEP has the HIGHEST phosphoryl transfer potential of any common metabolite. That phosphate bond is like a compressed spring -- absolutely BURSTING with energy, just waiting to be released.\n\nI'm loading the cannon. Pike gets to fire it.",
-        questResult: "The spring is loaded. PEP is primed to release a massive amount of energy. One more step to go!",
+        phase: 'payoff', stationType: 'npc',
         input: ['2-PG'], output: ['PEP'],
+        greeting: "I remove water and create PEP -- the HIGHEST energy phosphate in common metabolism. I'm loading the cannon. Pike fires it.",
+        feedback: 'PEP formed! The most energetically loaded common metabolite. One more step.',
     },
     {
         name: 'Pike (Pyruvate Kinase)', shortName: 'Pike',
         enzyme: 'Pyruvate Kinase', z: -92, color: 0xff44ff, bodyColor: 0xcc22cc,
-        phase: 'payoff',
-        reaction: 'PEP + ADP -> Pyruvate + ATP (x2)',
-        greeting: "This is it. The GRAND FINALE. That loaded spring Eno created? I'm about to release it.",
-        questDialogue: "I rip the phosphate off PEP and slam it onto ADP -- making ATP!\n\nThis happens twice (one per fragment), giving you 2 MORE ATP. That's 4 ATP total earned, minus 2 ATP invested = NET GAIN of 2 ATP.\n\nPlus you've got 2 NADH and 2 Pyruvate. The pyruvate heads to Percy in the TCA Cycle to become Acetyl-CoA and keep the energy flowing.\n\nYou just broke glucose in half and extracted its energy. THAT is glycolysis.",
-        questResult: "GLYCOLYSIS COMPLETE! From one glucose: 2 ATP (net) + 2 NADH + 2 Pyruvate. The pyruvate continues to the TCA Cycle!",
+        phase: 'payoff', stationType: 'npc',
         input: ['PEP'], output: ['Pyruvate', 'ATP'],
+        greeting: "The GRAND FINALE. That loaded spring? I release it -- phosphate off, onto ADP, making ATP. 2 more ATP. Net gain: 2 ATP + 2 NADH + 2 Pyruvate. THAT is glycolysis.",
+        feedback: 'GLYCOLYSIS COMPLETE! Net: 2 ATP + 2 NADH + 2 Pyruvate. The pyruvate heads to the TCA Cycle!',
     },
 ];
 
 // --- Colors ---
 const COLORS = {
-    investmentGround: 0x3d1a1a,    // Dark red-brown (spending ATP)
-    payoffGround: 0x1a3d1a,        // Dark green (earning ATP)
-    splitGround: 0x3d3d1a,         // Dark amber (the split point)
-    path: 0x554433,                // Brown stone
+    investmentGround: 0x3d1a1a,
+    payoffGround: 0x1a3d1a,
+    splitGround: 0x3d3d1a,
+    path: 0x554433,
     atp: 0xffdd00,
     nadh: 0x00ff88,
     glucose: 0xffffff,
+    phosphate: 0xff4400,
+    phosphateGlow: 0xff6622,
+    energy: 0x00ff66,
 };
 
 // --- State ---
@@ -165,149 +151,400 @@ let glyObjects = [];
 let glyNPCs = [];
 let questState = GLY_QUEST.NOT_STARTED;
 
+// The central glucose model that transforms at each station
+let glucoseModel = null;
+// The two fragment models after the split
+let fragmentA = null;
+let fragmentB = null;
+// Phosphate spheres attached to the model
+let phosphateA = null;
+let phosphateB = null;
+// Particle systems for active effects
+let activeParticles = [];
+// Animations queue
+let activeAnimations = [];
+// Track the current molecule state for visuals
+let moleculeStage = 'none'; // none, hexagon, hexagon-1p, pentagon, pentagon-2p, split, fragment
+
 const PATHWAY_X = 0;
 const PATHWAY_WIDTH = 12;
 
-// --- Init ---
-export function init(scene) {
-    worldScene = scene;
-    glyObjects = [];
-    glyNPCs = [];
-    questState = GLY_QUEST.NOT_STARTED;
+// ========================
+// GLUCOSE 3D MODEL BUILDER
+// ========================
 
-    createTerrain(scene);
-    createEnzymeStations(scene);
-    createPortalToTCA(scene);
-    createDecorations(scene);
-    createLighting(scene);
+function createHexagonalRing(radius, tubeRadius, color) {
+    // A hexagonal ring made of 6 cylinder segments with vertex spheres
+    const group = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({
+        color: color,
+        roughness: 0.3,
+        metalness: 0.2,
+        emissive: color,
+        emissiveIntensity: 0.05,
+    });
+    const vertexMat = new THREE.MeshStandardMaterial({
+        color: 0xcccccc,
+        roughness: 0.4,
+        metalness: 0.3,
+    });
 
-    // Opening narrative
-    setTimeout(() => {
-        const setInteracting = (state) => setGameState({ isUserInteracting: state });
-        const showDialogue = (text, options, cb) => {
-            import('../uiManager.js').then(({ showDialogue: sd }) => sd(text, options, cb));
-        };
-
-        showDialogue("You stand before a single molecule of GLUCOSE -- a six-sided sugar ring, deceptively simple, incredibly stable.\n\nLocked inside it is enough energy to power thousands of cellular reactions. But that ring does NOT want to break.", [
-            { text: "How do we break it?", hideOnClick: false, action: () => {
-                showDialogue("That's the challenge. You'll need to invest energy FIRST -- spend 2 ATP as 'sticks of dynamite' to destabilize the ring. Strap one phosphate on each end, then rip it apart.\n\nOnly THEN can you harvest the energy inside.\n\nCollect the Glucose and 2 ATP ahead to begin.", [
-                    { text: "Let's do this.", action: () => {
-                        questState = GLY_QUEST.COLLECT_GLUCOSE;
-                        spawnResource(worldScene, 'Glucose', { x: -3, y: 0.5, z: 45 }, COLORS.glucose);
-                        spawnResource(worldScene, 'ATP', { x: 3, y: 0.5, z: 45 }, COLORS.atp);
-                        spawnResource(worldScene, 'ATP', { x: 5, y: 0.5, z: 43 }, COLORS.atp);
-                    }}
-                ], setInteracting);
-            }}
-        ], setInteracting);
-    }, 1500);
-}
-
-// --- Terrain ---
-function createTerrain(scene) {
-    // Long rectangular pathway from north to south
-    // Investment phase (north) is red-tinted, payoff phase (south) is green-tinted
-    const sections = [
-        { z: 30, depth: 40, color: COLORS.investmentGround, label: 'INVESTMENT PHASE', labelZ: 42 },
-        { z: -10, depth: 30, color: COLORS.splitGround, label: 'THE SPLIT', labelZ: -5 },
-        { z: -55, depth: 70, color: COLORS.payoffGround, label: 'PAYOFF PHASE', labelZ: -40 },
-    ];
-
-    for (const sec of sections) {
-        const geo = new THREE.PlaneGeometry(PATHWAY_WIDTH * 3, sec.depth);
-        const mat = new THREE.MeshStandardMaterial({ color: sec.color, roughness: 0.9 });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.rotation.x = -Math.PI / 2;
-        mesh.position.set(PATHWAY_X, -0.01, sec.z);
-        mesh.receiveShadow = true;
-        scene.add(mesh);
-        glyObjects.push(mesh);
-
-        // Phase label
-        const label = createTextSprite(sec.label, { x: PATHWAY_X, y: 4, z: sec.labelZ }, {
-            scale: 2, textColor: 'rgba(255,255,255,0.5)',
-        });
-        scene.add(label);
-        glyObjects.push(label);
+    const vertices = [];
+    for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 6;
+        vertices.push(new THREE.Vector3(
+            Math.cos(angle) * radius,
+            0,
+            Math.sin(angle) * radius
+        ));
     }
 
-    // Central pathway strip
-    const pathGeo = new THREE.PlaneGeometry(PATHWAY_WIDTH, 170);
-    const pathMat = new THREE.MeshStandardMaterial({ color: COLORS.path, roughness: 0.7, metalness: 0.1 });
-    const pathMesh = new THREE.Mesh(pathGeo, pathMat);
-    pathMesh.rotation.x = -Math.PI / 2;
-    pathMesh.position.set(PATHWAY_X, 0.01, -25);
-    pathMesh.receiveShadow = true;
-    scene.add(pathMesh);
-    glyObjects.push(pathMesh);
+    // Edges (cylinders between vertices)
+    for (let i = 0; i < 6; i++) {
+        const start = vertices[i];
+        const end = vertices[(i + 1) % 6];
+        const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+        const dir = new THREE.Vector3().subVectors(end, start);
+        const length = dir.length();
 
-    // Background
-    const bgGeo = new THREE.PlaneGeometry(400, 400);
-    const bgMat = new THREE.MeshStandardMaterial({ color: 0x1a0f00, roughness: 1, fog: true });
-    const bg = new THREE.Mesh(bgGeo, bgMat);
-    bg.rotation.x = -Math.PI / 2;
-    bg.position.y = -0.5;
-    bg.receiveShadow = true;
-    scene.add(bg);
-    glyObjects.push(bg);
-}
-
-// --- Enzyme Stations ---
-function createEnzymeStations(scene) {
-    for (const data of ENZYMES) {
-        const x = PATHWAY_X;
-        const z = data.z;
-
-        // Platform
-        const platGeo = new THREE.BoxGeometry(PATHWAY_WIDTH - 2, 0.3, 4);
-        const platMat = new THREE.MeshStandardMaterial({
-            color: data.color, metalness: 0.2, roughness: 0.6,
-            emissive: data.color, emissiveIntensity: 0.08,
-        });
-        const platform = new THREE.Mesh(platGeo, platMat);
-        platform.position.set(x, 0.15, z);
-        platform.receiveShadow = true;
-        platform.castShadow = true;
-        scene.add(platform);
-        glyObjects.push(platform);
-
-        // NPC
-        const npc = createGlycolysisNPC(data, x, z);
-        scene.add(npc);
-        glyObjects.push(npc);
-        glyNPCs.push(npc);
-        interactiveObjects.push(npc);
-        const mainMesh = npc.children.find(c => c.isMesh);
-        if (mainMesh) {
-            originalMaterials.set(mainMesh, mainMesh.material);
-            npc.userData.mainMesh = mainMesh;
-        }
-
-        // Station light
-        const light = new THREE.PointLight(data.color, 0.4, 8);
-        light.position.set(x, 3, z);
-        scene.add(light);
-        glyObjects.push(light);
-
-        // Arrow pointing to next station
-        if (data !== ENZYMES[ENZYMES.length - 1]) {
-            const nextZ = ENZYMES[ENZYMES.indexOf(data) + 1].z;
-            const midZ = (z + nextZ) / 2;
-            const arrowGeo = new THREE.ConeGeometry(0.3, 0.6, 4);
-            const arrowMat = new THREE.MeshStandardMaterial({
-                color: data.color, emissive: data.color, emissiveIntensity: 0.3,
-                transparent: true, opacity: 0.6,
-            });
-            const arrow = new THREE.Mesh(arrowGeo, arrowMat);
-            arrow.position.set(x, 0.5, midZ);
-            arrow.rotation.x = Math.PI; // Point south (downward along -z)
-            scene.add(arrow);
-            glyObjects.push(arrow);
-        }
+        const edgeGeo = new THREE.CylinderGeometry(tubeRadius, tubeRadius, length, 8);
+        const edge = new THREE.Mesh(edgeGeo, mat);
+        edge.position.copy(mid);
+        // Orient cylinder along the edge direction
+        edge.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0),
+            dir.clone().normalize()
+        );
+        edge.castShadow = true;
+        group.add(edge);
     }
+
+    // Vertex spheres (carbon atoms)
+    for (let i = 0; i < 6; i++) {
+        const sphere = new THREE.Mesh(
+            new THREE.SphereGeometry(tubeRadius * 1.6, 10, 8),
+            vertexMat
+        );
+        sphere.position.copy(vertices[i]);
+        sphere.castShadow = true;
+        sphere.userData.vertexIndex = i;
+        group.add(sphere);
+    }
+
+    group.userData.vertices = vertices;
+    group.userData.tubeRadius = tubeRadius;
+    return group;
 }
 
-function createGlycolysisNPC(data, x, z) {
+function createPentagonalRing(radius, tubeRadius, color) {
+    // A pentagonal (5-sided) ring
+    const group = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({
+        color: color,
+        roughness: 0.3,
+        metalness: 0.2,
+        emissive: color,
+        emissiveIntensity: 0.05,
+    });
+    const vertexMat = new THREE.MeshStandardMaterial({
+        color: 0xcccccc,
+        roughness: 0.4,
+        metalness: 0.3,
+    });
+
+    const vertices = [];
+    for (let i = 0; i < 5; i++) {
+        const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+        vertices.push(new THREE.Vector3(
+            Math.cos(angle) * radius,
+            0,
+            Math.sin(angle) * radius
+        ));
+    }
+
+    for (let i = 0; i < 5; i++) {
+        const start = vertices[i];
+        const end = vertices[(i + 1) % 5];
+        const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+        const dir = new THREE.Vector3().subVectors(end, start);
+        const length = dir.length();
+
+        const edgeGeo = new THREE.CylinderGeometry(tubeRadius, tubeRadius, length, 8);
+        const edge = new THREE.Mesh(edgeGeo, mat);
+        edge.position.copy(mid);
+        edge.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0),
+            dir.clone().normalize()
+        );
+        edge.castShadow = true;
+        group.add(edge);
+    }
+
+    for (let i = 0; i < 5; i++) {
+        const sphere = new THREE.Mesh(
+            new THREE.SphereGeometry(tubeRadius * 1.6, 10, 8),
+            vertexMat
+        );
+        sphere.position.copy(vertices[i]);
+        sphere.castShadow = true;
+        sphere.userData.vertexIndex = i;
+        group.add(sphere);
+    }
+
+    group.userData.vertices = vertices;
+    group.userData.tubeRadius = tubeRadius;
+    return group;
+}
+
+function createPhosphateSphere(position) {
+    const group = new THREE.Group();
+    // Main phosphate sphere (the "dynamite")
+    const sphereMat = new THREE.MeshStandardMaterial({
+        color: COLORS.phosphate,
+        roughness: 0.2,
+        metalness: 0.5,
+        emissive: COLORS.phosphateGlow,
+        emissiveIntensity: 0.4,
+    });
+    const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), sphereMat);
+    group.add(sphere);
+
+    // Glow ring around phosphate
+    const glowMat = new THREE.MeshStandardMaterial({
+        color: COLORS.phosphateGlow,
+        emissive: COLORS.phosphateGlow,
+        emissiveIntensity: 0.8,
+        transparent: true,
+        opacity: 0.3,
+    });
+    const glow = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.04, 8, 16), glowMat);
+    glow.rotation.x = Math.PI / 2;
+    group.add(glow);
+
+    // Small "P" label
+    const label = createTextSprite('P', { x: 0, y: 0.4, z: 0 }, {
+        scale: 0.5, textColor: 'rgba(255, 200, 100, 1.0)',
+    });
+    group.add(label);
+
+    group.position.copy(position);
+    group.userData.isPhosphate = true;
+    return group;
+}
+
+function createTriangleFragment(radius, tubeRadius, color, label) {
+    // A 3-carbon triangular fragment with one phosphate
+    const group = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({
+        color: color,
+        roughness: 0.3,
+        metalness: 0.2,
+        emissive: color,
+        emissiveIntensity: 0.1,
+    });
+    const vertexMat = new THREE.MeshStandardMaterial({
+        color: 0xcccccc,
+        roughness: 0.4,
+        metalness: 0.3,
+    });
+
+    const vertices = [];
+    for (let i = 0; i < 3; i++) {
+        const angle = (Math.PI * 2 / 3) * i - Math.PI / 2;
+        vertices.push(new THREE.Vector3(
+            Math.cos(angle) * radius,
+            0,
+            Math.sin(angle) * radius
+        ));
+    }
+
+    for (let i = 0; i < 3; i++) {
+        const start = vertices[i];
+        const end = vertices[(i + 1) % 3];
+        const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+        const dir = new THREE.Vector3().subVectors(end, start);
+        const length = dir.length();
+
+        const edgeGeo = new THREE.CylinderGeometry(tubeRadius, tubeRadius, length, 8);
+        const edge = new THREE.Mesh(edgeGeo, mat);
+        edge.position.copy(mid);
+        edge.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0),
+            dir.clone().normalize()
+        );
+        edge.castShadow = true;
+        group.add(edge);
+    }
+
+    for (let i = 0; i < 3; i++) {
+        const sphere = new THREE.Mesh(
+            new THREE.SphereGeometry(tubeRadius * 1.6, 10, 8),
+            vertexMat
+        );
+        sphere.position.copy(vertices[i]);
+        sphere.castShadow = true;
+        group.add(sphere);
+    }
+
+    // Phosphate on top vertex
+    const phos = createPhosphateSphere(new THREE.Vector3(vertices[0].x, 0.4, vertices[0].z));
+    group.add(phos);
+
+    // Name label
+    const nameSprite = createTextSprite(label, { x: 0, y: 1.0, z: 0 }, { scale: 0.7 });
+    group.add(nameSprite);
+
+    group.userData.vertices = vertices;
+    return group;
+}
+
+// ========================
+// STATION BUILDERS
+// ========================
+
+function createWorkbench(scene, data, x, z) {
+    // Hexy's station: a workbench with clamps where you attach the phosphate
+    const group = new THREE.Group();
+    group.position.set(x - 2, 0, z);
+
+    const benchMat = new THREE.MeshStandardMaterial({ color: 0x664422, roughness: 0.8, metalness: 0.1 });
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.3, metalness: 0.7 });
+
+    // Table top
+    const top = new THREE.Mesh(new THREE.BoxGeometry(3, 0.15, 2), benchMat);
+    top.position.y = 1.0;
+    top.castShadow = true;
+    top.receiveShadow = true;
+    group.add(top);
+
+    // Four legs
+    const legGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.0, 6);
+    [[-1.3, -0.8], [-1.3, 0.8], [1.3, -0.8], [1.3, 0.8]].forEach(([lx, lz]) => {
+        const leg = new THREE.Mesh(legGeo, benchMat);
+        leg.position.set(lx, 0.5, lz);
+        leg.castShadow = true;
+        group.add(leg);
+    });
+
+    // Two clamps (upright metal arms)
+    const clampGeo = new THREE.BoxGeometry(0.1, 0.7, 0.1);
+    [-0.8, 0.8].forEach(cx => {
+        const clamp = new THREE.Mesh(clampGeo, metalMat);
+        clamp.position.set(cx, 1.45, 0);
+        clamp.castShadow = true;
+        group.add(clamp);
+
+        // Clamp top (horizontal bar)
+        const clampTop = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.1, 0.3), metalMat);
+        clampTop.position.set(cx, 1.8, 0);
+        group.add(clampTop);
+    });
+
+    // Floating phosphate/dynamite indicator on the bench
+    const dynamiteMat = new THREE.MeshStandardMaterial({
+        color: COLORS.phosphate, emissive: COLORS.phosphate, emissiveIntensity: 0.3,
+        roughness: 0.4,
+    });
+    const dynamite = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 8), dynamiteMat);
+    dynamite.position.set(0.5, 1.3, 0.5);
+    dynamite.rotation.z = Math.PI / 6;
+    dynamite.userData.isDynamite = true;
+    group.add(dynamite);
+
+    // Label
+    const label = createTextSprite("Hexy's Workbench", { x: 0, y: 2.6, z: 0 }, { scale: 0.9 });
+    group.add(label);
+
+    // Subtitle
+    const sub = createTextSprite('Hexokinase', { x: 0, y: 2.2, z: 0 }, {
+        scale: 0.6, textColor: 'rgba(255,150,150,0.8)',
+    });
+    group.add(sub);
+
+    scene.add(group);
+    glyObjects.push(group);
+
+    // Make interactive
+    interactiveObjects.push(group);
+    originalMaterials.set(top, top.material);
+    group.userData = {
+        name: data.name, type: 'station', enzyme: data.enzyme,
+        isInteractable: true, mainMesh: top,
+        onInteract: (obj, scn, tools) => handleStationInteract(0, data, obj, scn, tools),
+    };
+
+    return group;
+}
+
+function createVise(scene, data, x, z) {
+    // Izzy's station: a press/vise machine that squeezes the ring
+    const group = new THREE.Group();
+    group.position.set(x - 2, 0, z);
+
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x777788, roughness: 0.3, metalness: 0.7 });
+    const pressMat = new THREE.MeshStandardMaterial({
+        color: data.color, roughness: 0.4, metalness: 0.5,
+        emissive: data.color, emissiveIntensity: 0.1,
+    });
+
+    // Base plate
+    const base = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.2, 2), metalMat);
+    base.position.y = 0.1;
+    base.castShadow = true;
+    group.add(base);
+
+    // Two vertical uprights
+    const upGeo = new THREE.BoxGeometry(0.2, 2.5, 0.2);
+    [-1.0, 1.0].forEach(ux => {
+        const upright = new THREE.Mesh(upGeo, metalMat);
+        upright.position.set(ux, 1.35, 0);
+        upright.castShadow = true;
+        group.add(upright);
+    });
+
+    // Top crossbar
+    const crossbar = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.2, 0.3), metalMat);
+    crossbar.position.y = 2.6;
+    crossbar.castShadow = true;
+    group.add(crossbar);
+
+    // Press plate (the squeezing plate, hangs from top)
+    const press = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.3, 1.5), pressMat);
+    press.position.y = 1.8;
+    press.userData.isPress = true;
+    press.castShadow = true;
+    group.add(press);
+
+    // Screw/handle on top
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2, 8), metalMat);
+    handle.position.set(0, 2.7, 0);
+    handle.rotation.z = Math.PI / 2;
+    group.add(handle);
+
+    // Label
+    const label = createTextSprite("Izzy's Vise", { x: 0, y: 3.4, z: 0 }, { scale: 0.9 });
+    group.add(label);
+    const sub = createTextSprite('Phosphoglucose Isomerase', { x: 0, y: 3.0, z: 0 }, {
+        scale: 0.5, textColor: 'rgba(255,180,150,0.8)',
+    });
+    group.add(sub);
+
+    scene.add(group);
+    glyObjects.push(group);
+
+    interactiveObjects.push(group);
+    originalMaterials.set(base, base.material);
+    group.userData = {
+        name: data.name, type: 'station', enzyme: data.enzyme,
+        isInteractable: true, mainMesh: base,
+        onInteract: (obj, scn, tools) => handleStationInteract(1, data, obj, scn, tools),
+    };
+
+    return group;
+}
+
+function createNPCStation(scene, data, x, z, idx) {
+    // Phil and payoff phase enzymes: humanoid NPC
     const group = new THREE.Group();
     group.position.set(x + 3, 0.3, z);
 
@@ -336,7 +573,7 @@ function createGlycolysisNPC(data, x, z) {
         group.add(eye);
     });
 
-    // Hat
+    // Hat with enzyme color
     const hatGeo = new THREE.CylinderGeometry(0.15, 0.35, 0.3, 6);
     const hatMat = new THREE.MeshStandardMaterial({
         color: data.color, emissive: data.color, emissiveIntensity: 0.15,
@@ -348,84 +585,710 @@ function createGlycolysisNPC(data, x, z) {
     // Name label
     const label = createTextSprite(data.shortName, { x: 0, y: 2.5, z: 0 }, { scale: 1.0 });
     group.add(label);
+    const sub = createTextSprite(data.enzyme, { x: 0, y: 2.2, z: 0 }, {
+        scale: 0.5, textColor: 'rgba(200,200,255,0.7)',
+    });
+    group.add(sub);
 
     // Face toward pathway center
     group.lookAt(x, group.position.y, z);
 
+    scene.add(group);
+    glyObjects.push(group);
+    glyNPCs.push(group);
+
+    interactiveObjects.push(group);
+    const mainMesh = body;
+    originalMaterials.set(mainMesh, mainMesh.material);
     group.userData = {
         name: data.name, type: 'npc', enzyme: data.enzyme,
-        isInteractable: true,
-        onInteract: (obj, scene, tools) => handleGlyInteraction(data, obj, scene, tools),
+        isInteractable: true, mainMesh: mainMesh,
+        onInteract: (obj, scn, tools) => handleStationInteract(idx, data, obj, scn, tools),
     };
 
     return group;
 }
 
-// --- Interaction ---
-function handleGlyInteraction(enzymeData, object, scene, tools) {
+function createSplittingRack(scene, data, x, z) {
+    // Al's station: a pulling machine/rack that rips the molecule apart
+    const group = new THREE.Group();
+    group.position.set(x - 2, 0, z);
+
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x996633, roughness: 0.4, metalness: 0.6 });
+    const chainMat = new THREE.MeshStandardMaterial({
+        color: 0x888888, roughness: 0.3, metalness: 0.8,
+    });
+    const dangerMat = new THREE.MeshStandardMaterial({
+        color: data.color, emissive: data.color, emissiveIntensity: 0.2,
+        roughness: 0.4,
+    });
+
+    // Frame base
+    const base = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 2.5), metalMat);
+    base.position.y = 0.1;
+    base.castShadow = true;
+    group.add(base);
+
+    // Two pulling arms (left and right)
+    const armGeo = new THREE.BoxGeometry(0.3, 0.3, 2.5);
+    [-1.5, 1.5].forEach(ax => {
+        const arm = new THREE.Mesh(armGeo, dangerMat);
+        arm.position.set(ax, 0.8, 0);
+        arm.castShadow = true;
+        group.add(arm);
+
+        // Hook/claw at the inner end
+        const hookGeo = new THREE.TorusGeometry(0.15, 0.04, 6, 8, Math.PI);
+        const hook = new THREE.Mesh(hookGeo, chainMat);
+        hook.position.set(ax > 0 ? ax - 0.3 : ax + 0.3, 0.8, 0);
+        hook.rotation.z = ax > 0 ? -Math.PI / 2 : Math.PI / 2;
+        group.add(hook);
+    });
+
+    // Central danger marking (chevron stripes)
+    const warnGeo = new THREE.PlaneGeometry(1.5, 0.3);
+    const warnMat = new THREE.MeshStandardMaterial({
+        color: 0xffaa00, emissive: 0xffaa00, emissiveIntensity: 0.3,
+        side: THREE.DoubleSide,
+    });
+    const warn = new THREE.Mesh(warnGeo, warnMat);
+    warn.position.set(0, 1.2, 1.3);
+    group.add(warn);
+
+    // "PULL" label in danger orange
+    const pullLabel = createTextSprite('PULL!', { x: 0, y: 1.5, z: 1.3 }, {
+        scale: 0.6, textColor: 'rgba(255, 170, 0, 1)',
+    });
+    group.add(pullLabel);
+
+    // Label
+    const label = createTextSprite("Al's Splitting Rack", { x: 0, y: 2.4, z: 0 }, { scale: 0.9 });
+    group.add(label);
+    const sub = createTextSprite('Aldolase', { x: 0, y: 2.0, z: 0 }, {
+        scale: 0.6, textColor: 'rgba(255,200,100,0.8)',
+    });
+    group.add(sub);
+
+    scene.add(group);
+    glyObjects.push(group);
+
+    interactiveObjects.push(group);
+    originalMaterials.set(base, base.material);
+    group.userData = {
+        name: data.name, type: 'station', enzyme: data.enzyme,
+        isInteractable: true, mainMesh: base,
+        onInteract: (obj, scn, tools) => handleStationInteract(3, data, obj, scn, tools),
+    };
+
+    return group;
+}
+
+function createMirrorDevice(scene, data, x, z) {
+    // Tim's station: a mirror/converter that flips DHAP into G3P
+    const group = new THREE.Group();
+    group.position.set(x - 2, 0, z);
+
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x8866aa, roughness: 0.5, metalness: 0.4 });
+    const mirrorMat = new THREE.MeshStandardMaterial({
+        color: 0xccddff, roughness: 0.05, metalness: 0.9,
+        emissive: 0x4466aa, emissiveIntensity: 0.15,
+        transparent: true, opacity: 0.7,
+    });
+
+    // Frame (arch shape)
+    const frameGeo = new THREE.TorusGeometry(1.2, 0.12, 8, 16, Math.PI);
+    const frame = new THREE.Mesh(frameGeo, frameMat);
+    frame.position.y = 1.5;
+    frame.rotation.z = 0;
+    frame.castShadow = true;
+    group.add(frame);
+
+    // Two pillars
+    const pillarGeo = new THREE.CylinderGeometry(0.12, 0.12, 1.5, 8);
+    [-1.2, 1.2].forEach(px => {
+        const pillar = new THREE.Mesh(pillarGeo, frameMat);
+        pillar.position.set(px, 0.75, 0);
+        pillar.castShadow = true;
+        group.add(pillar);
+    });
+
+    // Mirror surface (reflective disc)
+    const mirror = new THREE.Mesh(new THREE.CircleGeometry(1.0, 16), mirrorMat);
+    mirror.position.y = 1.5;
+    mirror.userData.isMirror = true;
+    group.add(mirror);
+
+    // "= / =" symmetry symbols
+    const symLabel = createTextSprite('DHAP <=> G3P', { x: 0, y: 0.3, z: 0.5 }, {
+        scale: 0.5, textColor: 'rgba(200,180,255,0.9)',
+    });
+    group.add(symLabel);
+
+    // Label
+    const label = createTextSprite("Tim's Mirror", { x: 0, y: 3.0, z: 0 }, { scale: 0.9 });
+    group.add(label);
+    const sub = createTextSprite('Triose Phosphate Isomerase', { x: 0, y: 2.6, z: 0 }, {
+        scale: 0.45, textColor: 'rgba(255,200,100,0.7)',
+    });
+    group.add(sub);
+
+    scene.add(group);
+    glyObjects.push(group);
+
+    interactiveObjects.push(group);
+    originalMaterials.set(frame, frame.material);
+    group.userData = {
+        name: data.name, type: 'station', enzyme: data.enzyme,
+        isInteractable: true, mainMesh: frame,
+        onInteract: (obj, scn, tools) => handleStationInteract(4, data, obj, scn, tools),
+    };
+
+    return group;
+}
+
+// ========================
+// GLUCOSE MODEL MANAGEMENT
+// ========================
+
+function spawnGlucoseModel(scene, position) {
+    if (glucoseModel) {
+        scene.remove(glucoseModel);
+    }
+    glucoseModel = createHexagonalRing(1.2, 0.08, 0xffffff);
+    glucoseModel.position.set(position.x, position.y + 1.4, position.z);
+    glucoseModel.userData.baseY = position.y + 1.4;
+
+    // "Glucose" label above the ring
+    const label = createTextSprite('Glucose', { x: 0, y: 1.2, z: 0 }, { scale: 0.8 });
+    glucoseModel.add(label);
+    glucoseModel.userData.label = label;
+
+    scene.add(glucoseModel);
+    glyObjects.push(glucoseModel);
+    moleculeStage = 'hexagon';
+}
+
+function moveGlucoseToStation(targetZ, duration) {
+    if (!glucoseModel) return;
+    const startPos = glucoseModel.position.clone();
+    const targetPos = new THREE.Vector3(PATHWAY_X, glucoseModel.userData.baseY, targetZ);
+    const startTime = performance.now();
+
+    activeAnimations.push({
+        id: 'moveGlucose',
+        update: () => {
+            const elapsed = (performance.now() - startTime) / 1000;
+            const t = Math.min(elapsed / duration, 1);
+            const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            glucoseModel.position.lerpVectors(startPos, targetPos, eased);
+            return t >= 1;
+        },
+    });
+}
+
+function attachPhosphateA(scene) {
+    // Attach first phosphate to vertex 0 of the hexagonal ring
+    if (!glucoseModel || phosphateA) return;
+    const verts = glucoseModel.userData.vertices;
+    if (!verts || verts.length === 0) return;
+    const pos = verts[0].clone();
+    pos.y += 0.1;
+    phosphateA = createPhosphateSphere(pos);
+    glucoseModel.add(phosphateA);
+
+    // Update label
+    if (glucoseModel.userData.label) {
+        glucoseModel.remove(glucoseModel.userData.label);
+    }
+    const label = createTextSprite('Glucose-6-P', { x: 0, y: 1.2, z: 0 }, { scale: 0.8 });
+    glucoseModel.add(label);
+    glucoseModel.userData.label = label;
+    moleculeStage = 'hexagon-1p';
+}
+
+function morphToPentagon(scene) {
+    // Replace the hexagonal ring with a pentagonal one, preserving phosphate
+    if (!glucoseModel) return;
+    const pos = glucoseModel.position.clone();
+    const baseY = glucoseModel.userData.baseY;
+    scene.remove(glucoseModel);
+
+    glucoseModel = createPentagonalRing(1.1, 0.08, 0xffa07a);
+    glucoseModel.position.copy(pos);
+    glucoseModel.userData.baseY = baseY;
+
+    // Re-attach phosphateA
+    const verts = glucoseModel.userData.vertices;
+    phosphateA = createPhosphateSphere(new THREE.Vector3(verts[0].x, 0.1, verts[0].z));
+    glucoseModel.add(phosphateA);
+
+    // Update label
+    const label = createTextSprite('Fructose-6-P', { x: 0, y: 1.2, z: 0 }, { scale: 0.8 });
+    glucoseModel.add(label);
+    glucoseModel.userData.label = label;
+
+    scene.add(glucoseModel);
+    glyObjects.push(glucoseModel);
+    moleculeStage = 'pentagon';
+}
+
+function attachPhosphateB(scene) {
+    if (!glucoseModel || phosphateB) return;
+    const verts = glucoseModel.userData.vertices;
+    if (!verts || verts.length < 3) return;
+    // Attach to opposite end (vertex 3 on pentagon)
+    const pos = verts[3].clone();
+    pos.y += 0.1;
+    phosphateB = createPhosphateSphere(pos);
+    glucoseModel.add(phosphateB);
+
+    // Update label
+    if (glucoseModel.userData.label) {
+        glucoseModel.remove(glucoseModel.userData.label);
+    }
+    const label = createTextSprite('Fructose-1,6-BP', { x: 0, y: 1.2, z: 0 }, { scale: 0.75 });
+    glucoseModel.add(label);
+    glucoseModel.userData.label = label;
+    moleculeStage = 'pentagon-2p';
+}
+
+function splitMolecule(scene, stationZ) {
+    // THE BIG SPLIT: destroy the pentagon, create two triangle fragments
+    if (!glucoseModel) return;
+    const pos = glucoseModel.position.clone();
+
+    // Remove the old model
+    scene.remove(glucoseModel);
+    phosphateA = null;
+    phosphateB = null;
+
+    // Create two triangle fragments
+    fragmentA = createTriangleFragment(0.6, 0.06, 0xff8c00, 'G3P');
+    fragmentA.position.set(pos.x - 1.5, pos.y, pos.z);
+    scene.add(fragmentA);
+    glyObjects.push(fragmentA);
+
+    fragmentB = createTriangleFragment(0.6, 0.06, 0xffb347, 'DHAP');
+    fragmentB.position.set(pos.x + 1.5, pos.y, pos.z);
+    scene.add(fragmentB);
+    glyObjects.push(fragmentB);
+
+    // Explosion particles at the split point
+    const explosion = createSimpleParticleSystem(
+        scene, 60, 0xff6600, 0.2, 5.0, 1.5,
+        pos,
+        new THREE.Vector3(1.5, 1.5, 1.5)
+    );
+    glyObjects.push(explosion);
+    activeParticles.push(explosion);
+
+    // Secondary flash particles (white)
+    const flash = createSimpleParticleSystem(
+        scene, 30, 0xffffff, 0.15, 4.0, 1.0,
+        pos,
+        new THREE.Vector3(0.5, 0.5, 0.5)
+    );
+    glyObjects.push(flash);
+    activeParticles.push(flash);
+
+    // Screen shake effect
+    triggerScreenShake(0.5, 0.15);
+
+    // Animate fragments flying apart
+    const startTime = performance.now();
+    const aStart = fragmentA.position.clone();
+    const bStart = fragmentB.position.clone();
+    const aEnd = new THREE.Vector3(pos.x - 2.5, pos.y, pos.z);
+    const bEnd = new THREE.Vector3(pos.x + 2.5, pos.y, pos.z);
+
+    activeAnimations.push({
+        id: 'splitApart',
+        update: () => {
+            const elapsed = (performance.now() - startTime) / 1000;
+            const t = Math.min(elapsed / 0.8, 1);
+            const eased = 1 - Math.pow(1 - t, 3);
+            if (fragmentA) fragmentA.position.lerpVectors(aStart, aEnd, eased);
+            if (fragmentB) fragmentB.position.lerpVectors(bStart, bEnd, eased);
+            return t >= 1;
+        },
+    });
+
+    // Remove explosion particles after a bit
+    setTimeout(() => {
+        if (explosion.parent) scene.remove(explosion);
+        if (flash.parent) scene.remove(flash);
+        const idxE = activeParticles.indexOf(explosion);
+        if (idxE > -1) activeParticles.splice(idxE, 1);
+        const idxF = activeParticles.indexOf(flash);
+        if (idxF > -1) activeParticles.splice(idxF, 1);
+    }, 2000);
+
+    glucoseModel = null;
+    moleculeStage = 'split';
+}
+
+function convertDHAPToG3P(scene) {
+    // Mirror effect: DHAP fragment becomes second G3P
+    if (!fragmentB) return;
+    const pos = fragmentB.position.clone();
+    scene.remove(fragmentB);
+
+    fragmentB = createTriangleFragment(0.6, 0.06, 0xff8c00, 'G3P');
+    fragmentB.position.copy(pos);
+    scene.add(fragmentB);
+    glyObjects.push(fragmentB);
+    moleculeStage = 'fragment';
+}
+
+function fadeOutFragments(scene) {
+    // Remove fragment models during payoff (energy extracted)
+    [fragmentA, fragmentB].forEach(frag => {
+        if (frag && frag.parent) {
+            scene.remove(frag);
+        }
+    });
+    fragmentA = null;
+    fragmentB = null;
+}
+
+function emitPayoffParticles(scene, position) {
+    const particles = createSimpleParticleSystem(
+        scene, 25, COLORS.energy, 0.12, 2.0, 2.0,
+        position,
+        new THREE.Vector3(1, 1, 1)
+    );
+    glyObjects.push(particles);
+    activeParticles.push(particles);
+    setTimeout(() => {
+        if (particles.parent) scene.remove(particles);
+        const idx = activeParticles.indexOf(particles);
+        if (idx > -1) activeParticles.splice(idx, 1);
+    }, 3000);
+}
+
+function emitSparkParticles(scene, position, color) {
+    const sparks = createSimpleParticleSystem(
+        scene, 20, color || 0xffaa00, 0.1, 3.0, 1.0,
+        position,
+        new THREE.Vector3(0.3, 0.3, 0.3)
+    );
+    glyObjects.push(sparks);
+    activeParticles.push(sparks);
+    setTimeout(() => {
+        if (sparks.parent) scene.remove(sparks);
+        const idx = activeParticles.indexOf(sparks);
+        if (idx > -1) activeParticles.splice(idx, 1);
+    }, 1500);
+}
+
+// Screen shake
+let shakeRemaining = 0;
+let shakeIntensity = 0;
+function triggerScreenShake(duration, intensity) {
+    shakeRemaining = duration;
+    shakeIntensity = intensity;
+}
+
+// ========================
+// INTERACTION HANDLER
+// ========================
+
+function handleStationInteract(idx, enzymeData, object, scene, tools) {
     const { showDialogue, showFeedback: feedback, setGameInteracting, playMoleculeGenerationSound, createGameBoySound } = tools;
     createGameBoySound(440, 0.1, 'sine');
 
-    const idx = ENZYMES.indexOf(enzymeData);
-    // Map quest states to enzyme indices
-    const questForEnzyme = [
-        GLY_QUEST.VISIT_HEXY, GLY_QUEST.VISIT_IZZY, GLY_QUEST.VISIT_PHIL,
-        GLY_QUEST.VISIT_AL, GLY_QUEST.VISIT_TIM, GLY_QUEST.VISIT_GARY,
-        GLY_QUEST.VISIT_PEGGY, GLY_QUEST.VISIT_MUTTY, GLY_QUEST.VISIT_ENO,
-        GLY_QUEST.VISIT_PIKE,
-    ];
-
-    if (questState === questForEnzyme[idx]) {
-        const inv = getInventory();
-        const hasAll = enzymeData.input.every(item => inv[item] && inv[item] > 0);
-
-        if (hasAll) {
-            showDialogue(enzymeData.questDialogue, [
-                { text: "Let's go!", hideOnClick: false, action: () => {
-                    // Consume inputs
-                    for (const item of enzymeData.input) {
-                        removeFromInventory(item);
-                    }
-                    playMoleculeGenerationSound();
-
-                    // Grant outputs
-                    for (const item of enzymeData.output) {
-                        addToInventory(item);
-                    }
-
-                    // Show the result as a follow-up dialogue
-                    if (enzymeData.shortName === 'Pike') {
-                        // Final enzyme -- show completion
-                        showDialogue(enzymeData.questResult, [
-                            { text: "Glycolysis mastered!", action: () => {
-                                questState = GLY_QUEST.COMPLETED;
-                                addAbility('glucose-handling');
-                                setWorldProgress('glycolysis', { completed: true });
-                                feedback("GLUCOSE HANDLING unlocked! You can now process carbohydrates in other pathways.", 6000);
-                            }}
-                        ], setGameInteracting);
-                    } else {
-                        const nextIdx = idx + 1;
-                        const nextEnzyme = ENZYMES[nextIdx];
-                        showDialogue(enzymeData.questResult, [
-                            { text: `On to ${nextEnzyme.shortName}!`, action: () => {
-                                questState = questForEnzyme[nextIdx];
-                            }}
-                        ], setGameInteracting);
-                    }
-                }}
-            ], setGameInteracting);
+    if (questState !== QUEST_FOR_ENZYME[idx]) {
+        // Not the right time -- show contextual hint or greeting
+        if (enzymeData.greeting) {
+            showDialogue(enzymeData.greeting, [{ text: "Got it" }], setGameInteracting);
         } else {
-            const missing = enzymeData.input.filter(item => !inv[item] || inv[item] <= 0);
-            showDialogue(`I need ${missing.join(' and ')} to proceed. Go collect ${missing.length > 1 ? 'them' : 'it'} first!`, [{ text: "OK" }], setGameInteracting);
+            const stationTypeMsg = {
+                workbench: "The workbench clamps are ready. Bring the right molecules.",
+                vise: "The vise press looms overhead. Bring the molecule to squeeze it.",
+                rack: "The splitting rack's hooks gleam. Not time yet.",
+                mirror: "The mirror shimmers, waiting to convert twin molecules.",
+            };
+            showDialogue(stationTypeMsg[enzymeData.stationType] || "Not time for this station yet.", [{ text: "OK" }], setGameInteracting);
         }
+        return;
+    }
+
+    // Check inventory
+    const inv = getInventory();
+    const hasAll = enzymeData.input.every(item => inv[item] && inv[item] > 0);
+    if (!hasAll) {
+        const missing = enzymeData.input.filter(item => !inv[item] || inv[item] <= 0);
+        showDialogue(`Need: ${missing.join(' + ')}`, [{ text: "OK" }], setGameInteracting);
+        return;
+    }
+
+    // --- PERFORM THE TRANSFORMATION ---
+    // Consume inputs
+    for (const item of enzymeData.input) {
+        removeFromInventory(item);
+    }
+    playMoleculeGenerationSound();
+
+    // Grant outputs
+    for (const item of enzymeData.output) {
+        addToInventory(item);
+    }
+
+    // Visual transformation based on station index
+    const stationPos = object.position.clone();
+    stationPos.y = 1.4;
+
+    switch (idx) {
+        case 0: // Hexy -- attach first phosphate
+            attachPhosphateA(scene);
+            emitSparkParticles(scene, glucoseModel ? glucoseModel.position.clone() : stationPos, COLORS.phosphate);
+            createGameBoySound(550, 0.2, 'square');
+            break;
+
+        case 1: // Izzy -- squeeze to pentagon
+            if (glucoseModel) {
+                // Quick squeeze animation
+                const squeezeStart = performance.now();
+                const origScale = glucoseModel.scale.clone();
+                activeAnimations.push({
+                    id: 'squeeze',
+                    update: () => {
+                        const elapsed = (performance.now() - squeezeStart) / 1000;
+                        const t = Math.min(elapsed / 0.5, 1);
+                        if (t < 0.5) {
+                            const s = 1 - t * 0.6;
+                            glucoseModel.scale.set(s, origScale.y, 1 + t * 0.3);
+                        } else if (t >= 0.5 && t < 0.51) {
+                            morphToPentagon(scene);
+                            emitSparkParticles(scene, glucoseModel.position.clone(), 0xffa07a);
+                            createGameBoySound(330, 0.15, 'sawtooth');
+                        }
+                        return t >= 1;
+                    },
+                });
+            } else {
+                morphToPentagon(scene);
+            }
+            break;
+
+        case 2: // Phil -- attach second phosphate
+            attachPhosphateB(scene);
+            emitSparkParticles(scene, glucoseModel ? glucoseModel.position.clone() : stationPos, COLORS.phosphate);
+            createGameBoySound(660, 0.25, 'square');
+            // Flash the model briefly
+            if (glucoseModel) {
+                glucoseModel.traverse(child => {
+                    if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined) {
+                        const origIntensity = child.material.emissiveIntensity;
+                        child.material.emissiveIntensity = 0.8;
+                        setTimeout(() => { child.material.emissiveIntensity = origIntensity; }, 400);
+                    }
+                });
+            }
+            break;
+
+        case 3: // Al -- THE SPLIT
+            splitMolecule(scene, enzymeData.z);
+            createGameBoySound(220, 0.4, 'sawtooth');
+            setTimeout(() => createGameBoySound(110, 0.3, 'square'), 200);
+            break;
+
+        case 4: // Tim -- mirror convert DHAP to G3P
+            convertDHAPToG3P(scene);
+            if (fragmentB) {
+                emitSparkParticles(scene, fragmentB.position.clone(), 0xffb347);
+            }
+            createGameBoySound(880, 0.1, 'sine');
+            break;
+
+        case 5: // Gary -- payoff starts, emit energy
+            emitPayoffParticles(scene, stationPos);
+            createGameBoySound(523, 0.15, 'sine');
+            setTimeout(() => createGameBoySound(659, 0.15, 'sine'), 100);
+            // Fade out fragments -- energy is being extracted
+            fadeOutFragments(scene);
+            break;
+
+        case 6: // Peggy -- ATP produced
+            emitPayoffParticles(scene, stationPos);
+            emitSparkParticles(scene, stationPos, COLORS.atp);
+            createGameBoySound(523, 0.15, 'sine');
+            setTimeout(() => createGameBoySound(784, 0.15, 'sine'), 100);
+            break;
+
+        case 7: // Mutty -- phosphate shift
+            emitSparkParticles(scene, stationPos, 0x66ccff);
+            createGameBoySound(440, 0.1, 'sine');
+            break;
+
+        case 8: // Eno -- create PEP
+            emitPayoffParticles(scene, stationPos);
+            emitSparkParticles(scene, stationPos, 0x9999ff);
+            createGameBoySound(660, 0.2, 'sine');
+            break;
+
+        case 9: // Pike -- grand finale
+            emitPayoffParticles(scene, stationPos);
+            emitSparkParticles(scene, stationPos, COLORS.atp);
+            emitSparkParticles(scene, new THREE.Vector3(stationPos.x, stationPos.y + 1, stationPos.z), 0xff44ff);
+            triggerScreenShake(0.3, 0.08);
+            createGameBoySound(523, 0.1, 'sine');
+            setTimeout(() => createGameBoySound(659, 0.1, 'sine'), 100);
+            setTimeout(() => createGameBoySound(784, 0.1, 'sine'), 200);
+            setTimeout(() => createGameBoySound(1047, 0.2, 'sine'), 300);
+            break;
+    }
+
+    // Show feedback text
+    feedback(enzymeData.feedback, 4000);
+
+    // Advance quest
+    if (idx === 9) {
+        // Pike -- completion
+        setTimeout(() => {
+            questState = GLY_QUEST.COMPLETED;
+            addAbility('glucose-handling');
+            setWorldProgress('glycolysis', { completed: true });
+            feedback("GLUCOSE HANDLING unlocked! You can now process carbohydrates in other pathways.", 6000);
+        }, 500);
     } else {
-        // Not the right time -- show the narrative greeting (context about this enzyme's role in the story)
-        showDialogue(enzymeData.greeting, [{ text: "Got it!" }], setGameInteracting);
+        // Move to next enzyme, move glucose model if it exists
+        questState = QUEST_FOR_ENZYME[idx + 1];
+        const nextZ = ENZYMES[idx + 1].z;
+
+        // Move the glucose model to the next station
+        if (glucoseModel && idx < 3) {
+            moveGlucoseToStation(nextZ, 1.2);
+        }
+
+        // Spawn any resources needed for next step
+        spawnNextResources(idx + 1, scene);
     }
 }
 
-// --- Portal ---
+function spawnNextResources(nextIdx, scene) {
+    const nextEnzyme = ENZYMES[nextIdx];
+    const spawnZ = nextEnzyme.z + 4;
+
+    // Spawn ATP if needed for Phil (index 2)
+    if (nextIdx === 2) {
+        spawnResource(scene, 'ATP', { x: -3, y: 0.5, z: spawnZ }, COLORS.atp);
+    }
+}
+
+// ========================
+// STATION CREATION
+// ========================
+
+function createEnzymeStations(scene) {
+    for (let i = 0; i < ENZYMES.length; i++) {
+        const data = ENZYMES[i];
+        const x = PATHWAY_X;
+        const z = data.z;
+
+        // Platform under each station
+        const platGeo = new THREE.BoxGeometry(PATHWAY_WIDTH - 2, 0.3, 4);
+        const platMat = new THREE.MeshStandardMaterial({
+            color: data.color, metalness: 0.2, roughness: 0.6,
+            emissive: data.color, emissiveIntensity: 0.08,
+        });
+        const platform = new THREE.Mesh(platGeo, platMat);
+        platform.position.set(x, 0.15, z);
+        platform.receiveShadow = true;
+        platform.castShadow = true;
+        scene.add(platform);
+        glyObjects.push(platform);
+
+        // Station light
+        const light = new THREE.PointLight(data.color, 0.4, 8);
+        light.position.set(x, 3, z);
+        scene.add(light);
+        glyObjects.push(light);
+
+        // Create the appropriate station type
+        switch (data.stationType) {
+            case 'workbench':
+                createWorkbench(scene, data, x, z);
+                break;
+            case 'vise':
+                createVise(scene, data, x, z);
+                break;
+            case 'rack':
+                createSplittingRack(scene, data, x, z);
+                break;
+            case 'mirror':
+                createMirrorDevice(scene, data, x, z);
+                break;
+            case 'npc':
+                createNPCStation(scene, data, x, z, i);
+                break;
+        }
+
+        // Arrow to next station
+        if (i < ENZYMES.length - 1) {
+            const nextZ = ENZYMES[i + 1].z;
+            const midZ = (z + nextZ) / 2;
+            const arrowGeo = new THREE.ConeGeometry(0.3, 0.6, 4);
+            const arrowMat = new THREE.MeshStandardMaterial({
+                color: data.color, emissive: data.color, emissiveIntensity: 0.3,
+                transparent: true, opacity: 0.6,
+            });
+            const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+            arrow.position.set(x, 0.5, midZ);
+            arrow.rotation.x = Math.PI; // Point south
+            scene.add(arrow);
+            glyObjects.push(arrow);
+        }
+    }
+}
+
+// ========================
+// TERRAIN, PORTAL, DECOR, LIGHTING (preserved from original)
+// ========================
+
+function createTerrain(scene) {
+    const sections = [
+        { z: 30, depth: 40, color: COLORS.investmentGround, label: 'INVESTMENT PHASE', labelZ: 42 },
+        { z: -10, depth: 30, color: COLORS.splitGround, label: 'THE SPLIT', labelZ: -5 },
+        { z: -55, depth: 70, color: COLORS.payoffGround, label: 'PAYOFF PHASE', labelZ: -40 },
+    ];
+
+    for (const sec of sections) {
+        const geo = new THREE.PlaneGeometry(PATHWAY_WIDTH * 3, sec.depth);
+        const mat = new THREE.MeshStandardMaterial({ color: sec.color, roughness: 0.9 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.set(PATHWAY_X, -0.01, sec.z);
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+        glyObjects.push(mesh);
+
+        const label = createTextSprite(sec.label, { x: PATHWAY_X, y: 4, z: sec.labelZ }, {
+            scale: 2, textColor: 'rgba(255,255,255,0.5)',
+        });
+        scene.add(label);
+        glyObjects.push(label);
+    }
+
+    const pathGeo = new THREE.PlaneGeometry(PATHWAY_WIDTH, 170);
+    const pathMat = new THREE.MeshStandardMaterial({ color: COLORS.path, roughness: 0.7, metalness: 0.1 });
+    const pathMesh = new THREE.Mesh(pathGeo, pathMat);
+    pathMesh.rotation.x = -Math.PI / 2;
+    pathMesh.position.set(PATHWAY_X, 0.01, -25);
+    pathMesh.receiveShadow = true;
+    scene.add(pathMesh);
+    glyObjects.push(pathMesh);
+
+    const bgGeo = new THREE.PlaneGeometry(400, 400);
+    const bgMat = new THREE.MeshStandardMaterial({ color: 0x1a0f00, roughness: 1, fog: true });
+    const bg = new THREE.Mesh(bgGeo, bgMat);
+    bg.rotation.x = -Math.PI / 2;
+    bg.position.y = -0.5;
+    bg.receiveShadow = true;
+    scene.add(bg);
+    glyObjects.push(bg);
+}
+
 function createPortalToTCA(scene) {
     const portalGroup = new THREE.Group();
     portalGroup.position.set(0, 0, 55);
@@ -473,9 +1336,7 @@ function createPortalToTCA(scene) {
     portalGroup.userData.mainMesh = ring;
 }
 
-// --- Decorations ---
 function createDecorations(scene) {
-    // Torch-like pillars along the pathway edges
     for (let z = 45; z >= -100; z -= 15) {
         for (const side of [-1, 1]) {
             const x = side * (PATHWAY_WIDTH / 2 + 2);
@@ -487,7 +1348,6 @@ function createDecorations(scene) {
             scene.add(pillar);
             glyObjects.push(pillar);
 
-            // Flame
             const flameGeo = new THREE.ConeGeometry(0.2, 0.5, 5);
             const isPayoff = z < -30;
             const flameColor = isPayoff ? 0x00ff66 : 0xff6600;
@@ -508,7 +1368,6 @@ function createDecorations(scene) {
         }
     }
 
-    // "NET: -2 ATP" sign in investment phase, "NET: +4 ATP, +2 NADH" in payoff
     const investSign = createTextSprite('Cost: 2 ATP', { x: -PATHWAY_WIDTH, y: 2, z: 20 }, {
         scale: 1.5, textColor: 'rgba(255, 100, 100, 0.8)',
     });
@@ -522,7 +1381,6 @@ function createDecorations(scene) {
     glyObjects.push(payoffSign);
 }
 
-// --- Lighting ---
 function createLighting(scene) {
     const warmLight = new THREE.DirectionalLight(0xffcc88, 0.5);
     warmLight.position.set(10, 20, 10);
@@ -543,7 +1401,57 @@ function spawnResource(scene, name, position, color) {
     createResource(scene, name, position, color, { worldId: 'glycolysis' });
 }
 
-// --- Update ---
+// ========================
+// INIT
+// ========================
+
+export function init(scene) {
+    worldScene = scene;
+    glyObjects = [];
+    glyNPCs = [];
+    activeAnimations = [];
+    activeParticles = [];
+    glucoseModel = null;
+    fragmentA = null;
+    fragmentB = null;
+    phosphateA = null;
+    phosphateB = null;
+    moleculeStage = 'none';
+    shakeRemaining = 0;
+    questState = GLY_QUEST.NOT_STARTED;
+
+    createTerrain(scene);
+    createEnzymeStations(scene);
+    createPortalToTCA(scene);
+    createDecorations(scene);
+    createLighting(scene);
+
+    // Opening narrative
+    setTimeout(() => {
+        const setInteracting = (state) => setGameState({ isUserInteracting: state });
+        const showDialogue = (text, options, cb) => {
+            import('../uiManager.js').then(({ showDialogue: sd }) => sd(text, options, cb));
+        };
+
+        showDialogue("Before you sits a molecule of GLUCOSE -- a six-sided sugar ring. Stable. Stubborn. The energy locked inside could power thousands of reactions.\n\nBut that ring does NOT want to break.", [
+            { text: "How do we break it?", hideOnClick: false, action: () => {
+                showDialogue("You'll strap sticks of dynamite -- phosphates from ATP -- onto each end. Squeeze it, prime it, then RIP IT APART.\n\nCollect the Glucose and 2 ATP ahead to begin. Then bring them to Hexy's Workbench.", [
+                    { text: "Let's do this.", action: () => {
+                        questState = GLY_QUEST.COLLECT_GLUCOSE;
+                        spawnResource(worldScene, 'Glucose', { x: -3, y: 0.5, z: 45 }, COLORS.glucose);
+                        spawnResource(worldScene, 'ATP', { x: 3, y: 0.5, z: 45 }, COLORS.atp);
+                        spawnResource(worldScene, 'ATP', { x: 5, y: 0.5, z: 43 }, COLORS.atp);
+                    }}
+                ], setInteracting);
+            }}
+        ], setInteracting);
+    }, 1500);
+}
+
+// ========================
+// UPDATE
+// ========================
+
 export function update(delta, elapsedTime) {
     if (!worldScene) return;
 
@@ -556,7 +1464,72 @@ export function update(delta, elapsedTime) {
 
     // NPC idle sway
     for (const npc of glyNPCs) {
-        npc.children[0].position.y = 0.8 + Math.sin(elapsedTime * 1.5 + npc.position.z) * 0.02;
+        if (npc.children[0]) {
+            npc.children[0].position.y = 0.8 + Math.sin(elapsedTime * 1.5 + npc.position.z) * 0.02;
+        }
+    }
+
+    // Glucose model gentle rotation and hover
+    if (glucoseModel) {
+        glucoseModel.rotation.y = elapsedTime * 0.3;
+        const baseY = glucoseModel.userData.baseY || 1.4;
+        glucoseModel.position.y = baseY + Math.sin(elapsedTime * 1.2) * 0.1;
+    }
+
+    // Fragment idle bob
+    if (fragmentA) {
+        fragmentA.rotation.y = elapsedTime * 0.4;
+        fragmentA.position.y = 1.4 + Math.sin(elapsedTime * 1.5) * 0.08;
+    }
+    if (fragmentB) {
+        fragmentB.rotation.y = -elapsedTime * 0.4;
+        fragmentB.position.y = 1.4 + Math.sin(elapsedTime * 1.5 + 1) * 0.08;
+    }
+
+    // Phosphate glow pulse
+    if (phosphateA) {
+        phosphateA.traverse(child => {
+            if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined && child.userData.isPhosphate === undefined) {
+                child.material.emissiveIntensity = 0.4 + Math.sin(elapsedTime * 3) * 0.2;
+            }
+        });
+    }
+    if (phosphateB) {
+        phosphateB.traverse(child => {
+            if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined && child.userData.isPhosphate === undefined) {
+                child.material.emissiveIntensity = 0.4 + Math.sin(elapsedTime * 3 + Math.PI) * 0.2;
+            }
+        });
+    }
+
+    // Animate dynamite on workbench
+    for (const obj of glyObjects) {
+        if (obj.traverse) {
+            obj.traverse(child => {
+                if (child.userData && child.userData.isDynamite) {
+                    child.material.emissiveIntensity = 0.3 + Math.sin(elapsedTime * 4) * 0.2;
+                }
+                if (child.userData && child.userData.isMirror) {
+                    child.material.opacity = 0.5 + Math.sin(elapsedTime * 2) * 0.2;
+                }
+            });
+        }
+    }
+
+    // Process animations
+    for (let i = activeAnimations.length - 1; i >= 0; i--) {
+        const done = activeAnimations[i].update();
+        if (done) activeAnimations.splice(i, 1);
+    }
+
+    // Screen shake
+    if (shakeRemaining > 0) {
+        shakeRemaining -= delta;
+        const cam = worldScene.getObjectByProperty('isCamera', true);
+        if (cam) {
+            cam.position.x += (Math.random() - 0.5) * shakeIntensity;
+            cam.position.y += (Math.random() - 0.5) * shakeIntensity * 0.5;
+        }
     }
 
     // Terrain following
@@ -604,10 +1577,13 @@ function handleGlyResourceCollected(name) {
         const inv = getInventory();
         if (inv['Glucose'] && inv['ATP'] >= 2) {
             questState = GLY_QUEST.VISIT_HEXY;
-            showFeedback("You have Glucose + 2 ATP! Visit Hexy the Hexokinase to begin glycolysis.", 4000);
+            showFeedback("Glucose + 2 ATP collected! Bring them to Hexy's Workbench to strap on the first phosphate.", 4000);
+
+            // Spawn the big glucose model at Hexy's station
+            spawnGlucoseModel(worldScene, { x: PATHWAY_X, y: 0, z: ENZYMES[0].z });
             return true;
         } else if (inv['Glucose'] && inv['ATP'] === 1) {
-            showFeedback("Glucose collected! You need one more ATP.", 2000);
+            showFeedback("Glucose collected! One more ATP needed.", 2000);
             return true;
         }
     }
@@ -631,22 +1607,25 @@ function updateGlyQuestUI() {
     const objectives = {
         [GLY_QUEST.NOT_STARTED]: 'Explore the Glycolysis Gauntlet',
         [GLY_QUEST.COLLECT_GLUCOSE]: 'Collect Glucose and 2 ATP near the entrance',
-        [GLY_QUEST.VISIT_HEXY]: 'Bring Glucose + ATP to Hexy (Hexokinase)',
-        [GLY_QUEST.VISIT_IZZY]: 'Bring Glucose-6-P to Izzy (PGI)',
-        [GLY_QUEST.VISIT_PHIL]: 'Bring Fructose-6-P + ATP to Phil (PFK-1) -- the committed step!',
-        [GLY_QUEST.VISIT_AL]: 'Bring Fructose-1,6-BP to Al (Aldolase) -- the big split!',
-        [GLY_QUEST.VISIT_TIM]: 'Bring DHAP to Tim (TPI)',
-        [GLY_QUEST.VISIT_GARY]: 'Bring G3P to Gary (GAPDH) -- payoff begins!',
-        [GLY_QUEST.VISIT_PEGGY]: 'Bring 1,3-BPG to Peggy (PGK) -- first ATP!',
-        [GLY_QUEST.VISIT_MUTTY]: 'Bring 3-PG to Mutty (PGM)',
-        [GLY_QUEST.VISIT_ENO]: 'Bring 2-PG to Eno (Enolase)',
-        [GLY_QUEST.VISIT_PIKE]: 'Bring PEP to Pike (Pyruvate Kinase) -- the grand finale!',
+        [GLY_QUEST.VISIT_HEXY]: 'Bring Glucose + ATP to the Workbench -- strap on the first phosphate',
+        [GLY_QUEST.VISIT_IZZY]: 'Bring Glucose-6-P to the Vise -- squeeze the ring!',
+        [GLY_QUEST.VISIT_PHIL]: 'Bring Fructose-6-P + ATP to Phil -- the committed step!',
+        [GLY_QUEST.VISIT_AL]: 'Bring Fructose-1,6-BP to the Splitting Rack -- rip it apart!',
+        [GLY_QUEST.VISIT_TIM]: 'Bring DHAP to the Mirror -- convert the twin',
+        [GLY_QUEST.VISIT_GARY]: 'Bring G3P to Gary -- payoff begins!',
+        [GLY_QUEST.VISIT_PEGGY]: 'Bring 1,3-BPG to Peggy -- first ATP earned!',
+        [GLY_QUEST.VISIT_MUTTY]: 'Bring 3-PG to Mutty -- reposition the phosphate',
+        [GLY_QUEST.VISIT_ENO]: 'Bring 2-PG to Eno -- load the energy cannon',
+        [GLY_QUEST.VISIT_PIKE]: 'Bring PEP to Pike -- the grand finale!',
         [GLY_QUEST.COMPLETED]: 'Glycolysis mastered! Glucose Handling unlocked!',
     };
     if (questObjective) questObjective.textContent = objectives[questState] || '';
 }
 
-// --- Cleanup ---
+// ========================
+// CLEANUP
+// ========================
+
 export function cleanup(scene) {
     for (const obj of glyObjects) {
         if (obj.parent) obj.parent.remove(obj);
@@ -667,5 +1646,14 @@ export function cleanup(scene) {
     }
     glyObjects = [];
     glyNPCs = [];
+    activeAnimations = [];
+    activeParticles = [];
+    glucoseModel = null;
+    fragmentA = null;
+    fragmentB = null;
+    phosphateA = null;
+    phosphateB = null;
+    moleculeStage = 'none';
+    shakeRemaining = 0;
     worldScene = null;
 }
