@@ -11,6 +11,7 @@ import { handlePlayerDeath } from '../gameManager.js';
 import { camera, renderer } from '../sceneSetup.js';
 import { transitionTo } from '../sceneManager.js';
 import { updateInteraction } from '../interactionManager.js';
+import tcaData from '../../data/tca.json';
 
 // --- World Config ---
 export const config = {
@@ -70,101 +71,9 @@ const TCA_QUEST = Object.freeze({
     COMPLETED: 'TCA_COMPLETED',
 });
 
-// --- NPC Data ---
-const ENZYME_STATIONS = [
-    {
-        name: 'Percy (PDH Complex)',
-        shortName: 'Percy',
-        enzyme: 'Pyruvate Dehydrogenase',
-        angle: Math.PI / 2,  // Top (north) -- the entrance
-        color: 0xff6b35,     // Warm orange
-        bodyColor: 0xcc5500,
-        description: 'Irreversible gatekeeper -- converts pyruvate to acetyl-CoA',
-        greeting: "HALT! I am Percy, guardian of the Pyruvate Dehydrogenase Complex. Once you enter my domain, there's NO going back. Pyruvate becomes Acetyl-CoA here, and that reaction is IRREVERSIBLE!",
-    },
-    {
-        name: 'Sid (Citrate Synthase)',
-        shortName: 'Sid',
-        enzyme: 'Citrate Synthase',
-        angle: Math.PI / 4,
-        color: 0x4ecdc4,     // Teal
-        bodyColor: 0x2a9d8f,
-        description: 'Meticulous craftsman -- condenses Acetyl-CoA with Oxaloacetate',
-        greeting: "Welcome! I'm Sid, the Citrate Synthase. I'm the FIRST enzyme of the TCA cycle. I carefully combine Acetyl-CoA with Oxaloacetate to make Citrate. It's delicate work, but someone's got to start the cycle!",
-    },
-    {
-        name: 'Aco (Aconitase)',
-        shortName: 'Aco',
-        enzyme: 'Aconitase',
-        angle: 0,
-        color: 0xa8e6cf,     // Mint green
-        bodyColor: 0x6bbf8a,
-        description: 'The rearranging acrobat -- isomerizes citrate to isocitrate',
-        greeting: "I'm Aco, the Aconitase! I do a little rearranging act -- I flip Citrate into Isocitrate. Some people say I'm just an isomerase, but I prefer 'molecular acrobat.'",
-    },
-    {
-        name: 'Ike (Isocitrate DH)',
-        shortName: 'Ike',
-        enzyme: 'Isocitrate Dehydrogenase',
-        angle: -Math.PI / 4,
-        color: 0xffd93d,     // Golden yellow
-        bodyColor: 0xccaa00,
-        description: 'The investigator -- first CO2 release and NADH production',
-        greeting: "Detective Ike here, Isocitrate Dehydrogenase. I investigate every molecule that comes my way. When I oxidize Isocitrate, I pull off a CO2 and produce the first NADH of the cycle. That's called oxidative decarboxylation -- say it three times fast!",
-    },
-    {
-        name: 'Alpha (Alpha-KG DH)',
-        shortName: 'Alpha',
-        enzyme: 'Alpha-Ketoglutarate Dehydrogenase',
-        angle: -Math.PI / 2,
-        color: 0xe63946,     // Deep red
-        bodyColor: 0xb02a35,
-        description: 'Powerful complex -- second CO2 release and NADH',
-        greeting: "I am Alpha, the Alpha-Ketoglutarate Dehydrogenase Complex. I am... substantial. A multi-enzyme complex, just like Percy up there. I produce the SECOND NADH and release another CO2. Together with Ike, we've now released BOTH carbons from the original Acetyl-CoA as CO2.",
-    },
-    {
-        name: 'Suki (Succinyl-CoA Synthetase)',
-        shortName: 'Suki',
-        enzyme: 'Succinyl-CoA Synthetase',
-        angle: -3 * Math.PI / 4,
-        color: 0x9b5de5,     // Purple
-        bodyColor: 0x7b3dc5,
-        description: 'Proud GTP maker -- substrate-level phosphorylation',
-        greeting: "I'm Suki! Succinyl-CoA Synthetase. You know what makes me special? I'm the ONLY enzyme in the TCA cycle that produces a high-energy phosphate directly -- GTP! Everyone talks about oxidative phosphorylation, but I do it the old-fashioned way: substrate-level phosphorylation, baby!",
-    },
-    {
-        name: 'Sadie (Succinate DH)',
-        shortName: 'Sadie',
-        enzyme: 'Succinate Dehydrogenase',
-        angle: Math.PI,      // Bottom (south)
-        color: 0xf4845f,     // Coral
-        bodyColor: 0xd06040,
-        description: 'Dual role -- she IS Complex II of the electron transport chain!',
-        greeting: "Hey there! I'm Sadie, Succinate Dehydrogenase. Fun fact about me: I'm the ONLY TCA cycle enzyme that's actually embedded in the inner mitochondrial membrane. That's because I moonlight as Complex II of the Electron Transport Chain! I produce FADH2 instead of NADH -- it feeds electrons directly into the ETC through me.",
-    },
-    {
-        name: 'Fuma (Fumarase)',
-        shortName: 'Fuma',
-        enzyme: 'Fumarase',
-        angle: 3 * Math.PI / 4,
-        color: 0x90ee90,     // Light green
-        bodyColor: 0x60bb60,
-        description: 'Bridge between worlds -- connects TCA to Urea Cycle via fumarate',
-        greeting: "I'm Fuma, Fumarase! I hydrate Fumarate into Malate -- simple but essential. And here's the cool part: Fumarate also comes from the Urea Cycle! So I'm literally the BRIDGE between the Urea Cycle and the TCA Cycle. Two worlds, connected through me.",
-    },
-];
-
-// Malate DH is the 8th enzyme, placed near the top to complete the cycle back to OAA
-const MALATE_DH = {
-    name: 'Mal (Malate DH)',
-    shortName: 'Mal',
-    enzyme: 'Malate Dehydrogenase',
-    angle: 5 * Math.PI / 8,
-    color: 0x00b4d8,     // Ocean blue
-    bodyColor: 0x0090aa,
-    description: 'The closer -- produces the third NADH and regenerates Oxaloacetate',
-    greeting: "I'm Mal, Malate Dehydrogenase. I'm the last enzyme of the cycle. I oxidize Malate to regenerate Oxaloacetate -- which goes right back to Sid to start the cycle again! I also produce the THIRD and final NADH. The cycle is complete!",
-};
+// --- NPC Data (loaded from data/tca.json) ---
+const ENZYME_STATIONS = tcaData.enzymeStations;
+const MALATE_DH = tcaData.malateDH;
 
 // --- Module State ---
 let worldScene = null;

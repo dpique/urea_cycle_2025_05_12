@@ -11,6 +11,9 @@ import { getGameState, setGameState, getInventory, addToInventory, removeFromInv
 import { handlePlayerDeath } from '../gameManager.js';
 import { transitionTo } from '../sceneManager.js';
 import { updateInteraction } from '../interactionManager.js';
+import { PhosphateTimingMiniGame } from '../minigames/phosphateTiming.js';
+import { PrecisionPullMiniGame } from '../minigames/precisionPull.js';
+import glycolysisData from '../../data/glycolysis.json';
 
 // --- World Config ---
 export const config = {
@@ -51,81 +54,8 @@ const QUEST_FOR_ENZYME = [
     GLY_QUEST.VISIT_PIKE,
 ];
 
-// --- Enzyme Data ---
-const ENZYMES = [
-    {
-        name: 'Hexy\'s Workbench (Hexokinase)', shortName: 'Hexy\'s Bench',
-        enzyme: 'Hexokinase', z: 40, color: 0xff6b6b, bodyColor: 0xcc4444,
-        phase: 'investment', stationType: 'workbench',
-        input: ['Glucose', 'ATP'], output: ['Glucose-6-P'],
-        feedback: 'First stick of dynamite strapped onto CARBON 6 -- the last carbon of the chain! Glucose-6-Phosphate. The ring holds firm... one wasn\'t enough.',
-    },
-    {
-        name: 'Izzy\'s Vise (PGI)', shortName: 'Izzy\'s Vise',
-        enzyme: 'Phosphoglucose Isomerase', z: 20, color: 0xffa07a, bodyColor: 0xcc7755,
-        phase: 'investment', stationType: 'vise',
-        input: ['Glucose-6-P'], output: ['Fructose-6-P'],
-        feedback: 'SQUEEZED so hard a carbon POPPED OUT of the ring! Six-sided glucose becomes five-sided fructose. Still holding together... but now we can reach both ends.',
-    },
-    {
-        name: 'Phil the Gatekeeper (PFK-1)', shortName: 'Phil',
-        enzyme: 'Phosphofructokinase-1', z: 0, color: 0xff4444, bodyColor: 0xaa2222,
-        phase: 'investment', stationType: 'npc',
-        input: ['Fructose-6-P', 'ATP'], output: ['Fructose-1,6-BP'],
-        greeting: "I'm Phil, PFK-1. The RATE-LIMITING gatekeeper. Nothing passes without my say-so. We need dynamite on BOTH ends -- carbon 1 AND carbon 6. That's what the '1,6' means in fructose-1,6-bisphosphate!",
-        feedback: 'SECOND stick of dynamite on CARBON 1! Fructose-1,6-bisphosphate -- the 1 and the 6 tell you exactly where the phosphates sit. Both ends loaded. NOW we pull.',
-    },
-    {
-        name: 'Al\'s Splitting Rack (Aldolase)', shortName: 'Al\'s Rack',
-        enzyme: 'Aldolase', z: -20, color: 0xff8c00, bodyColor: 0xcc6600,
-        phase: 'split', stationType: 'rack',
-        input: ['Fructose-1,6-BP'], output: ['DHAP', 'G3P'],
-        feedback: 'THE GLUCOSE BREAKS IN HALF! Two 3-carbon fragments fly apart! The investment phase is OVER.',
-    },
-    {
-        name: 'Tim\'s Mirror (TPI)', shortName: 'Tim\'s Mirror',
-        enzyme: 'Triose Phosphate Isomerase', z: -42, color: 0xffb347, bodyColor: 0xcc8833,
-        phase: 'split', stationType: 'mirror',
-        input: ['DHAP'], output: ['G3P'],
-        feedback: 'The DHAP twin converts to match its sibling. Two identical G3P fragments, ready for harvest.',
-    },
-    {
-        name: 'Electron Extractor (GAPDH)', shortName: 'Extractor',
-        enzyme: 'G3P Dehydrogenase', z: -64, color: 0x00cc66, bodyColor: 0x009944,
-        phase: 'payoff', stationType: 'extractor',
-        input: ['G3P'], output: ['1,3-BPG', 'NADH'],
-        feedback: 'Electrons ripped out and stored as NADH! A free phosphate from the rubble bolts on -- each fragment now carries TWO phosphates.',
-    },
-    {
-        name: 'Phosphate Popper (PGK)', shortName: 'Popper',
-        enzyme: 'Phosphoglycerate Kinase', z: -86, color: 0x00ff88, bodyColor: 0x00cc66,
-        phase: 'payoff', stationType: 'popper',
-        input: ['1,3-BPG'], output: ['3-PG', 'ATP'],
-        feedback: 'PHOSPHATE POPPED! Slammed onto ADP to recharge ATP. 2 ATP earned = 2 ATP spent. You\'re BREAK EVEN. Everything from here is profit.',
-    },
-    {
-        name: 'The Shifter (PGM)', shortName: 'Shifter',
-        enzyme: 'Phosphoglycerate Mutase', z: -108, color: 0x66ccff, bodyColor: 0x4499cc,
-        phase: 'payoff', stationType: 'shifter',
-        input: ['3-PG'], output: ['2-PG'],
-        feedback: 'Phosphate shifted from carbon 3 to carbon 2. Like cocking a gun -- the spring is almost set.',
-    },
-    {
-        name: 'The Wringer (Enolase)', shortName: 'Wringer',
-        enzyme: 'Enolase', z: -130, color: 0x9999ff, bodyColor: 0x6666cc,
-        phase: 'payoff', stationType: 'wringer',
-        input: ['2-PG'], output: ['PEP'],
-        feedback: 'WRUNG DRY! Water squeezed out. The phosphate bond is now a LOADED SPRING -- PEP, the highest-energy phosphate in common metabolism. One step left.',
-    },
-    {
-        name: 'Pike the Launcher (Pyruvate Kinase)', shortName: 'Pike',
-        enzyme: 'Pyruvate Kinase', z: -152, color: 0xff44ff, bodyColor: 0xcc22cc,
-        phase: 'payoff', stationType: 'launcher',
-        input: ['PEP'], output: ['Pyruvate', 'ATP'],
-        greeting: "Stand back. That loaded spring? I pull the trigger. The phosphate LAUNCHES off, slams into ADP, and you get your PROFIT -- 2 more ATP. Net gain from one glucose: 2 ATP + 2 NADH + 2 Pyruvate. The pyruvate rolls on to the TCA Cycle.",
-        feedback: 'GLYCOLYSIS COMPLETE! Net: 2 ATP + 2 NADH + 2 Pyruvate. The pyruvate heads to the TCA Cycle!',
-    },
-];
+// --- Enzyme Data (loaded from data/glycolysis.json) ---
+const ENZYMES = glycolysisData.enzymes;
 
 // --- Colors ---
 const COLORS = {
@@ -194,20 +124,9 @@ function getGlyTerrainHeight(x, z) {
     }
 }
 
-// Pull mini-game state
-let pullActive = false;
-let pullProgress = 0; // 0 to 1
-let pullOverlay = null;
-let pullBar = null;
-let pullLabel = null;
-
-// Phosphate timing mini-game state
-let phosphateTimingActive = false;
-let phosphateTimingOverlay = null;
-let phosphateTimingCallback = null; // called on success
-let phosphateTargetVertex = 0;      // which vertex to hit
-let phosphateTargetLabel = 'C6';
-let phosphateSpinSpeed = 0;         // rad/s
+// Mini-game instances
+const phosphateGame = new PhosphateTimingMiniGame();
+const pullGame = new PrecisionPullMiniGame();
 
 const PATHWAY_X = 0;
 const PATHWAY_WIDTH = 12;
@@ -1078,356 +997,7 @@ function createLauncher(scene, data, x, z) {
 // PHOSPHATE TIMING MINI-GAME
 // ========================
 
-function startPhosphateTiming(scene, targetVertex, carbonLabel, spinSpeed, onSuccess) {
-    if (phosphateTimingActive || !glucoseModel) return;
-    phosphateTimingActive = true;
-    phosphateTargetVertex = targetVertex;
-    phosphateTargetLabel = carbonLabel;
-    phosphateSpinSpeed = spinSpeed;
-    phosphateTimingCallback = onSuccess;
 
-    // Highlight the target carbon on the molecule
-    const verts = glucoseModel.userData.vertices;
-    if (verts && verts[targetVertex]) {
-        const highlight = new THREE.Mesh(
-            new THREE.SphereGeometry(0.15, 8, 8),
-            new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.8 })
-        );
-        highlight.position.copy(verts[targetVertex]);
-        highlight.userData.isTargetHighlight = true;
-        glucoseModel.add(highlight);
-    }
-
-    // Speed up the molecule's spin
-    glucoseModel.userData.timingSpinSpeed = spinSpeed;
-
-    // Create UI overlay
-    phosphateTimingOverlay = document.createElement('div');
-    phosphateTimingOverlay.style.cssText = `
-        position: fixed; bottom: 30%; left: 50%; transform: translateX(-50%);
-        width: 380px; padding: 16px; text-align: center; z-index: 1000;
-        background: rgba(0,0,0,0.85); border: 2px solid #ffaa00; border-radius: 12px;
-        font-family: 'Segoe UI', sans-serif; color: white;
-    `;
-    phosphateTimingOverlay.innerHTML = `
-        <div style="font-size: 22px; font-weight: bold; color: #ffaa00; margin-bottom: 8px;">
-            Place the phosphate on ${carbonLabel}!
-        </div>
-        <div style="font-size: 14px; color: #ccc; margin-bottom: 10px;">
-            Watch the spinning molecule. Press <span style="color:#ffcc00;font-weight:bold;">E</span> when the
-            <span style="color:#ff4444;font-weight:bold;">red target</span> faces you!
-        </div>
-        <div id="phosphateTimingFeedback" style="font-size: 16px; min-height: 24px;"></div>
-    `;
-    document.body.appendChild(phosphateTimingOverlay);
-
-    // Listen for E key press (single tap, not hold)
-    phosphateTimingKeyHandler = (e) => {
-        if (e.key.toLowerCase() === 'e' && phosphateTimingActive && !e.repeat) {
-            e.preventDefault();
-            e.stopPropagation();
-            checkPhosphateTiming();
-        }
-    };
-    document.addEventListener('keydown', phosphateTimingKeyHandler, true); // capture phase
-}
-
-let phosphateTimingKeyHandler = null;
-
-function checkPhosphateTiming() {
-    if (!glucoseModel || !phosphateTimingActive) return;
-
-    // Determine where the target vertex is relative to the camera
-    // The "facing you" position is when the vertex is at the front (positive Z in local space after rotation)
-    const verts = glucoseModel.userData.vertices;
-    if (!verts || !verts[phosphateTargetVertex]) return;
-
-    const targetLocal = verts[phosphateTargetVertex].clone();
-    // Apply the molecule's current Y rotation to get world-relative position
-    targetLocal.applyAxisAngle(new THREE.Vector3(0, 1, 0), glucoseModel.rotation.y);
-
-    // "Facing you" = the target vertex has the most positive Z (toward camera in default view)
-    // We check if the target is in the front-facing arc
-    const angle = Math.atan2(targetLocal.x, targetLocal.z);
-    const tolerance = 0.55; // ~32 degrees either side = generous but not free
-
-    const feedbackEl = document.getElementById('phosphateTimingFeedback');
-
-    if (Math.abs(angle) < tolerance) {
-        // HIT! Target is facing the player
-        phosphateTimingActive = false;
-
-        // Remove highlight
-        if (glucoseModel) {
-            const highlights = [];
-            glucoseModel.traverse(c => { if (c.userData && c.userData.isTargetHighlight) highlights.push(c); });
-            highlights.forEach(h => glucoseModel.remove(h));
-            glucoseModel.userData.timingSpinSpeed = null;
-        }
-
-        // Remove UI
-        if (phosphateTimingOverlay && phosphateTimingOverlay.parentNode) {
-            phosphateTimingOverlay.parentNode.removeChild(phosphateTimingOverlay);
-        }
-        phosphateTimingOverlay = null;
-
-        // Remove listener
-        if (phosphateTimingKeyHandler) {
-            document.removeEventListener('keydown', phosphateTimingKeyHandler, true);
-        }
-        phosphateTimingKeyHandler = null;
-
-        // Fire callback
-        if (phosphateTimingCallback) phosphateTimingCallback();
-    } else {
-        // MISS!
-        if (feedbackEl) {
-            feedbackEl.textContent = 'Missed! Wait for the red target to face you...';
-            feedbackEl.style.color = '#ff6666';
-            setTimeout(() => {
-                if (feedbackEl) {
-                    feedbackEl.textContent = '';
-                }
-            }, 1200);
-        }
-        import('../audioManager.js').then(({ createGameBoySound }) => createGameBoySound(100, 0.1, 'square'));
-    }
-}
-
-function updatePhosphateTiming(delta, elapsedTime) {
-    // Override the molecule's normal rotation with the faster timing spin
-    if (phosphateTimingActive && glucoseModel && glucoseModel.userData.timingSpinSpeed) {
-        glucoseModel.rotation.y += glucoseModel.userData.timingSpinSpeed * delta;
-    }
-}
-
-// ========================
-// PULL MINI-GAME
-// ========================
-
-// Sweet spot range (60%-80% of bar)
-const PULL_SWEET_MIN = 0.60;
-const PULL_SWEET_MAX = 0.80;
-
-function startPullMiniGame(scene, stationZ) {
-    if (pullActive) return;
-    pullActive = true;
-    pullProgress = 0;
-    pullFailed = false;
-
-    // Create pull UI overlay
-    pullOverlay = document.createElement('div');
-    pullOverlay.id = 'pullOverlay';
-    pullOverlay.style.cssText = `
-        position: fixed; bottom: 30%; left: 50%; transform: translateX(-50%);
-        width: 400px; padding: 20px; text-align: center; z-index: 1000;
-        background: rgba(0,0,0,0.85); border: 2px solid #ff6600; border-radius: 12px;
-        font-family: 'Segoe UI', sans-serif; color: white;
-    `;
-
-    pullLabel = document.createElement('div');
-    pullLabel.style.cssText = 'font-size: 22px; font-weight: bold; margin-bottom: 12px; color: #ff8800;';
-    pullLabel.textContent = 'HOLD E TO PULL -- release in the green zone!';
-    pullOverlay.appendChild(pullLabel);
-
-    // Bar with sweet spot zone
-    const barContainer = document.createElement('div');
-    barContainer.style.cssText = 'width: 100%; height: 34px; background: #333; border-radius: 6px; overflow: hidden; border: 1px solid #666; position: relative;';
-
-    // Sweet spot zone indicator (green zone on the bar)
-    const sweetZone = document.createElement('div');
-    sweetZone.style.cssText = `
-        position: absolute; left: ${PULL_SWEET_MIN * 100}%; width: ${(PULL_SWEET_MAX - PULL_SWEET_MIN) * 100}%;
-        height: 100%; background: rgba(0,255,80,0.25); border-left: 2px solid #00ff44; border-right: 2px solid #00ff44;
-        pointer-events: none; z-index: 1;
-    `;
-    barContainer.appendChild(sweetZone);
-
-    // "SNAP!" label in the danger zone (past sweet spot)
-    const dangerLabel = document.createElement('div');
-    dangerLabel.style.cssText = `
-        position: absolute; left: ${PULL_SWEET_MAX * 100 + 2}%; top: 50%; transform: translateY(-50%);
-        font-size: 11px; color: #ff4444; pointer-events: none; z-index: 1; font-weight: bold;
-    `;
-    dangerLabel.textContent = 'TOO HARD!';
-    barContainer.appendChild(dangerLabel);
-
-    pullBar = document.createElement('div');
-    pullBar.style.cssText = 'width: 0%; height: 100%; background: linear-gradient(90deg, #ff4400, #ff8800, #ffcc00); border-radius: 4px; position: relative; z-index: 2;';
-    barContainer.appendChild(pullBar);
-    pullOverlay.appendChild(barContainer);
-
-    const hint = document.createElement('div');
-    hint.style.cssText = 'font-size: 13px; color: #aaa; margin-top: 8px;';
-    hint.textContent = 'Pull with just the right force -- release E in the green zone!';
-    pullOverlay.appendChild(hint);
-
-    document.body.appendChild(pullOverlay);
-
-    // Listen for E key
-    pullKeyHandler = (e) => {
-        if (e.key.toLowerCase() === 'e') {
-            e.preventDefault();
-            pullKeyHeld = true;
-        }
-    };
-    pullKeyUpHandler = (e) => {
-        if (e.key.toLowerCase() === 'e') {
-            pullKeyHeld = false;
-            // Check if released in the sweet spot
-            if (pullActive && !pullFailed) {
-                if (pullProgress >= PULL_SWEET_MIN && pullProgress <= PULL_SWEET_MAX) {
-                    // SUCCESS!
-                    completePull();
-                } else if (pullProgress > 0.05) {
-                    // Missed the zone
-                    pullFailed = true;
-                    if (pullProgress < PULL_SWEET_MIN) {
-                        showFeedback("Not enough force! Hold E longer -- aim for the green zone.", 2000);
-                    }
-                    // If overshot, the update loop handles the snap-back message
-                }
-            }
-        }
-    };
-    document.addEventListener('keydown', pullKeyHandler);
-    document.addEventListener('keyup', pullKeyUpHandler);
-
-    pullSceneRef = scene;
-    pullStationZ = stationZ;
-}
-
-let pullKeyHandler = null;
-let pullKeyUpHandler = null;
-let pullKeyHeld = false;
-let pullFailed = false;
-let pullSceneRef = null;
-let pullStationZ = 0;
-
-function updatePullMiniGame(delta) {
-    if (!pullActive) return;
-
-    // Handle failed state -- snap back then reset
-    if (pullFailed) {
-        pullProgress = Math.max(pullProgress - delta * 2.0, 0);
-        if (glucoseModel) {
-            const stretch = 1 + pullProgress * 1.2;
-            const squish = 1 - pullProgress * 0.3;
-            glucoseModel.scale.set(stretch, squish, squish);
-        }
-        if (pullBar) pullBar.style.width = `${pullProgress * 100}%`;
-        if (pullProgress <= 0) {
-            pullFailed = false; // Ready to try again
-            if (pullLabel) {
-                pullLabel.textContent = 'Try again -- HOLD E, release in the green zone!';
-                pullLabel.style.color = '#ff8800';
-            }
-        }
-        return;
-    }
-
-    if (pullKeyHeld) {
-        pullProgress = Math.min(pullProgress + delta * 0.55, 1); // ~1.8 seconds to fill
-
-        // Stretch the glucose model
-        if (glucoseModel) {
-            const stretch = 1 + pullProgress * 1.2;
-            const squish = 1 - pullProgress * 0.3;
-            glucoseModel.scale.set(stretch, squish, squish);
-
-            glucoseModel.traverse(child => {
-                if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined) {
-                    child.material.emissiveIntensity = 0.05 + pullProgress * 0.5;
-                }
-            });
-        }
-
-        // Creaking sounds
-        if (pullProgress > 0.3 && pullProgress < 0.32) {
-            import('../audioManager.js').then(({ createGameBoySound }) => createGameBoySound(150, 0.1, 'sawtooth'));
-        }
-        if (pullProgress > 0.6 && pullProgress < 0.62) {
-            import('../audioManager.js').then(({ createGameBoySound }) => createGameBoySound(120, 0.15, 'sawtooth'));
-        }
-
-        // Overshot past the sweet spot!
-        if (pullProgress > PULL_SWEET_MAX) {
-            pullFailed = true;
-            pullKeyHeld = false;
-            showFeedback("Too hard! The molecule snapped back. Try again with less force.", 2000);
-            import('../audioManager.js').then(({ createGameBoySound }) => createGameBoySound(80, 0.2, 'square'));
-            if (pullLabel) {
-                pullLabel.textContent = 'SNAPPED BACK! Too much force!';
-                pullLabel.style.color = '#ff4444';
-            }
-            return;
-        }
-    } else if (pullProgress > 0 && !pullFailed) {
-        // Slowly relax if not holding (and not failed)
-        pullProgress = Math.max(pullProgress - delta * 0.3, 0);
-        if (glucoseModel) {
-            const stretch = 1 + pullProgress * 1.2;
-            const squish = 1 - pullProgress * 0.3;
-            glucoseModel.scale.set(stretch, squish, squish);
-        }
-    }
-
-    // Update UI bar
-    if (pullBar) {
-        pullBar.style.width = `${pullProgress * 100}%`;
-        // Color the bar based on zone
-        if (pullProgress >= PULL_SWEET_MIN && pullProgress <= PULL_SWEET_MAX) {
-            pullBar.style.background = 'linear-gradient(90deg, #ff4400, #ff8800, #00ff44)';
-        } else {
-            pullBar.style.background = 'linear-gradient(90deg, #ff4400, #ff8800, #ffcc00)';
-        }
-    }
-    if (pullLabel && !pullFailed) {
-        if (pullProgress >= PULL_SWEET_MIN && pullProgress <= PULL_SWEET_MAX) {
-            pullLabel.textContent = 'IN THE ZONE -- RELEASE E NOW!';
-            pullLabel.style.color = '#00ff44';
-        } else if (pullProgress > 0.4) {
-            pullLabel.textContent = 'Almost to the green zone...';
-            pullLabel.style.color = '#ffcc00';
-        } else if (pullProgress > 0.1) {
-            pullLabel.textContent = 'Keep pulling...';
-            pullLabel.style.color = '#ff8800';
-        } else {
-            pullLabel.textContent = 'HOLD E TO PULL -- release in the green zone!';
-            pullLabel.style.color = '#ff8800';
-        }
-    }
-}
-
-function completePull() {
-    // Clean up UI
-    if (pullOverlay && pullOverlay.parentNode) {
-        pullOverlay.parentNode.removeChild(pullOverlay);
-    }
-    pullOverlay = null;
-    pullBar = null;
-    pullLabel = null;
-
-    // Remove key listeners
-    if (pullKeyHandler) document.removeEventListener('keydown', pullKeyHandler);
-    if (pullKeyUpHandler) document.removeEventListener('keyup', pullKeyUpHandler);
-    pullKeyHandler = null;
-    pullKeyUpHandler = null;
-    pullKeyHeld = false;
-    pullActive = false;
-
-    // Reset glucose scale before split
-    if (glucoseModel) {
-        glucoseModel.scale.set(1, 1, 1);
-    }
-
-    // NOW do the actual split
-    splitMolecule(pullSceneRef, pullStationZ);
-    import('../audioManager.js').then(({ createGameBoySound }) => {
-        createGameBoySound(220, 0.4, 'sawtooth');
-        setTimeout(() => createGameBoySound(110, 0.3, 'square'), 200);
-    });
-}
 
 // ========================
 // GLUCOSE MODEL MANAGEMENT
@@ -1735,11 +1305,11 @@ function handleStationInteract(idx, enzymeData, object, scene, tools) {
 
     switch (idx) {
         case 0: // Hexy -- attach first phosphate (timing mini-game)
-            startPhosphateTiming(scene, 0, 'C6', 2.0, () => {
+            phosphateGame.onSuccess(() => {
                 attachPhosphateA(scene);
                 emitSparkParticles(scene, glucoseModel ? glucoseModel.position.clone() : stationPos, COLORS.phosphate);
                 createGameBoySound(550, 0.2, 'square');
-            });
+            }).start({ glucoseModel, targetVertex: 0, carbonLabel: 'C6', spinSpeed: 2.0 });
             break;
 
         case 1: // Izzy -- squeeze to pentagon
@@ -1775,7 +1345,7 @@ function handleStationInteract(idx, enzymeData, object, scene, tools) {
             break;
 
         case 2: // Phil -- attach second phosphate (timing mini-game, faster spin)
-            startPhosphateTiming(scene, 0, 'C1', 2.8, () => {
+            phosphateGame.onSuccess(() => {
                 attachPhosphateB(scene);
                 emitSparkParticles(scene, glucoseModel ? glucoseModel.position.clone() : stationPos, COLORS.phosphate);
                 createGameBoySound(660, 0.25, 'square');
@@ -1788,11 +1358,17 @@ function handleStationInteract(idx, enzymeData, object, scene, tools) {
                         }
                     });
                 }
-            });
+            }).start({ glucoseModel, targetVertex: 0, carbonLabel: 'C1', spinSpeed: 2.8 });
             break;
 
         case 3: // Al -- THE SPLIT (enter pull mini-game)
-            startPullMiniGame(scene, enzymeData.z);
+            pullGame.onSuccess(() => {
+                splitMolecule(scene, enzymeData.z);
+                import('../audioManager.js').then(({ createGameBoySound: gbs }) => {
+                    gbs(220, 0.4, 'sawtooth');
+                    setTimeout(() => gbs(110, 0.3, 'square'), 200);
+                });
+            }).start({ glucoseModel });
             break;
 
         case 4: // Tim -- mirror convert DHAP to G3P
@@ -2409,8 +1985,8 @@ export function update(delta, elapsedTime) {
     }
 
     // Mini-games
-    updatePhosphateTiming(delta, elapsedTime);
-    updatePullMiniGame(delta);
+    phosphateGame.update(delta, elapsedTime);
+    pullGame.update(delta);
 
     // Process animations
     for (let i = activeAnimations.length - 1; i >= 0; i--) {
@@ -2566,17 +2142,9 @@ export function cleanup(scene) {
     phosphateB = null;
     moleculeStage = 'none';
     shakeRemaining = 0;
-    // Clean up phosphate timing mini-game
-    if (phosphateTimingOverlay && phosphateTimingOverlay.parentNode) phosphateTimingOverlay.parentNode.removeChild(phosphateTimingOverlay);
-    phosphateTimingOverlay = null; phosphateTimingActive = false;
-    if (phosphateTimingKeyHandler) document.removeEventListener('keydown', phosphateTimingKeyHandler, true);
-    phosphateTimingKeyHandler = null;
-    // Clean up pull mini-game
-    if (pullOverlay && pullOverlay.parentNode) pullOverlay.parentNode.removeChild(pullOverlay);
-    pullOverlay = null; pullBar = null; pullLabel = null;
-    if (pullKeyHandler) document.removeEventListener('keydown', pullKeyHandler);
-    if (pullKeyUpHandler) document.removeEventListener('keyup', pullKeyUpHandler);
-    pullActive = false; pullProgress = 0; pullKeyHeld = false;
+    // Clean up mini-games
+    phosphateGame.cleanup();
+    pullGame.cleanup();
     worldScene = null;
     setWorldTerrainFn(null);
     glyFlames = [];
