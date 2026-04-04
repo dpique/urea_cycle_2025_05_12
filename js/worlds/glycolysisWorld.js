@@ -90,43 +90,39 @@ const ENZYMES = [
         feedback: 'The DHAP twin converts to match its sibling. Two identical G3P fragments, ready for harvest.',
     },
     {
-        name: 'Gary (GAPDH)', shortName: 'Gary',
+        name: 'Electron Extractor (GAPDH)', shortName: 'Extractor',
         enzyme: 'G3P Dehydrogenase', z: -38, color: 0x00cc66, bodyColor: 0x009944,
-        phase: 'payoff', stationType: 'npc',
+        phase: 'payoff', stationType: 'extractor',
         input: ['G3P'], output: ['1,3-BPG', 'NADH'],
-        greeting: "Welcome to the PAYOFF. I pull electrons off the fragments and hand them to NAD+, making NADH. That's stored energy for later.",
-        feedback: 'Electrons harvested! NADH produced. A new phosphate attaches -- each fragment now has TWO.',
+        feedback: 'Electrons ripped out and stored as NADH! A free phosphate from the rubble bolts on -- each fragment now carries TWO phosphates.',
     },
     {
-        name: 'Peggy (PGK)', shortName: 'Peggy',
+        name: 'Phosphate Popper (PGK)', shortName: 'Popper',
         enzyme: 'Phosphoglycerate Kinase', z: -52, color: 0x00ff88, bodyColor: 0x00cc66,
-        phase: 'payoff', stationType: 'npc',
+        phase: 'payoff', stationType: 'popper',
         input: ['1,3-BPG'], output: ['3-PG', 'ATP'],
-        greeting: "Substrate-level phosphorylation! I rip the high-energy phosphate right off and slam it onto ADP. Direct energy transfer -- 2 ATP earned. You're break-even!",
-        feedback: 'ATP generated! 2 ATP earned = 2 ATP spent. Break even. Everything from here is PROFIT.',
+        feedback: 'PHOSPHATE POPPED! Slammed onto ADP to recharge ATP. 2 ATP earned = 2 ATP spent. You\'re BREAK EVEN. Everything from here is profit.',
     },
     {
-        name: 'Mutty (PGM)', shortName: 'Mutty',
+        name: 'The Shifter (PGM)', shortName: 'Shifter',
         enzyme: 'Phosphoglycerate Mutase', z: -64, color: 0x66ccff, bodyColor: 0x4499cc,
-        phase: 'payoff', stationType: 'npc',
+        phase: 'payoff', stationType: 'shifter',
         input: ['3-PG'], output: ['2-PG'],
-        greeting: "I shift the phosphate from carbon 3 to carbon 2. Small move, big consequences -- it sets up the loaded spring.",
-        feedback: 'Phosphate repositioned. The stage is set for the energy cannon.',
+        feedback: 'Phosphate shifted from carbon 3 to carbon 2. Like cocking a gun -- the spring is almost set.',
     },
     {
-        name: 'Eno (Enolase)', shortName: 'Eno',
+        name: 'The Wringer (Enolase)', shortName: 'Wringer',
         enzyme: 'Enolase', z: -78, color: 0x9999ff, bodyColor: 0x6666cc,
-        phase: 'payoff', stationType: 'npc',
+        phase: 'payoff', stationType: 'wringer',
         input: ['2-PG'], output: ['PEP'],
-        greeting: "I remove water and create PEP -- the HIGHEST energy phosphate in common metabolism. I'm loading the cannon. Pike fires it.",
-        feedback: 'PEP formed! The most energetically loaded common metabolite. One more step.',
+        feedback: 'WRUNG DRY! Water squeezed out. The phosphate bond is now a LOADED SPRING -- PEP, the highest-energy phosphate in common metabolism. One step left.',
     },
     {
-        name: 'Pike (Pyruvate Kinase)', shortName: 'Pike',
+        name: 'Pike the Launcher (Pyruvate Kinase)', shortName: 'Pike',
         enzyme: 'Pyruvate Kinase', z: -92, color: 0xff44ff, bodyColor: 0xcc22cc,
-        phase: 'payoff', stationType: 'npc',
+        phase: 'payoff', stationType: 'launcher',
         input: ['PEP'], output: ['Pyruvate', 'ATP'],
-        greeting: "The GRAND FINALE. That loaded spring? I release it -- phosphate off, onto ADP, making ATP. 2 more ATP. Net gain: 2 ATP + 2 NADH + 2 Pyruvate. THAT is glycolysis.",
+        greeting: "Stand back. That loaded spring? I pull the trigger. The phosphate LAUNCHES off, slams into ADP, and you get your PROFIT -- 2 more ATP. Net gain from one glucose: 2 ATP + 2 NADH + 2 Pyruvate. The pyruvate rolls on to the TCA Cycle.",
         feedback: 'GLYCOLYSIS COMPLETE! Net: 2 ATP + 2 NADH + 2 Pyruvate. The pyruvate heads to the TCA Cycle!',
     },
 ];
@@ -780,6 +776,254 @@ function createMirrorDevice(scene, data, x, z) {
 }
 
 // ========================
+// PAYOFF PHASE STATIONS
+// ========================
+
+function createExtractor(scene, data, x, z) {
+    // Gary's Electron Extractor -- a generator that pulls electrons off fragments
+    const group = new THREE.Group();
+    group.position.set(x - 2, 0, z);
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x336633, roughness: 0.4, metalness: 0.6 });
+
+    // Generator body (cylinder)
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.9, 1.4, 8), metalMat);
+    body.position.y = 0.9;
+    body.castShadow = true;
+    group.add(body);
+
+    // Coils around the generator
+    const coilMat = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00cc44, emissiveIntensity: 0.3 });
+    for (let i = 0; i < 3; i++) {
+        const coil = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.06, 6, 16), coilMat);
+        coil.position.y = 0.5 + i * 0.4;
+        coil.rotation.x = Math.PI / 2;
+        group.add(coil);
+    }
+
+    // Output port (where NADH comes out)
+    const port = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.6), new THREE.MeshStandardMaterial({
+        color: COLORS.nadh, emissive: COLORS.nadh, emissiveIntensity: 0.4,
+    }));
+    port.position.set(0, 1.2, 1);
+    group.add(port);
+
+    // Label
+    const label = createTextSprite('Electron Extractor', { x: 0, y: 2.8, z: 0 }, { scale: 0.8 });
+    group.add(label);
+    const sub = createTextSprite('GAPDH', { x: 0, y: 2.4, z: 0 }, { scale: 0.5, textColor: 'rgba(100,255,150,0.7)' });
+    group.add(sub);
+
+    scene.add(group);
+    glyObjects.push(group);
+    interactiveObjects.push(group);
+    originalMaterials.set(body, body.material);
+    group.userData = { name: data.name, type: 'station', enzyme: data.enzyme, isInteractable: true, mainMesh: body,
+        onInteract: (obj, scn, tools) => handleStationInteract(5, data, obj, scn, tools) };
+}
+
+function createPopper(scene, data, x, z) {
+    // Peggy's Phosphate Popper -- pops a phosphate off and recharges ATP
+    const group = new THREE.Group();
+    group.position.set(x - 2, 0, z);
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x227744, roughness: 0.3, metalness: 0.6 });
+
+    // Chamber body
+    const chamber = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 1.2), metalMat);
+    chamber.position.y = 0.8;
+    chamber.castShadow = true;
+    group.add(chamber);
+
+    // Spring mechanism on top
+    const springMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0xffaa00, emissiveIntensity: 0.2 });
+    const spring = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.05, 6, 12), springMat);
+    spring.position.y = 1.6;
+    spring.rotation.x = Math.PI / 2;
+    group.add(spring);
+
+    // Plunger
+    const plunger = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.6, 6), springMat);
+    plunger.position.y = 2.0;
+    group.add(plunger);
+
+    // ATP output slot (glowing)
+    const slot = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.2), new THREE.MeshStandardMaterial({
+        color: COLORS.atp, emissive: COLORS.atp, emissiveIntensity: 0.4,
+    }));
+    slot.position.set(0, 0.5, 0.7);
+    group.add(slot);
+
+    const label = createTextSprite('Phosphate Popper', { x: 0, y: 2.8, z: 0 }, { scale: 0.8 });
+    group.add(label);
+    const sub = createTextSprite('PGK', { x: 0, y: 2.4, z: 0 }, { scale: 0.5, textColor: 'rgba(100,255,150,0.7)' });
+    group.add(sub);
+
+    scene.add(group);
+    glyObjects.push(group);
+    interactiveObjects.push(group);
+    originalMaterials.set(chamber, chamber.material);
+    group.userData = { name: data.name, type: 'station', enzyme: data.enzyme, isInteractable: true, mainMesh: chamber,
+        onInteract: (obj, scn, tools) => handleStationInteract(6, data, obj, scn, tools) };
+}
+
+function createShifter(scene, data, x, z) {
+    // Mutty's Shifter -- a rotating turntable that repositions the phosphate
+    const group = new THREE.Group();
+    group.position.set(x - 2, 0, z);
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x4488aa, roughness: 0.3, metalness: 0.5 });
+
+    // Turntable disc
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.15, 16), metalMat);
+    disc.position.y = 0.3;
+    disc.castShadow = true;
+    disc.userData.isTurntable = true;
+    group.add(disc);
+
+    // Center spindle
+    const spindle = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2, 8), metalMat);
+    spindle.position.y = 0.9;
+    group.add(spindle);
+
+    // Arrow on turntable showing rotation
+    const arrowMat = new THREE.MeshStandardMaterial({ color: 0x66ccff, emissive: 0x4499cc, emissiveIntensity: 0.3 });
+    const arrowHead = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.4, 4), arrowMat);
+    arrowHead.position.set(0.7, 0.45, 0);
+    arrowHead.rotation.z = -Math.PI / 2;
+    group.add(arrowHead);
+
+    // "3 → 2" label on the turntable
+    const posLabel = createTextSprite('C3 → C2', { x: 0, y: 0.7, z: 0 }, { scale: 0.5, textColor: 'rgba(150,220,255,0.9)' });
+    group.add(posLabel);
+
+    const label = createTextSprite('The Shifter', { x: 0, y: 2.2, z: 0 }, { scale: 0.8 });
+    group.add(label);
+    const sub = createTextSprite('Phosphoglycerate Mutase', { x: 0, y: 1.8, z: 0 }, { scale: 0.45, textColor: 'rgba(150,220,255,0.7)' });
+    group.add(sub);
+
+    scene.add(group);
+    glyObjects.push(group);
+    interactiveObjects.push(group);
+    originalMaterials.set(disc, disc.material);
+    group.userData = { name: data.name, type: 'station', enzyme: data.enzyme, isInteractable: true, mainMesh: disc,
+        onInteract: (obj, scn, tools) => handleStationInteract(7, data, obj, scn, tools) };
+}
+
+function createWringer(scene, data, x, z) {
+    // Eno's Wringer -- squeezes water out, compresses the phosphate bond into a loaded spring
+    const group = new THREE.Group();
+    group.position.set(x - 2, 0, z);
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x5555aa, roughness: 0.3, metalness: 0.6 });
+
+    // Two rollers
+    const rollerGeo = new THREE.CylinderGeometry(0.3, 0.3, 1.8, 12);
+    [-0.35, 0.35].forEach(ry => {
+        const roller = new THREE.Mesh(rollerGeo, metalMat);
+        roller.position.set(0, 0.8, ry);
+        roller.rotation.z = Math.PI / 2;
+        roller.castShadow = true;
+        group.add(roller);
+    });
+
+    // Frame
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x444466, roughness: 0.5, metalness: 0.4 });
+    [-1.0, 1.0].forEach(fx => {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2, 0.15), frameMat);
+        post.position.set(fx, 1, 0);
+        post.castShadow = true;
+        group.add(post);
+    });
+
+    // Water droplets falling out the bottom
+    const dropMat = new THREE.MeshStandardMaterial({ color: 0x3399ff, transparent: true, opacity: 0.6 });
+    for (let i = 0; i < 3; i++) {
+        const drop = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), dropMat);
+        drop.position.set((Math.random() - 0.5) * 0.5, -0.1 - i * 0.15, 0);
+        drop.userData.isWaterDrop = true;
+        group.add(drop);
+    }
+
+    // "H₂O" label below
+    const waterLabel = createTextSprite('H2O squeezed out', { x: 0, y: -0.5, z: 0.5 }, { scale: 0.4, textColor: 'rgba(100,180,255,0.7)' });
+    group.add(waterLabel);
+
+    const label = createTextSprite('The Wringer', { x: 0, y: 2.6, z: 0 }, { scale: 0.8 });
+    group.add(label);
+    const sub = createTextSprite('Enolase', { x: 0, y: 2.2, z: 0 }, { scale: 0.5, textColor: 'rgba(180,180,255,0.7)' });
+    group.add(sub);
+
+    scene.add(group);
+    glyObjects.push(group);
+    interactiveObjects.push(group);
+    originalMaterials.set(group.children[0], group.children[0].material);
+    group.userData = { name: data.name, type: 'station', enzyme: data.enzyme, isInteractable: true, mainMesh: group.children[0],
+        onInteract: (obj, scn, tools) => handleStationInteract(8, data, obj, scn, tools) };
+}
+
+function createLauncher(scene, data, x, z) {
+    // Pike's Launcher -- the grand finale. NPC with a cannon/catapult that fires the last phosphate
+    const group = new THREE.Group();
+    group.position.set(x + 3, 0.3, z);
+
+    // Pike NPC body
+    const bodyMat = new THREE.MeshStandardMaterial({ color: data.bodyColor, roughness: 0.6 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.9, 8), bodyMat);
+    body.position.y = 0.8;
+    body.castShadow = true;
+    group.add(body);
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), new THREE.MeshStandardMaterial({ color: 0xffcc99, roughness: 0.7 }));
+    head.position.y = 1.6;
+    head.castShadow = true;
+    group.add(head);
+
+    // Eyes
+    const eyeGeo = new THREE.SphereGeometry(0.05, 6, 6);
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    [-0.1, 0.1].forEach(ex => {
+        const eye = new THREE.Mesh(eyeGeo, eyeMat);
+        eye.position.set(ex, 1.65, 0.25);
+        group.add(eye);
+    });
+
+    // Dramatic hat
+    const hatMat = new THREE.MeshStandardMaterial({ color: data.color, emissive: data.color, emissiveIntensity: 0.2 });
+    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.35, 0.3, 6), hatMat);
+    hat.position.y = 1.95;
+    group.add(hat);
+
+    // Cannon next to Pike
+    const cannonMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.4, metalness: 0.7 });
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 1.5, 8), cannonMat);
+    barrel.position.set(-1.5, 0.8, 0);
+    barrel.rotation.z = Math.PI / 6; // Angled upward
+    barrel.castShadow = true;
+    group.add(barrel);
+
+    // Cannon base
+    const cannonBase = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 0.6), cannonMat);
+    cannonBase.position.set(-1.5, 0.2, 0);
+    group.add(cannonBase);
+
+    // "FIRE!" label
+    const fireLabel = createTextSprite('FIRE!', { x: -1.5, y: 2, z: 0 }, { scale: 0.6, textColor: 'rgba(255,100,255,0.8)' });
+    group.add(fireLabel);
+
+    const label = createTextSprite('Pike', { x: 0, y: 2.5, z: 0 }, { scale: 1.0 });
+    group.add(label);
+    const sub = createTextSprite('Pyruvate Kinase', { x: 0, y: 2.1, z: 0 }, { scale: 0.5, textColor: 'rgba(255,150,255,0.7)' });
+    group.add(sub);
+
+    group.lookAt(x, group.position.y, z);
+
+    scene.add(group);
+    glyObjects.push(group);
+    glyNPCs.push(group);
+    interactiveObjects.push(group);
+    originalMaterials.set(body, body.material);
+    group.userData = { name: data.name, type: 'npc', enzyme: data.enzyme, isInteractable: true, mainMesh: body,
+        onInteract: (obj, scn, tools) => handleStationInteract(9, data, obj, scn, tools) };
+}
+
+// ========================
 // GLUCOSE MODEL MANAGEMENT
 // ========================
 
@@ -1041,6 +1285,11 @@ function handleStationInteract(idx, enzymeData, object, scene, tools) {
                 vise: "The vise press looms overhead. Bring the molecule to squeeze it.",
                 rack: "The splitting rack's hooks gleam. Not time yet.",
                 mirror: "The mirror shimmers, waiting to convert twin molecules.",
+                extractor: "The electron extractor hums quietly. Bring the fragments here when it's time to harvest.",
+                popper: "The phosphate popper's chamber is empty. Not yet.",
+                shifter: "The turntable waits, ready to reposition.",
+                wringer: "The wringer's rollers are still. Bring the molecule when it's ready to compress.",
+                launcher: "The launcher is primed. Bring PEP when you're ready for the grand finale.",
             };
             showDialogue(stationTypeMsg[enzymeData.stationType] || "Not time for this station yet.", [{ text: "OK" }], setGameInteracting);
         }
@@ -1258,6 +1507,21 @@ function createEnzymeStations(scene) {
                 break;
             case 'mirror':
                 createMirrorDevice(scene, data, x, z);
+                break;
+            case 'extractor':
+                createExtractor(scene, data, x, z);
+                break;
+            case 'popper':
+                createPopper(scene, data, x, z);
+                break;
+            case 'shifter':
+                createShifter(scene, data, x, z);
+                break;
+            case 'wringer':
+                createWringer(scene, data, x, z);
+                break;
+            case 'launcher':
+                createLauncher(scene, data, x, z);
                 break;
             case 'npc':
                 createNPCStation(scene, data, x, z, i);
@@ -1654,6 +1918,13 @@ export function update(delta, elapsedTime) {
                 }
                 if (child.userData && child.userData.isMirror) {
                     child.material.opacity = 0.5 + Math.sin(elapsedTime * 2) * 0.2;
+                }
+                if (child.userData && child.userData.isTurntable) {
+                    child.rotation.y = elapsedTime * 0.5;
+                }
+                if (child.userData && child.userData.isWaterDrop) {
+                    child.position.y = -0.1 - ((elapsedTime * 0.5 + child.position.x * 10) % 0.5);
+                    child.material.opacity = 0.6 - child.position.y * -0.5;
                 }
             });
         }
