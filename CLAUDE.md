@@ -123,13 +123,36 @@ Not everything is a humanoid NPC. Use a mix:
 ### Biologically Accurate Connections
 Portal placement and world adjacency should reflect real metabolic connections, not arbitrary game design. Students learn pathway connections through physical geography.
 
+### RSC-Style Dialogue
+Keep NPC dialogue to 1-2 lines per screen. Use `greetingChain` arrays in JSON for multi-line conversations -- player clicks "..." to advance, one short line at a time. No walls of text.
+
+### Character Mnemonics
+NPCs should be visual mnemonics, not just named characters. Example: Percy the Dehydrated Pirate has 4 fingers (B1, B2, B3, B5) + L-shaped prosthetic (Lipoic acid) where the ring finger (B4) was. The missing finger IS the teaching point. Design characters so their appearance encodes the biochemistry.
+
+## Overarching Spatial Metaphor: The Pirate Ship
+
+**The entire game maps to a single continuous space:**
+
+- **Shore / Land** = Cytosol (glycolysis happens here -- the demolition yard)
+- **The Dock** = Transition zone (pyruvate is cargo being loaded)
+- **The Pirate Ship** = Mitochondria (Percy's ship)
+  - **Main Deck** = TCA Cycle (the circular plaza)
+  - **The Engine Room** = ETC / Oxidative Phosphorylation (below deck)
+  - **The Gangplank** = Mitochondrial membrane transport (Percy guards it -- irreversible entry)
+- **Urea Cycle** = Straddles ship and shore (some steps below deck, some on the dock)
+
+Percy the Dehydrated Pirate is the captain. "I only sail in one direction." Pyruvate boards the ship and never comes back as pyruvate. The TCA world should have nautical theming: wooden deck, ship railings, rope details, lanterns.
+
+**TODO:** Retheme TCA with nautical elements. Redesign glycolysis→TCA transition as walking from shore onto the ship.
+
 ## Roadmap: Worlds to Build
 
-### Priority 1 (Next)
+### Priority 1 (Next -- nautical retheme + new worlds)
 | World | Key Concept | Connection | Mechanic Ideas |
 |-------|-------------|------------|----------------|
-| **ETC / Oxidative Phosphorylation** | Electron transport, ATP synthase | TCA produces NADH/FADH2 that feed ETC | Assembly line / factory. Electrons flow through Complexes I-IV. ATP Synthase as a turbine. |
-| **Fatty Acid Oxidation** | Beta-oxidation spiral | Produces acetyl-CoA for TCA | Repeating spiral mechanic -- chop 2 carbons off each cycle. Carnitine shuttle gate. MCAD Deficiency boss. |
+| **TCA Nautical Retheme** | Pirate ship deck | Already built, needs visual overhaul | Wooden deck floor, ship railings, rope, lanterns, gangplank from glycolysis |
+| **ETC / Oxidative Phosphorylation** | Electron transport, ATP synthase | TCA produces NADH/FADH2 that feed ETC | The engine room below deck. Assembly line. Electrons flow through Complexes I-IV. ATP Synthase as a turbine. |
+| **Fatty Acid Oxidation** | Beta-oxidation spiral | Produces acetyl-CoA for TCA | Cargo hold of the ship. Repeating spiral mechanic -- chop 2 carbons off each cycle. Carnitine shuttle gate. MCAD Deficiency boss. |
 
 ### Priority 2
 | World | Key Concept | Connection |
