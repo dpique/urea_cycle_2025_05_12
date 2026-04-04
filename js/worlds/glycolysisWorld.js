@@ -1034,10 +1034,15 @@ function createLauncher(scene, data, x, z) {
 // PULL MINI-GAME
 // ========================
 
+// Sweet spot range (60%-80% of bar)
+const PULL_SWEET_MIN = 0.60;
+const PULL_SWEET_MAX = 0.80;
+
 function startPullMiniGame(scene, stationZ) {
     if (pullActive) return;
     pullActive = true;
     pullProgress = 0;
+    pullFailed = false;
 
     // Create pull UI overlay
     pullOverlay = document.createElement('div');
@@ -1050,26 +1055,45 @@ function startPullMiniGame(scene, stationZ) {
     `;
 
     pullLabel = document.createElement('div');
-    pullLabel.style.cssText = 'font-size: 24px; font-weight: bold; margin-bottom: 12px; color: #ff8800;';
-    pullLabel.textContent = 'HOLD  E  TO PULL!';
+    pullLabel.style.cssText = 'font-size: 22px; font-weight: bold; margin-bottom: 12px; color: #ff8800;';
+    pullLabel.textContent = 'HOLD E TO PULL -- release in the green zone!';
     pullOverlay.appendChild(pullLabel);
 
+    // Bar with sweet spot zone
     const barContainer = document.createElement('div');
-    barContainer.style.cssText = 'width: 100%; height: 30px; background: #333; border-radius: 6px; overflow: hidden; border: 1px solid #666;';
+    barContainer.style.cssText = 'width: 100%; height: 34px; background: #333; border-radius: 6px; overflow: hidden; border: 1px solid #666; position: relative;';
+
+    // Sweet spot zone indicator (green zone on the bar)
+    const sweetZone = document.createElement('div');
+    sweetZone.style.cssText = `
+        position: absolute; left: ${PULL_SWEET_MIN * 100}%; width: ${(PULL_SWEET_MAX - PULL_SWEET_MIN) * 100}%;
+        height: 100%; background: rgba(0,255,80,0.25); border-left: 2px solid #00ff44; border-right: 2px solid #00ff44;
+        pointer-events: none; z-index: 1;
+    `;
+    barContainer.appendChild(sweetZone);
+
+    // "SNAP!" label in the danger zone (past sweet spot)
+    const dangerLabel = document.createElement('div');
+    dangerLabel.style.cssText = `
+        position: absolute; left: ${PULL_SWEET_MAX * 100 + 2}%; top: 50%; transform: translateY(-50%);
+        font-size: 11px; color: #ff4444; pointer-events: none; z-index: 1; font-weight: bold;
+    `;
+    dangerLabel.textContent = 'TOO HARD!';
+    barContainer.appendChild(dangerLabel);
 
     pullBar = document.createElement('div');
-    pullBar.style.cssText = 'width: 0%; height: 100%; background: linear-gradient(90deg, #ff4400, #ff8800, #ffcc00); transition: width 0.05s; border-radius: 4px;';
+    pullBar.style.cssText = 'width: 0%; height: 100%; background: linear-gradient(90deg, #ff4400, #ff8800, #ffcc00); border-radius: 4px; position: relative; z-index: 2;';
     barContainer.appendChild(pullBar);
     pullOverlay.appendChild(barContainer);
 
     const hint = document.createElement('div');
     hint.style.cssText = 'font-size: 13px; color: #aaa; margin-top: 8px;';
-    hint.textContent = 'Grab each phosphate and PULL the molecule apart!';
+    hint.textContent = 'Pull with just the right force -- release E in the green zone!';
     pullOverlay.appendChild(hint);
 
     document.body.appendChild(pullOverlay);
 
-    // Listen for E key hold
+    // Listen for E key
     pullKeyHandler = (e) => {
         if (e.key.toLowerCase() === 'e') {
             e.preventDefault();
@@ -1079,12 +1103,25 @@ function startPullMiniGame(scene, stationZ) {
     pullKeyUpHandler = (e) => {
         if (e.key.toLowerCase() === 'e') {
             pullKeyHeld = false;
+            // Check if released in the sweet spot
+            if (pullActive && !pullFailed) {
+                if (pullProgress >= PULL_SWEET_MIN && pullProgress <= PULL_SWEET_MAX) {
+                    // SUCCESS!
+                    completePull();
+                } else if (pullProgress > 0.05) {
+                    // Missed the zone
+                    pullFailed = true;
+                    if (pullProgress < PULL_SWEET_MIN) {
+                        showFeedback("Not enough force! Hold E longer -- aim for the green zone.", 2000);
+                    }
+                    // If overshot, the update loop handles the snap-back message
+                }
+            }
         }
     };
     document.addEventListener('keydown', pullKeyHandler);
     document.addEventListener('keyup', pullKeyUpHandler);
 
-    // Store scene ref for completion
     pullSceneRef = scene;
     pullStationZ = stationZ;
 }
@@ -1092,22 +1129,41 @@ function startPullMiniGame(scene, stationZ) {
 let pullKeyHandler = null;
 let pullKeyUpHandler = null;
 let pullKeyHeld = false;
+let pullFailed = false;
 let pullSceneRef = null;
 let pullStationZ = 0;
 
 function updatePullMiniGame(delta) {
     if (!pullActive) return;
 
-    if (pullKeyHeld) {
-        pullProgress = Math.min(pullProgress + delta * 0.7, 1); // ~1.5 seconds to fill
-
-        // Stretch the glucose model as you pull
+    // Handle failed state -- snap back then reset
+    if (pullFailed) {
+        pullProgress = Math.max(pullProgress - delta * 2.0, 0);
         if (glucoseModel) {
-            const stretch = 1 + pullProgress * 1.2; // Stretch up to 2.2x width
-            const squish = 1 - pullProgress * 0.3;  // Squish vertically
+            const stretch = 1 + pullProgress * 1.2;
+            const squish = 1 - pullProgress * 0.3;
+            glucoseModel.scale.set(stretch, squish, squish);
+        }
+        if (pullBar) pullBar.style.width = `${pullProgress * 100}%`;
+        if (pullProgress <= 0) {
+            pullFailed = false; // Ready to try again
+            if (pullLabel) {
+                pullLabel.textContent = 'Try again -- HOLD E, release in the green zone!';
+                pullLabel.style.color = '#ff8800';
+            }
+        }
+        return;
+    }
+
+    if (pullKeyHeld) {
+        pullProgress = Math.min(pullProgress + delta * 0.55, 1); // ~1.8 seconds to fill
+
+        // Stretch the glucose model
+        if (glucoseModel) {
+            const stretch = 1 + pullProgress * 1.2;
+            const squish = 1 - pullProgress * 0.3;
             glucoseModel.scale.set(stretch, squish, squish);
 
-            // Increasing red tint as it strains
             glucoseModel.traverse(child => {
                 if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined) {
                     child.material.emissiveIntensity = 0.05 + pullProgress * 0.5;
@@ -1115,18 +1171,29 @@ function updatePullMiniGame(delta) {
             });
         }
 
-        // Creaking sounds as you pull
+        // Creaking sounds
         if (pullProgress > 0.3 && pullProgress < 0.32) {
             import('../audioManager.js').then(({ createGameBoySound }) => createGameBoySound(150, 0.1, 'sawtooth'));
         }
         if (pullProgress > 0.6 && pullProgress < 0.62) {
             import('../audioManager.js').then(({ createGameBoySound }) => createGameBoySound(120, 0.15, 'sawtooth'));
         }
-    } else {
-        // Slowly relax if not holding
-        pullProgress = Math.max(pullProgress - delta * 0.5, 0);
 
-        // Un-stretch the model
+        // Overshot past the sweet spot!
+        if (pullProgress > PULL_SWEET_MAX) {
+            pullFailed = true;
+            pullKeyHeld = false;
+            showFeedback("Too hard! The molecule snapped back. Try again with less force.", 2000);
+            import('../audioManager.js').then(({ createGameBoySound }) => createGameBoySound(80, 0.2, 'square'));
+            if (pullLabel) {
+                pullLabel.textContent = 'SNAPPED BACK! Too much force!';
+                pullLabel.style.color = '#ff4444';
+            }
+            return;
+        }
+    } else if (pullProgress > 0 && !pullFailed) {
+        // Slowly relax if not holding (and not failed)
+        pullProgress = Math.max(pullProgress - delta * 0.3, 0);
         if (glucoseModel) {
             const stretch = 1 + pullProgress * 1.2;
             const squish = 1 - pullProgress * 0.3;
@@ -1137,23 +1204,27 @@ function updatePullMiniGame(delta) {
     // Update UI bar
     if (pullBar) {
         pullBar.style.width = `${pullProgress * 100}%`;
-    }
-    if (pullLabel) {
-        if (pullProgress > 0.8) {
-            pullLabel.textContent = 'ALMOST THERE...!!';
-            pullLabel.style.color = '#ffcc00';
-        } else if (pullProgress > 0.5) {
-            pullLabel.textContent = 'KEEP PULLING!';
-            pullLabel.style.color = '#ff8800';
+        // Color the bar based on zone
+        if (pullProgress >= PULL_SWEET_MIN && pullProgress <= PULL_SWEET_MAX) {
+            pullBar.style.background = 'linear-gradient(90deg, #ff4400, #ff8800, #00ff44)';
         } else {
-            pullLabel.textContent = 'HOLD  E  TO PULL!';
-            pullLabel.style.color = '#ff8800';
+            pullBar.style.background = 'linear-gradient(90deg, #ff4400, #ff8800, #ffcc00)';
         }
     }
-
-    // Completion!
-    if (pullProgress >= 1) {
-        completePull();
+    if (pullLabel && !pullFailed) {
+        if (pullProgress >= PULL_SWEET_MIN && pullProgress <= PULL_SWEET_MAX) {
+            pullLabel.textContent = 'IN THE ZONE -- RELEASE E NOW!';
+            pullLabel.style.color = '#00ff44';
+        } else if (pullProgress > 0.4) {
+            pullLabel.textContent = 'Almost to the green zone...';
+            pullLabel.style.color = '#ffcc00';
+        } else if (pullProgress > 0.1) {
+            pullLabel.textContent = 'Keep pulling...';
+            pullLabel.style.color = '#ff8800';
+        } else {
+            pullLabel.textContent = 'HOLD E TO PULL -- release in the green zone!';
+            pullLabel.style.color = '#ff8800';
+        }
     }
 }
 
