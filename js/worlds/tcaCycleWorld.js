@@ -431,14 +431,14 @@ function createEnzymeNPC(data, x, z) {
     // Face center toward the plaza center
     group.lookAt(0, group.position.y, 0);
 
-    // Set userData for interaction
-    group.userData = {
+    // Merge interaction data into existing userData (preserve parts, bodyMesh from builder)
+    Object.assign(group.userData, {
         name: data.name,
         type: 'npc',
         enzyme: data.enzyme,
         isInteractable: true,
         onInteract: (obj, scene, tools) => handleEnzymeInteraction(data, obj, scene, tools),
-    };
+    });
 
     return group;
 }
