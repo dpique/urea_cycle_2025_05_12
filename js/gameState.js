@@ -7,10 +7,17 @@ let gameState = {
     currentQuest: null,
     playerLocation: 'mitochondria',
     hasPortalPermission: false,
-    health: 100, // Player health (0-100)
+    health: 100,
     maxHealth: 100,
-    ammoniaCollectedCount: 0, // Track how many NH3 deposited in cauldron
-    hasVisitedGraveyard: false, // Track first-time graveyard visit
+    ammoniaCollectedCount: 0,
+    hasVisitedGraveyard: false,
+    // Multi-world state
+    currentWorldId: 'urea-cycle',
+    abilities: [],           // Unlocked abilities (e.g., 'nitrogen-mastery')
+    unlockedWorlds: ['urea-cycle'], // Worlds the player can access
+    worldProgress: {          // Per-world quest/completion state
+        'urea-cycle': { completed: false },
+    },
 };
 
 export function getGameState() { 
@@ -97,6 +104,35 @@ export function getAmmoniaCollectedCount() {
 
 export function incrementAmmoniaCollectedCount() {
     gameState.ammoniaCollectedCount++;
+}
+
+// Multi-world state helpers
+export function unlockWorld(worldId) {
+    if (!gameState.unlockedWorlds.includes(worldId)) {
+        gameState.unlockedWorlds.push(worldId);
+    }
+}
+
+export function isWorldUnlocked(worldId) {
+    return gameState.unlockedWorlds.includes(worldId);
+}
+
+export function addAbility(ability) {
+    if (!gameState.abilities.includes(ability)) {
+        gameState.abilities.push(ability);
+    }
+}
+
+export function hasAbility(ability) {
+    return gameState.abilities.includes(ability);
+}
+
+export function getWorldProgress(worldId) {
+    return gameState.worldProgress[worldId] || { completed: false };
+}
+
+export function setWorldProgress(worldId, progress) {
+    gameState.worldProgress[worldId] = { ...(gameState.worldProgress[worldId] || {}), ...progress };
 }
 
 // Update health UI

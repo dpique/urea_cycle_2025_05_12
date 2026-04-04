@@ -1910,7 +1910,48 @@ function createBackgroundTerrain(scene) {
     backgroundMesh.receiveShadow = true;
     
     scene.add(backgroundMesh);
-    
+
     // Add fog to create atmospheric perspective
     scene.fog = new THREE.Fog(0x87CEEB, 50, horizonDistance * 0.8);
+}
+
+// Cleanup all world objects from the scene
+export function cleanupWorld(sceneRef) {
+    // Remove all meshes added by this world (everything except lights, camera, player)
+    const objectsToRemove = [];
+    sceneRef.traverse((child) => {
+        if (child.isMesh || child.isSprite || child.isGroup) {
+            // Don't remove the player or lights
+            if (child.userData && child.userData.isPlayer) return;
+            if (child.isLight) return;
+            objectsToRemove.push(child);
+        }
+    });
+
+    // Remove from scene and dispose
+    for (const obj of objectsToRemove) {
+        if (obj.parent) {
+            obj.parent.remove(obj);
+        }
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+            if (Array.isArray(obj.material)) {
+                obj.material.forEach(m => m.dispose());
+            } else {
+                obj.material.dispose();
+            }
+        }
+    }
+
+    // Clear module-level state
+    collidableWalls = [];
+    wallBoundingBoxes = [];
+    resourceMeshes = [];
+    interactiveObjects = [];
+    originalMaterials.clear();
+    portalBarrier = null;
+    gateBarrier = null;
+    caveSlopePlane = null;
+    fixedAlcoveItemPositions = [];
+    bridgeMesh = null;
 }

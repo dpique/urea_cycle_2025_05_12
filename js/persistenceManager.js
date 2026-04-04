@@ -16,6 +16,11 @@ export function saveGame() {
             y: player.position.y,
             z: player.position.z
         },
+        // Multi-world state
+        currentWorldId: gameState.currentWorldId || 'urea-cycle',
+        abilities: gameState.abilities || [],
+        unlockedWorlds: gameState.unlockedWorlds || ['urea-cycle'],
+        worldProgress: gameState.worldProgress || {},
         timestamp: Date.now()
     };
     localStorage.setItem('metabolonSaveGame', JSON.stringify(saveData));
@@ -48,6 +53,11 @@ export function loadGame() {
             currentQuest: saveData.currentQuest || null,
             playerLocation: saveData.playerLocation || 'mitochondria',
             hasPortalPermission: saveData.hasPortalPermission || false,
+            // Multi-world state
+            currentWorldId: saveData.currentWorldId || 'urea-cycle',
+            abilities: saveData.abilities || [],
+            unlockedWorlds: saveData.unlockedWorlds || ['urea-cycle'],
+            worldProgress: saveData.worldProgress || {},
         };
         setGameState(newGameState);
         

@@ -13,3 +13,9 @@
 
 # OS files
 Thumbs.db
+
+# Node
+node_modules/
+
+# Vite build output
+dist/

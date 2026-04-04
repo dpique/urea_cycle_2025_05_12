@@ -274,6 +274,12 @@ export function interactWithObject(object, scene) {
     const setGameInteracting = (state) => setGameState({ isUserInteracting: state });
     let questAdvancedGenericFeedbackSuppressed = false;
 
+    // World-defined interaction callback -- allows new worlds to define NPC behavior
+    // without modifying this file
+    if (userData.onInteract && typeof userData.onInteract === 'function') {
+        userData.onInteract(object, scene, { showDialogue, showFeedback, setGameInteracting, getCurrentQuest, getInventory, addToInventory, createResource, createCollectionEffect, removeResourceFromWorld, createSimpleParticleSystem, player, setNPCInteracting, advanceUreaCycleQuest, playMoleculeGenerationSound, createGameBoySound });
+        return;
+    }
 
     if (userData.type === 'npc' && !interactionProcessedThisFrame) {
         interactionProcessedThisFrame = true;

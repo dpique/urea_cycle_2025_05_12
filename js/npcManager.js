@@ -1146,3 +1146,26 @@ export function updateNPCs(delta, elapsedTime) {
         }
     }
 }
+
+// Cleanup all NPCs from scene
+export function cleanupNPCs(sceneRef) {
+    for (const npc of npcs) {
+        if (npc.parent) {
+            npc.parent.remove(npc);
+        }
+        npc.traverse((child) => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => m.dispose());
+                } else {
+                    child.material.dispose();
+                }
+            }
+        });
+    }
+    npcs.length = 0;
+    for (const key in npcAnims) {
+        delete npcAnims[key];
+    }
+}
