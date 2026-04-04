@@ -844,9 +844,10 @@ function morphToPentagon(scene) {
     glucoseModel.userData.offsetX = 1.2;
     glucoseModel.userData.offsetZ = 0;
 
-    // Re-attach phosphateA
+    // Re-attach phosphateA (carbon 6) -- on the opposite side from the popped-out carbon
     const verts = glucoseModel.userData.vertices;
-    phosphateA = createPhosphateSphere(new THREE.Vector3(verts[0].x, 0.1, verts[0].z));
+    const c6Pos = verts[3] || verts[Math.floor(verts.length / 2)]; // bottom of pentagon
+    phosphateA = createPhosphateSphere(new THREE.Vector3(c6Pos.x * 1.5, 0.1, c6Pos.z * 1.5));
     glucoseModel.add(phosphateA);
 
     // Update label
@@ -861,11 +862,14 @@ function morphToPentagon(scene) {
 
 function attachPhosphateB(scene) {
     if (!glucoseModel || phosphateB) return;
-    const verts = glucoseModel.userData.vertices;
-    if (!verts || verts.length < 3) return;
-    // Attach to opposite end (vertex 3 on pentagon)
-    const pos = verts[3].clone();
+    // Carbon 1 phosphate goes on the POPPED-OUT carbon (the one sticking out of the ring)
+    const poppedCarbon = glucoseModel.userData.poppedCarbon;
+    if (!poppedCarbon) return;
+    const pos = poppedCarbon.clone();
     pos.y += 0.1;
+    // Extend slightly beyond the popped carbon
+    const dir = pos.clone().normalize();
+    pos.add(dir.multiplyScalar(0.4));
     phosphateB = createPhosphateSphere(pos);
     glucoseModel.add(phosphateB);
 
@@ -1417,6 +1421,95 @@ function createDecorations(scene) {
     glyObjects.push(payoffSign);
 }
 
+function createPPPBranchPath(scene) {
+    // The Pentose Phosphate Pathway branches off at Glucose-6-Phosphate (after Hexy)
+    // and reconnects at Fructose-6-P (Izzy) and G3P (after the split)
+    // Show this as a visible side path with a "coming soon" portal
+
+    const branchZ = (ENZYMES[0].z + ENZYMES[1].z) / 2; // Between Hexy and Izzy
+    const branchX = -PATHWAY_WIDTH / 2 - 4;
+
+    // Side path ground
+    const sidePathGeo = new THREE.PlaneGeometry(6, 4);
+    const sidePathMat = new THREE.MeshStandardMaterial({ color: 0x2a1a3d, roughness: 0.8 });
+    const sidePath = new THREE.Mesh(sidePathGeo, sidePathMat);
+    sidePath.rotation.x = -Math.PI / 2;
+    sidePath.position.set(branchX, 0.02, branchZ);
+    scene.add(sidePath);
+    glyObjects.push(sidePath);
+
+    // Connecting path strip from main pathway to side path
+    const connGeo = new THREE.PlaneGeometry(4, 1.5);
+    const conn = new THREE.Mesh(connGeo, sidePathMat);
+    conn.rotation.x = -Math.PI / 2;
+    conn.position.set(-PATHWAY_WIDTH / 2 - 1, 0.015, branchZ);
+    scene.add(conn);
+    glyObjects.push(conn);
+
+    // Portal ring (locked/coming soon)
+    const portalGeo = new THREE.TorusGeometry(1.2, 0.15, 8, 16);
+    const portalMat = new THREE.MeshStandardMaterial({
+        color: 0x9966cc,
+        emissive: 0x6633aa,
+        emissiveIntensity: 0.3,
+        transparent: true,
+        opacity: 0.6,
+    });
+    const portal = new THREE.Mesh(portalGeo, portalMat);
+    portal.position.set(branchX, 1.5, branchZ);
+    portal.rotation.y = Math.PI / 2;
+    scene.add(portal);
+    glyObjects.push(portal);
+
+    // Label
+    const label = createTextSprite('Pentose Phosphate\nPathway', { x: branchX, y: 3.2, z: branchZ }, {
+        scale: 1.0, textColor: 'rgba(180, 140, 255, 0.8)',
+    });
+    scene.add(label);
+    glyObjects.push(label);
+
+    // "Branches from G6P" sublabel
+    const subLabel = createTextSprite('branches from G6P', { x: branchX, y: 0.5, z: branchZ + 2.5 }, {
+        scale: 0.6, textColor: 'rgba(180, 140, 255, 0.5)',
+    });
+    scene.add(subLabel);
+    glyObjects.push(subLabel);
+
+    // Arrow from main path to side path
+    const arrowGeo = new THREE.ConeGeometry(0.2, 0.5, 4);
+    const arrowMat = new THREE.MeshStandardMaterial({
+        color: 0x9966cc, emissive: 0x6633aa, emissiveIntensity: 0.2,
+        transparent: true, opacity: 0.6,
+    });
+    const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+    arrow.position.set(-PATHWAY_WIDTH / 2 - 0.5, 0.4, branchZ);
+    arrow.rotation.z = Math.PI / 2; // Point left
+    scene.add(arrow);
+    glyObjects.push(arrow);
+
+    // Light
+    const light = new THREE.PointLight(0x9966cc, 0.4, 6);
+    light.position.set(branchX, 2, branchZ);
+    scene.add(light);
+    glyObjects.push(light);
+
+    // Make it interactive with a "coming soon" message
+    portal.userData = {
+        name: 'Pentose Phosphate Pathway',
+        type: 'portal',
+        isInteractable: true,
+        onInteract: (obj, scn, tools) => {
+            const { showDialogue, setGameInteracting } = tools;
+            showDialogue("The Pentose Phosphate Pathway branches off right here -- from Glucose-6-Phosphate.\n\nIt produces NADPH (for biosynthesis) and Ribose-5-Phosphate (for nucleotides). Its intermediates feed back into glycolysis at Fructose-6-P and G3P.\n\nThis world is under construction!", [
+                { text: "Can't wait to explore it!" }
+            ], setGameInteracting);
+        },
+    };
+    interactiveObjects.push(portal);
+    originalMaterials.set(portal, portal.material);
+    portal.userData.mainMesh = portal;
+}
+
 function createLighting(scene) {
     const warmLight = new THREE.DirectionalLight(0xffcc88, 0.5);
     warmLight.position.set(10, 20, 10);
@@ -1460,6 +1553,7 @@ export function init(scene) {
     createEnzymeStations(scene);
     createPortalToTCA(scene);
     createDecorations(scene);
+    createPPPBranchPath(scene);
     createLighting(scene);
 
     // Opening narrative
@@ -1624,15 +1718,18 @@ export function update(delta, elapsedTime) {
 function handleGlyResourceCollected(name) {
     if (questState === GLY_QUEST.COLLECT_GLUCOSE) {
         const inv = getInventory();
+        // Spawn the hexagonal ring as soon as glucose is picked up
+        if (name === 'Glucose' && !glucoseModel) {
+            spawnGlucoseModel(worldScene, { x: player.position.x, y: 0, z: player.position.z });
+            showFeedback("You're carrying glucose -- a sturdy six-sided ring. Collect 2 ATP to begin breaking it down.", 3000);
+            return true;
+        }
         if (inv['Glucose'] && inv['ATP'] >= 2) {
             questState = GLY_QUEST.VISIT_HEXY;
-            showFeedback("Glucose + 2 ATP collected! Bring them to Hexy's Workbench to strap on the first phosphate.", 4000);
-
-            // Spawn the big glucose model at Hexy's station
-            spawnGlucoseModel(worldScene, { x: PATHWAY_X, y: 0, z: ENZYMES[0].z });
+            showFeedback("Glucose + 2 ATP ready! Bring them to Hexy's Workbench to strap the first phosphate onto carbon 6.", 4000);
             return true;
-        } else if (inv['Glucose'] && inv['ATP'] === 1) {
-            showFeedback("Glucose collected! One more ATP needed.", 2000);
+        } else if (name === 'ATP' && inv['ATP'] === 1) {
+            showFeedback("One ATP collected -- need one more!", 2000);
             return true;
         }
     }
