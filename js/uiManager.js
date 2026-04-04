@@ -42,6 +42,22 @@ function hideAllModals(except = null) {
     // Add any other modal UI elements here in the future, checking against `except`
 }
 
+export function updateHealthUI(health) {
+    const healthBar = document.getElementById('healthBar');
+    const healthText = document.getElementById('healthText');
+    if (healthBar && healthText) {
+        healthBar.style.width = `${health}%`;
+        healthText.textContent = `${Math.floor(health)}`;
+        if (health > 60) {
+            healthBar.style.backgroundColor = '#4CAF50';
+        } else if (health > 30) {
+            healthBar.style.backgroundColor = '#FFA500';
+        } else {
+            healthBar.style.backgroundColor = '#F44336';
+        }
+    }
+}
+
 export function updateInventoryUI(inventory) {
     if (!inventoryListEl) return;
     inventoryListEl.innerHTML = '';

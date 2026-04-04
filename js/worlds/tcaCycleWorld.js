@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { createTextSprite, createSimpleParticleSystem } from '../utils.js';
-import { createWall, createResource, interactiveObjects, originalMaterials } from '../worldManager.js';
+import { createWall, createResource, interactiveObjects, originalMaterials, setWorldTerrainFn } from '../worldManager.js';
 import { player } from '../playerManager.js';
 import { showFeedback } from '../uiManager.js';
 import { getGameState, setGameState, getCurrentQuest, setCurrentQuest, advanceCurrentQuestState, getInventory, addToInventory, removeFromInventory, getHealth, damageHealth, healHealth, setWorldProgress, addAbility, unlockWorld } from '../gameState.js';
@@ -202,6 +202,8 @@ export function init(scene) {
     tcaObjects = [];
     terrainMeshes = [];
     tcaQuestState = TCA_QUEST.NOT_STARTED;
+
+    setWorldTerrainFn((_x, _z) => 0.01);
 
     createTerrain(scene);
     createCentralFountain(scene);
@@ -1106,24 +1108,25 @@ export function update(delta, elapsedTime) {
         }
     }
 
-    // Terrain following for player
-    player.position.y = Math.max(0.01, player.position.y);
-    if (player.position.y > 0.5 && !player.userData.verticalVelocity) {
-        player.position.y = player.position.y + (0.01 - player.position.y) * 0.1;
-    }
-
-    // Jump velocity
+    // Terrain following for player (TCA is flat at y=0.01)
+    const tcaGroundY = 0.01;
     if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
-        player.position.y += player.userData.verticalVelocity;
-        player.userData.verticalVelocity -= 0.02;
-    } else if (player.position.y > 0.1) {
+        // Jumping
+        player.position.y += player.userData.verticalVelocity * delta;
+        player.userData.verticalVelocity -= 1.2 * delta; // gravity: 0.02/frame → 1.2/s
+    } else if (player.position.y > tcaGroundY + 0.1) {
+        // Falling
         if (!player.userData.verticalVelocity) player.userData.verticalVelocity = 0;
-        player.userData.verticalVelocity -= 0.02;
-        player.position.y += player.userData.verticalVelocity;
-        if (player.position.y <= 0.01) {
-            player.position.y = 0.01;
+        player.userData.verticalVelocity -= 1.2 * delta;
+        player.position.y += player.userData.verticalVelocity * delta;
+        if (player.position.y <= tcaGroundY) {
+            player.position.y = tcaGroundY;
             player.userData.verticalVelocity = 0;
         }
+    } else {
+        // Smooth ground snap
+        player.position.y += (tcaGroundY - player.position.y) * Math.min(1, 6.0 * delta);
+        player.userData.verticalVelocity = 0;
     }
 
     // Health regen when not in danger
@@ -1260,4 +1263,13 @@ export function cleanup(scene) {
     worldScene = null;
     centralFountain = null;
     portalToUrea = null;
+    setWorldTerrainFn(null);
+}
+
+export function getSnapshot() {
+    return { questState: tcaQuestState };
+}
+
+export function restoreSnapshot(data) {
+    if (data && data.questState !== undefined) tcaQuestState = data.questState;
 }

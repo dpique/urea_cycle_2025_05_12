@@ -4,15 +4,15 @@ import * as CONSTANTS from './js/constants.js';
 import { initScene, scene, camera, renderer } from './js/sceneSetup.js';
 import { wallBoundingBoxes } from './js/worldManager.js';
 import { initPlayer, player, updatePlayer, toggleCameraMode } from './js/playerManager.js';
-import { initUIManager, showFeedback } from './js/uiManager.js';
+import { initUIManager, showFeedback, updateHealthUI } from './js/uiManager.js';
 import { getAudioContext, toggleMuteMusic } from './js/audioManager.js';
 import { getClosestInteractiveObject, interactWithObject } from './js/interactionManager.js';
-import { getGameState, getCurrentQuest } from './js/gameState.js';
+import { getGameState, getCurrentQuest, subscribeToHealthChanges } from './js/gameState.js';
 import { saveGame, loadGame } from './js/persistenceManager.js';
 import { handlePlayerDeath } from './js/gameManager.js';
 import { registerWorld, loadWorld, updateCurrentWorld, getCurrentWorld, getCurrentWorldId, getIsTransitioning, transitionTo } from './js/sceneManager.js';
 import { toggleMinimap } from './js/minimap.js';
-import { getTerrainHeightAt } from './js/worldManager.js';
+import { getWorldTerrainHeight } from './js/worldManager.js';
 
 // Import world modules
 import * as ureaCycleWorld from './js/worlds/ureaCycleWorld.js';
@@ -27,6 +27,7 @@ export const realityRiverUI = document.getElementById('realityRiver');
 const canvasElement = document.getElementById('gameCanvas');
 initScene(canvasElement);
 initUIManager();
+subscribeToHealthChanges(updateHealthUI);
 initPlayer(scene);
 
 // --- Register worlds ---
@@ -123,7 +124,7 @@ document.addEventListener('keydown', (event) => {
     }
 
     if (key === ' ' && !gameState.isUserInteracting) {
-        const terrainHeight = getTerrainHeightAt(player.position.x, player.position.z);
+        const terrainHeight = getWorldTerrainHeight(player.position.x, player.position.z);
         const currentHeight = player.position.y;
         const bridgeMinZ = CONSTANTS.BRIDGE_CENTER_Z - CONSTANTS.BRIDGE_WIDTH / 2;
         const bridgeMaxZ = CONSTANTS.BRIDGE_CENTER_Z + CONSTANTS.BRIDGE_WIDTH / 2;
@@ -133,7 +134,7 @@ document.addEventListener('keydown', (event) => {
                         (nearBridge && currentHeight < CONSTANTS.BRIDGE_HEIGHT + 0.1 && currentHeight > CONSTANTS.BRIDGE_HEIGHT - 0.1);
 
         if (onGround && (!player.userData.verticalVelocity || player.userData.verticalVelocity <= 0)) {
-            player.userData.verticalVelocity = 0.32;
+            player.userData.verticalVelocity = 19.2; // units/s (was 0.32 units/frame @ 60fps)
         }
     }
 

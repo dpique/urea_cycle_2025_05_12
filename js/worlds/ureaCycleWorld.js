@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import * as CONSTANTS from '../constants.js';
-import { initWorld, cleanupWorld, wallBoundingBoxes, updateResourceHover, getPortalBarrier, interactiveObjects, originalMaterials, getTerrainHeightAt } from '../worldManager.js';
+import { initWorld, cleanupWorld, wallBoundingBoxes, updateResourceHover, getPortalBarrier, interactiveObjects, originalMaterials, getTerrainHeightAt, setWorldTerrainFn } from '../worldManager.js';
 import { initNPCs, updateNPCs, getNPCs, cleanupNPCs } from '../npcManager.js';
 import { initQuests, startUreaCycleQuest, advanceUreaCycleQuest } from '../questManager.js';
 import { initMinimap, updateMinimap, toggleMinimap, addToPathHistory } from '../minimap.js';
@@ -51,6 +51,7 @@ let worldScene = null;
 
 export function init(scene) {
     worldScene = scene;
+    setWorldTerrainFn(getTerrainHeightAt);
     initWorld(scene);
     initNPCs(scene);
     initQuests();
@@ -212,14 +213,14 @@ export function update(delta, elapsedTime) {
         if (playerX > bridgeMinX && playerX < platformMinX) {
             const rampProgress = (playerX - bridgeMinX) / rampLength;
             targetY = CONSTANTS.BRIDGE_HEIGHT * Math.max(0, Math.min(1, rampProgress));
-            player.position.y = player.position.y + (targetY - player.position.y) * 0.15;
+            player.position.y += (targetY - player.position.y) * Math.min(1, 9.0 * delta);
         } else if (playerX > platformMaxX && playerX < bridgeMaxX) {
             const rampProgress = (bridgeMaxX - playerX) / rampLength;
             targetY = CONSTANTS.BRIDGE_HEIGHT * Math.max(0, Math.min(1, rampProgress));
-            player.position.y = player.position.y + (targetY - player.position.y) * 0.15;
+            player.position.y += (targetY - player.position.y) * Math.min(1, 9.0 * delta);
         } else if (playerX >= platformMinX && playerX <= platformMaxX) {
             targetY = CONSTANTS.BRIDGE_HEIGHT;
-            player.position.y = player.position.y + (targetY - player.position.y) * 0.15;
+            player.position.y += (targetY - player.position.y) * Math.min(1, 9.0 * delta);
         }
     } else {
         // Terrain following
@@ -228,22 +229,22 @@ export function update(delta, elapsedTime) {
 
         if (player.position.y > targetY + 0.1) {
             if (!player.userData.verticalVelocity) player.userData.verticalVelocity = 0;
-            player.userData.verticalVelocity -= 0.02;
-            player.position.y += player.userData.verticalVelocity;
+            player.userData.verticalVelocity -= 1.2 * delta; // gravity: 0.02/frame → 1.2/s
+            player.position.y += player.userData.verticalVelocity * delta;
             if (player.position.y <= targetY) {
                 player.position.y = targetY;
                 player.userData.verticalVelocity = 0;
             }
         } else {
-            player.position.y = player.position.y + (targetY - player.position.y) * 0.2;
+            player.position.y += (targetY - player.position.y) * Math.min(1, 12.0 * delta);
             player.userData.verticalVelocity = 0;
         }
     }
 
     // Jump velocity
     if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
-        player.position.y += player.userData.verticalVelocity;
-        player.userData.verticalVelocity -= 0.02;
+        player.position.y += player.userData.verticalVelocity * delta;
+        player.userData.verticalVelocity -= 1.2 * delta;
     }
 
     // --- Update subsystems ---
@@ -300,7 +301,17 @@ export function update(delta, elapsedTime) {
 export function cleanup(scene) {
     cleanupNPCs(scene);
     cleanupWorld(scene);
+    setWorldTerrainFn(null);
     worldScene = null;
+}
+
+export function getSnapshot() {
+    // TODO: capture per-world quest state from questManager when needed
+    return {};
+}
+
+export function restoreSnapshot(_data) {
+    // TODO: restore per-world quest state to questManager when needed
 }
 
 // Quest target position logic (moved from main.js)

@@ -17,6 +17,14 @@ let caveSlopePlane = null;
 let fixedAlcoveItemPositions = [];
 let bridgeMesh = null;
 
+// --- World terrain registration ---
+// Each world registers its own height function in init(); cleared in cleanup().
+let worldTerrainFn = null;
+export function setWorldTerrainFn(fn) { worldTerrainFn = fn; }
+export function getWorldTerrainHeight(x, z) {
+    return worldTerrainFn ? worldTerrainFn(x, z) : 0;
+}
+
 
 function addCollidableWall(wall) {
     collidableWalls.push(wall);

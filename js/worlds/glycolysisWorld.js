@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { createTextSprite, createSimpleParticleSystem } from '../utils.js';
-import { createResource, interactiveObjects, originalMaterials } from '../worldManager.js';
+import { createResource, interactiveObjects, originalMaterials, setWorldTerrainFn } from '../worldManager.js';
 import { player } from '../playerManager.js';
 import { showFeedback } from '../uiManager.js';
 import { getGameState, setGameState, getInventory, addToInventory, removeFromInventory, getHealth, healHealth, setWorldProgress, addAbility, unlockWorld } from '../gameState.js';
@@ -2275,6 +2275,8 @@ export function init(scene) {
     shakeRemaining = 0;
     questState = GLY_QUEST.NOT_STARTED;
 
+    setWorldTerrainFn(getGlyTerrainHeight);
+
     createTerrain(scene);
     createEnzymeStations(scene);
     createPortalToTCA(scene);
@@ -2330,9 +2332,10 @@ export function update(delta, elapsedTime) {
         const targetX = player.position.x + (glucoseModel.userData.offsetX || 1.2);
         const targetZ = player.position.z + (glucoseModel.userData.offsetZ || 0);
         const baseY = glucoseModel.userData.baseY || 2.2;
-        // Smooth follow with a slight lag for a bouncy/comedic feel
-        glucoseModel.position.x += (targetX - glucoseModel.position.x) * 0.08;
-        glucoseModel.position.z += (targetZ - glucoseModel.position.z) * 0.08;
+        // Smooth follow with a slight lag for a bouncy/comedic feel (4.8/s ≈ 0.08/frame @ 60fps)
+        const glucoseFollow = Math.min(1, 4.8 * delta);
+        glucoseModel.position.x += (targetX - glucoseModel.position.x) * glucoseFollow;
+        glucoseModel.position.z += (targetZ - glucoseModel.position.z) * glucoseFollow;
         glucoseModel.position.y = baseY + Math.sin(elapsedTime * 1.2) * 0.15;
         // Don't override rotation during timing mini-game (it has its own spin)
         if (!phosphateTimingActive) {
@@ -2344,16 +2347,16 @@ export function update(delta, elapsedTime) {
     if (fragmentA) {
         const targetX = player.position.x + 1.0;
         const targetZ = player.position.z + 0.5;
-        fragmentA.position.x += (targetX - fragmentA.position.x) * 0.07;
-        fragmentA.position.z += (targetZ - fragmentA.position.z) * 0.07;
+        fragmentA.position.x += (targetX - fragmentA.position.x) * Math.min(1, 4.2 * delta);
+        fragmentA.position.z += (targetZ - fragmentA.position.z) * Math.min(1, 4.2 * delta);
         fragmentA.position.y = 2.0 + Math.sin(elapsedTime * 1.5) * 0.1;
         fragmentA.rotation.y = elapsedTime * 0.4;
     }
     if (fragmentB) {
         const targetX = player.position.x - 1.0;
         const targetZ = player.position.z - 0.5;
-        fragmentB.position.x += (targetX - fragmentB.position.x) * 0.06;
-        fragmentB.position.z += (targetZ - fragmentB.position.z) * 0.06;
+        fragmentB.position.x += (targetX - fragmentB.position.x) * Math.min(1, 3.6 * delta);
+        fragmentB.position.z += (targetZ - fragmentB.position.z) * Math.min(1, 3.6 * delta);
         fragmentB.position.y = 2.0 + Math.sin(elapsedTime * 1.5 + 1) * 0.1;
         fragmentB.rotation.y = -elapsedTime * 0.4;
     }
@@ -2419,8 +2422,8 @@ export function update(delta, elapsedTime) {
     const terrainY = getGlyTerrainHeight(player.position.x, player.position.z) + 0.01;
     if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
         // Jumping
-        player.position.y += player.userData.verticalVelocity;
-        player.userData.verticalVelocity -= 0.02;
+        player.position.y += player.userData.verticalVelocity * delta;
+        player.userData.verticalVelocity -= 1.2 * delta; // gravity: 0.02/frame → 1.2/s
         if (player.position.y <= terrainY) {
             player.position.y = terrainY;
             player.userData.verticalVelocity = 0;
@@ -2428,15 +2431,15 @@ export function update(delta, elapsedTime) {
     } else if (player.position.y > terrainY + 0.1) {
         // Falling
         if (!player.userData.verticalVelocity) player.userData.verticalVelocity = 0;
-        player.userData.verticalVelocity -= 0.02;
-        player.position.y += player.userData.verticalVelocity;
+        player.userData.verticalVelocity -= 1.2 * delta;
+        player.position.y += player.userData.verticalVelocity * delta;
         if (player.position.y <= terrainY) {
             player.position.y = terrainY;
             player.userData.verticalVelocity = 0;
         }
     } else {
-        // Smooth terrain following
-        player.position.y += (terrainY - player.position.y) * 0.15;
+        // Smooth terrain following (9.0/s ≈ 0.15/frame @ 60fps)
+        player.position.y += (terrainY - player.position.y) * Math.min(1, 9.0 * delta);
         player.userData.verticalVelocity = 0;
     }
 
@@ -2565,4 +2568,13 @@ export function cleanup(scene) {
     if (pullKeyUpHandler) document.removeEventListener('keyup', pullKeyUpHandler);
     pullActive = false; pullProgress = 0; pullKeyHeld = false;
     worldScene = null;
+    setWorldTerrainFn(null);
+}
+
+export function getSnapshot() {
+    return { questState };
+}
+
+export function restoreSnapshot(data) {
+    if (data && data.questState !== undefined) questState = data.questState;
 }

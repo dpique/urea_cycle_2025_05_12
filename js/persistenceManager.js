@@ -2,6 +2,7 @@
 import { getGameState, setGameState } from './gameState.js';
 import { player } from './playerManager.js';
 import { updateInventoryUI, updateQuestUI, showFeedback } from './uiManager.js';
+import { transitionTo } from './sceneManager.js';
 
 const SAVE_VERSION = 1;
 
@@ -74,20 +75,16 @@ export function loadGame() {
             worldProgress: saveData.worldProgress || {},
         };
         setGameState(newGameState);
-        
+
         // Update UI
         updateInventoryUI(newGameState.inventory);
         updateQuestUI(newGameState.currentQuest);
-        
-        // Restore player position
-        if (saveData.playerPosition) {
-            player.position.set(
-                saveData.playerPosition.x,
-                saveData.playerPosition.y,
-                saveData.playerPosition.z
-            );
-        }
-        
+
+        // Transition to the saved world (loadWorld inside sets the player position)
+        const targetWorldId = saveData.currentWorldId || 'urea-cycle';
+        const spawnPoint = saveData.playerPosition || undefined;
+        transitionTo(targetWorldId, spawnPoint);
+
         showFeedback('Game loaded!', 2000);
         return true;
     } catch (error) {

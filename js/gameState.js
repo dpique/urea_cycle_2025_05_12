@@ -1,6 +1,12 @@
 // js/gameState.js
 import { updateInventoryUI, updateQuestUI } from './uiManager.js';
 
+// Health change observer -- wired up by main.js after initUIManager()
+let healthUpdateCallback = null;
+export function subscribeToHealthChanges(callback) {
+    healthUpdateCallback = callback;
+}
+
 let gameState = {
     isUserInteracting: false,
     inventory: {},
@@ -87,7 +93,7 @@ export function getHealth() {
 
 export function setHealth(health) {
     gameState.health = Math.max(0, Math.min(gameState.maxHealth, health));
-    updateHealthUI();
+    if (healthUpdateCallback) healthUpdateCallback(gameState.health);
 }
 
 export function damageHealth(amount) {
@@ -135,21 +141,3 @@ export function setWorldProgress(worldId, progress) {
     gameState.worldProgress[worldId] = { ...(gameState.worldProgress[worldId] || {}), ...progress };
 }
 
-// Update health UI
-function updateHealthUI() {
-    const healthBar = document.getElementById('healthBar');
-    const healthText = document.getElementById('healthText');
-    if (healthBar && healthText) {
-        healthBar.style.width = `${gameState.health}%`;
-        healthText.textContent = `${Math.floor(gameState.health)}`;
-
-        // Change color based on health
-        if (gameState.health > 60) {
-            healthBar.style.backgroundColor = '#4CAF50'; // Green
-        } else if (gameState.health > 30) {
-            healthBar.style.backgroundColor = '#FFA500'; // Orange
-        } else {
-            healthBar.style.backgroundColor = '#F44336'; // Red
-        }
-    }
-}
