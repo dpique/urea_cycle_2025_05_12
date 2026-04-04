@@ -169,7 +169,7 @@ document.addEventListener('keydown', (event) => {
         const spawns = {
             'tca-cycle': { x: 0, y: 0.5, z: 45 },
             'urea-cycle': { x: -60, y: 0.5, z: -16 },
-            'glycolysis': { x: 0, y: 0.5, z: 50 },
+            'glycolysis': { x: 0, y: 0.5, z: 55 },
         };
         transitionTo(nextId, spawns[nextId]);
     }

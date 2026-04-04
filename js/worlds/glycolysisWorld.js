@@ -23,8 +23,8 @@ export const config = {
     fogFar: 200,
     ambientLightIntensity: 0.5,
     ambientLightColor: 0xffcc88,
-    bounds: { minX: -20, maxX: 20, minZ: -120, maxZ: 60 },
-    spawnPoint: { x: 0, y: 0.5, z: 50 },
+    bounds: { minX: -30, maxX: 30, minZ: -180, maxZ: 70 },
+    spawnPoint: { x: 0, y: 0.5, z: 55 },
 };
 
 // --- Quest States ---
@@ -55,21 +55,21 @@ const QUEST_FOR_ENZYME = [
 const ENZYMES = [
     {
         name: 'Hexy\'s Workbench (Hexokinase)', shortName: 'Hexy\'s Bench',
-        enzyme: 'Hexokinase', z: 30, color: 0xff6b6b, bodyColor: 0xcc4444,
+        enzyme: 'Hexokinase', z: 40, color: 0xff6b6b, bodyColor: 0xcc4444,
         phase: 'investment', stationType: 'workbench',
         input: ['Glucose', 'ATP'], output: ['Glucose-6-P'],
         feedback: 'First stick of dynamite strapped onto CARBON 6 -- the last carbon of the chain! Glucose-6-Phosphate. The ring holds firm... one wasn\'t enough.',
     },
     {
         name: 'Izzy\'s Vise (PGI)', shortName: 'Izzy\'s Vise',
-        enzyme: 'Phosphoglucose Isomerase', z: 16, color: 0xffa07a, bodyColor: 0xcc7755,
+        enzyme: 'Phosphoglucose Isomerase', z: 20, color: 0xffa07a, bodyColor: 0xcc7755,
         phase: 'investment', stationType: 'vise',
         input: ['Glucose-6-P'], output: ['Fructose-6-P'],
         feedback: 'SQUEEZED so hard a carbon POPPED OUT of the ring! Six-sided glucose becomes five-sided fructose. Still holding together... but now we can reach both ends.',
     },
     {
         name: 'Phil the Gatekeeper (PFK-1)', shortName: 'Phil',
-        enzyme: 'Phosphofructokinase-1', z: 2, color: 0xff4444, bodyColor: 0xaa2222,
+        enzyme: 'Phosphofructokinase-1', z: 0, color: 0xff4444, bodyColor: 0xaa2222,
         phase: 'investment', stationType: 'npc',
         input: ['Fructose-6-P', 'ATP'], output: ['Fructose-1,6-BP'],
         greeting: "I'm Phil, PFK-1. The RATE-LIMITING gatekeeper. Nothing passes without my say-so. We need dynamite on BOTH ends -- carbon 1 AND carbon 6. That's what the '1,6' means in fructose-1,6-bisphosphate!",
@@ -77,49 +77,49 @@ const ENZYMES = [
     },
     {
         name: 'Al\'s Splitting Rack (Aldolase)', shortName: 'Al\'s Rack',
-        enzyme: 'Aldolase', z: -12, color: 0xff8c00, bodyColor: 0xcc6600,
+        enzyme: 'Aldolase', z: -20, color: 0xff8c00, bodyColor: 0xcc6600,
         phase: 'split', stationType: 'rack',
         input: ['Fructose-1,6-BP'], output: ['DHAP', 'G3P'],
         feedback: 'THE GLUCOSE BREAKS IN HALF! Two 3-carbon fragments fly apart! The investment phase is OVER.',
     },
     {
         name: 'Tim\'s Mirror (TPI)', shortName: 'Tim\'s Mirror',
-        enzyme: 'Triose Phosphate Isomerase', z: -24, color: 0xffb347, bodyColor: 0xcc8833,
+        enzyme: 'Triose Phosphate Isomerase', z: -42, color: 0xffb347, bodyColor: 0xcc8833,
         phase: 'split', stationType: 'mirror',
         input: ['DHAP'], output: ['G3P'],
         feedback: 'The DHAP twin converts to match its sibling. Two identical G3P fragments, ready for harvest.',
     },
     {
         name: 'Electron Extractor (GAPDH)', shortName: 'Extractor',
-        enzyme: 'G3P Dehydrogenase', z: -38, color: 0x00cc66, bodyColor: 0x009944,
+        enzyme: 'G3P Dehydrogenase', z: -64, color: 0x00cc66, bodyColor: 0x009944,
         phase: 'payoff', stationType: 'extractor',
         input: ['G3P'], output: ['1,3-BPG', 'NADH'],
         feedback: 'Electrons ripped out and stored as NADH! A free phosphate from the rubble bolts on -- each fragment now carries TWO phosphates.',
     },
     {
         name: 'Phosphate Popper (PGK)', shortName: 'Popper',
-        enzyme: 'Phosphoglycerate Kinase', z: -52, color: 0x00ff88, bodyColor: 0x00cc66,
+        enzyme: 'Phosphoglycerate Kinase', z: -86, color: 0x00ff88, bodyColor: 0x00cc66,
         phase: 'payoff', stationType: 'popper',
         input: ['1,3-BPG'], output: ['3-PG', 'ATP'],
         feedback: 'PHOSPHATE POPPED! Slammed onto ADP to recharge ATP. 2 ATP earned = 2 ATP spent. You\'re BREAK EVEN. Everything from here is profit.',
     },
     {
         name: 'The Shifter (PGM)', shortName: 'Shifter',
-        enzyme: 'Phosphoglycerate Mutase', z: -64, color: 0x66ccff, bodyColor: 0x4499cc,
+        enzyme: 'Phosphoglycerate Mutase', z: -108, color: 0x66ccff, bodyColor: 0x4499cc,
         phase: 'payoff', stationType: 'shifter',
         input: ['3-PG'], output: ['2-PG'],
         feedback: 'Phosphate shifted from carbon 3 to carbon 2. Like cocking a gun -- the spring is almost set.',
     },
     {
         name: 'The Wringer (Enolase)', shortName: 'Wringer',
-        enzyme: 'Enolase', z: -78, color: 0x9999ff, bodyColor: 0x6666cc,
+        enzyme: 'Enolase', z: -130, color: 0x9999ff, bodyColor: 0x6666cc,
         phase: 'payoff', stationType: 'wringer',
         input: ['2-PG'], output: ['PEP'],
         feedback: 'WRUNG DRY! Water squeezed out. The phosphate bond is now a LOADED SPRING -- PEP, the highest-energy phosphate in common metabolism. One step left.',
     },
     {
         name: 'Pike the Launcher (Pyruvate Kinase)', shortName: 'Pike',
-        enzyme: 'Pyruvate Kinase', z: -92, color: 0xff44ff, bodyColor: 0xcc22cc,
+        enzyme: 'Pyruvate Kinase', z: -152, color: 0xff44ff, bodyColor: 0xcc22cc,
         phase: 'payoff', stationType: 'launcher',
         input: ['PEP'], output: ['Pyruvate', 'ATP'],
         greeting: "Stand back. That loaded spring? I pull the trigger. The phosphate LAUNCHES off, slams into ADP, and you get your PROFIT -- 2 more ATP. Net gain from one glucose: 2 ATP + 2 NADH + 2 Pyruvate. The pyruvate rolls on to the TCA Cycle.",
@@ -163,10 +163,10 @@ let activeAnimations = [];
 let moleculeStage = 'none'; // none, hexagon, hexagon-1p, pentagon, pentagon-2p, split, fragment
 
 // Terrain height function -- hill goes UP during investment, DOWN during payoff
-const SPLIT_Z = -12;  // Al's station -- the peak
-const START_Z = 50;   // entrance
-const END_Z = -100;   // end of pathway
-const PEAK_HEIGHT = 5; // meters high at the split point
+const SPLIT_Z = -20;  // Al's station -- the peak
+const START_Z = 55;   // entrance
+const END_Z = -170;   // end of pathway
+const PEAK_HEIGHT = 15; // meters high at the split point -- very visible slope
 
 function getGlyTerrainHeight(x, z) {
     // Only apply height within the pathway corridor
@@ -1958,10 +1958,10 @@ function createEnzymeStations(scene) {
 
 function createTerrain(scene) {
     // Height-mapped terrain: uphill during investment, peak at the split, downhill during payoff
-    const terrainWidth = PATHWAY_WIDTH * 4;
-    const terrainDepth = 170;
+    const terrainWidth = PATHWAY_WIDTH * 5;
+    const terrainDepth = 250;
     const segsX = 40;
-    const segsZ = 80;
+    const segsZ = 120;
 
     const terrainGeo = new THREE.PlaneGeometry(terrainWidth, terrainDepth, segsX, segsZ);
     const verts = terrainGeo.attributes.position.array;
@@ -1971,7 +1971,7 @@ function createTerrain(scene) {
     for (let i = 0; i < verts.length; i += 3) {
         const localX = verts[i];
         const localZ = verts[i + 1]; // PlaneGeometry: x,y before rotation; y becomes z after rotation
-        const worldZ = -25 + localZ; // center of the plane is at z=-25
+        const worldZ = -55 + localZ; // center of the plane is at z=-55
         const worldX = localX;
 
         const h = getGlyTerrainHeight(worldX, worldZ);
@@ -2006,7 +2006,7 @@ function createTerrain(scene) {
     });
     const terrain = new THREE.Mesh(terrainGeo, terrainMat);
     terrain.rotation.x = -Math.PI / 2;
-    terrain.position.set(PATHWAY_X, 0, -25);
+    terrain.position.set(PATHWAY_X, 0, -55);
     terrain.receiveShadow = true;
     terrain.castShadow = true;
     scene.add(terrain);
@@ -2016,23 +2016,23 @@ function createTerrain(scene) {
     const pathGeo = new THREE.PlaneGeometry(PATHWAY_WIDTH * 0.8, terrainDepth, 4, segsZ);
     const pathVerts = pathGeo.attributes.position.array;
     for (let i = 0; i < pathVerts.length; i += 3) {
-        const worldZ = -25 + pathVerts[i + 1];
+        const worldZ = -55 + pathVerts[i + 1];
         pathVerts[i + 2] = getGlyTerrainHeight(0, worldZ) + 0.05;
     }
     pathGeo.computeVertexNormals();
     const pathMat = new THREE.MeshStandardMaterial({ color: COLORS.path, roughness: 0.7, metalness: 0.1 });
     const pathMesh = new THREE.Mesh(pathGeo, pathMat);
     pathMesh.rotation.x = -Math.PI / 2;
-    pathMesh.position.set(PATHWAY_X, 0, -25);
+    pathMesh.position.set(PATHWAY_X, 0, -55);
     pathMesh.receiveShadow = true;
     scene.add(pathMesh);
     glyObjects.push(pathMesh);
 
     // Phase labels (positioned at terrain height)
     const labels = [
-        { text: 'INVESTMENT PHASE', z: 42, color: 'rgba(255,150,150,0.5)' },
-        { text: 'THE SPLIT', z: -5, color: 'rgba(255,220,150,0.5)' },
-        { text: 'PAYOFF PHASE', z: -50, color: 'rgba(150,255,150,0.5)' },
+        { text: 'INVESTMENT PHASE', z: 35, color: 'rgba(255,150,150,0.5)' },
+        { text: 'THE SUMMIT', z: -15, color: 'rgba(255,220,150,0.5)' },
+        { text: 'PAYOFF PHASE', z: -100, color: 'rgba(150,255,150,0.5)' },
     ];
     for (const l of labels) {
         const h = getGlyTerrainHeight(0, l.z);
@@ -2056,7 +2056,7 @@ function createTerrain(scene) {
 
 function createPortalToTCA(scene) {
     const portalGroup = new THREE.Group();
-    portalGroup.position.set(0, 0, 55);
+    portalGroup.position.set(0, 0, 62);
 
     const ringGeo = new THREE.TorusGeometry(2, 0.25, 8, 20);
     const ringMat = new THREE.MeshStandardMaterial({
@@ -2102,7 +2102,7 @@ function createPortalToTCA(scene) {
 }
 
 function createDecorations(scene) {
-    for (let z = 45; z >= -100; z -= 15) {
+    for (let z = 50; z >= -160; z -= 20) {
         for (const side of [-1, 1]) {
             const x = side * (PATHWAY_WIDTH / 2 + 2);
             const th = getGlyTerrainHeight(x, z);
@@ -2115,7 +2115,7 @@ function createDecorations(scene) {
             glyObjects.push(pillar);
 
             const flameGeo = new THREE.ConeGeometry(0.2, 0.5, 5);
-            const isPayoff = z < -30;
+            const isPayoff = z < SPLIT_Z;
             const flameColor = isPayoff ? 0x00ff66 : 0xff6600;
             const flameMat = new THREE.MeshStandardMaterial({
                 color: flameColor, emissive: flameColor, emissiveIntensity: 0.7,
@@ -2294,9 +2294,9 @@ export function init(scene) {
                 showDialogue("The plan: strap sticks of dynamite -- high-energy phosphates from ATP -- onto carbon 6 and then carbon 1. Both ends of the chain. Then squeeze it, reshape it, and RIP IT APART between the phosphates.\n\nCollect the Glucose and 2 ATP ahead. Then bring them to Hexy's Workbench.", [
                     { text: "Let's do this.", action: () => {
                         questState = GLY_QUEST.COLLECT_GLUCOSE;
-                        spawnResource(worldScene, 'Glucose', { x: -3, y: 0.5, z: 45 }, COLORS.glucose);
-                        spawnResource(worldScene, 'ATP', { x: 3, y: 0.5, z: 45 }, COLORS.atp);
-                        spawnResource(worldScene, 'ATP', { x: 5, y: 0.5, z: 43 }, COLORS.atp);
+                        spawnResource(worldScene, 'Glucose', { x: -3, y: 0.5, z: 52 }, COLORS.glucose);
+                        spawnResource(worldScene, 'ATP', { x: 3, y: 0.5, z: 52 }, COLORS.atp);
+                        spawnResource(worldScene, 'ATP', { x: 5, y: 0.5, z: 50 }, COLORS.atp);
                     }}
                 ], setInteracting);
             }}
