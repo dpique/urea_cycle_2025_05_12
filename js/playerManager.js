@@ -34,40 +34,98 @@ export function initPlayer(scene) {
     player.position.set(-10, 0, -5); // Initial position away from bridge
     scene.add(player);
 
-    const playerBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x0099ff, roughness: 0.6, metalness: 0.2 });
-    // RSC-like: fewer segments for head
-    const head = new THREE.Mesh(new THREE.SphereGeometry(CONSTANTS.PLAYER_HEAD_HEIGHT / 2, 8, 6), playerBodyMaterial);
-    head.position.y = CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT + CONSTANTS.PLAYER_HEAD_HEIGHT / 2;
+    // RSC-style blocky player character
+    const shirtMat = new THREE.MeshStandardMaterial({ color: 0x2288dd, roughness: 0.75, metalness: 0.05 });
+    const pantsMat = new THREE.MeshStandardMaterial({ color: 0x335577, roughness: 0.8, metalness: 0.05 });
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xffcc99, roughness: 0.8 });
+    const bootMat = new THREE.MeshStandardMaterial({ color: 0x553322, roughness: 0.9 });
+
+    // Head (blocky, slightly oversized)
+    const headSize = CONSTANTS.PLAYER_HEAD_HEIGHT * 1.1;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(headSize, headSize * 1.05, headSize * 0.9), skinMat);
+    head.position.y = CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT + headSize / 2;
     head.castShadow = true;
     player.add(head);
 
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, CONSTANTS.PLAYER_BODY_HEIGHT, 0.3), playerBodyMaterial); // Box is already low-poly
+    // Face texture (painted on the front)
+    const faceCanvas = document.createElement('canvas');
+    faceCanvas.width = 128; faceCanvas.height = 128;
+    const fCtx = faceCanvas.getContext('2d');
+    fCtx.clearRect(0, 0, 128, 128);
+    fCtx.fillStyle = '#222';
+    // Determined eyes
+    fCtx.beginPath();
+    fCtx.arc(46, 48, 7, 0, Math.PI * 2);
+    fCtx.arc(82, 48, 7, 0, Math.PI * 2);
+    fCtx.fill();
+    // Eye highlights
+    fCtx.fillStyle = '#fff';
+    fCtx.beginPath();
+    fCtx.arc(49, 45, 3, 0, Math.PI * 2);
+    fCtx.arc(85, 45, 3, 0, Math.PI * 2);
+    fCtx.fill();
+    // Confident smile
+    fCtx.strokeStyle = '#222';
+    fCtx.lineWidth = 2.5;
+    fCtx.beginPath();
+    fCtx.arc(64, 82, 12, 0.1, Math.PI - 0.1);
+    fCtx.stroke();
+    const faceTexture = new THREE.CanvasTexture(faceCanvas);
+    const facePlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(headSize * 0.8, headSize * 0.8),
+        new THREE.MeshBasicMaterial({ map: faceTexture, transparent: true })
+    );
+    facePlane.position.set(0, head.position.y, headSize * 0.45 + 0.001);
+    player.add(facePlane);
+
+    // Body (box torso)
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, CONSTANTS.PLAYER_BODY_HEIGHT, 0.3), shirtMat);
     body.position.y = CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT / 2;
     body.castShadow = true;
     player.add(body);
 
-    const playerLimbMaterial = new THREE.MeshStandardMaterial({ color: 0x0077cc, roughness: 0.7 });
-    // RSC-like: fewer segments for limbs (e.g., 6 for hexagonal prism)
-    playerLeftArm = new THREE.Mesh(new THREE.CylinderGeometry(CONSTANTS.PLAYER_LIMB_RADIUS, CONSTANTS.PLAYER_LIMB_RADIUS, CONSTANTS.PLAYER_ARM_LENGTH, 6), playerLimbMaterial);
-    playerLeftArm.position.set(-0.35, CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT * 0.95, 0);
-    playerLeftArm.geometry.translate(0, CONSTANTS.PLAYER_ARM_LENGTH / 2, 0);
-    playerLeftArm.rotation.x = Math.PI;
+    // Shoulders
+    const shoulders = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.08, 0.34), shirtMat);
+    shoulders.position.y = CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT - 0.04;
+    player.add(shoulders);
+
+    // Arms (box)
+    const armW = 0.11;
+    playerLeftArm = new THREE.Mesh(new THREE.BoxGeometry(armW, CONSTANTS.PLAYER_ARM_LENGTH * 0.55, armW), shirtMat);
+    playerLeftArm.position.set(-0.35, CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT * 0.75, 0);
     playerLeftArm.castShadow = true;
     player.add(playerLeftArm);
 
-    playerRightArm = playerLeftArm.clone();
-    playerRightArm.position.x = 0.35;
+    playerRightArm = new THREE.Mesh(new THREE.BoxGeometry(armW, CONSTANTS.PLAYER_ARM_LENGTH * 0.55, armW), shirtMat);
+    playerRightArm.position.set(0.35, CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT * 0.75, 0);
+    playerRightArm.castShadow = true;
     player.add(playerRightArm);
 
-    // RSC-like: fewer segments for legs
-    playerLeftLeg = new THREE.Mesh(new THREE.CylinderGeometry(CONSTANTS.PLAYER_LIMB_RADIUS * 1.2, CONSTANTS.PLAYER_LIMB_RADIUS * 1.1, CONSTANTS.PLAYER_LEG_HEIGHT, 6), playerLimbMaterial);
-    playerLeftLeg.position.set(-0.15, CONSTANTS.PLAYER_LEG_HEIGHT / 2, 0);
+    // Hands (skin)
+    [-0.35, 0.35].forEach(x => {
+        const hand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), skinMat);
+        hand.position.set(x, CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT * 0.45, 0);
+        player.add(hand);
+    });
+
+    // Legs (box, pants color)
+    const legW = 0.14;
+    playerLeftLeg = new THREE.Mesh(new THREE.BoxGeometry(legW, CONSTANTS.PLAYER_LEG_HEIGHT, legW * 1.1), pantsMat);
+    playerLeftLeg.position.set(-0.1, CONSTANTS.PLAYER_LEG_HEIGHT / 2, 0);
     playerLeftLeg.castShadow = true;
     player.add(playerLeftLeg);
 
-    playerRightLeg = playerLeftLeg.clone();
-    playerRightLeg.position.x = 0.15;
+    playerRightLeg = new THREE.Mesh(new THREE.BoxGeometry(legW, CONSTANTS.PLAYER_LEG_HEIGHT, legW * 1.1), pantsMat);
+    playerRightLeg.position.set(0.1, CONSTANTS.PLAYER_LEG_HEIGHT / 2, 0);
+    playerRightLeg.castShadow = true;
     player.add(playerRightLeg);
+
+    // Boots
+    [-0.1, 0.1].forEach(x => {
+        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.2), bootMat);
+        boot.position.set(x, 0.03, 0.03);
+        player.add(boot);
+    });
 
     // Remove the custom shadow plane - relying on actual shadows instead
     // The square shadow was creating visual artifacts
