@@ -489,11 +489,15 @@ function addPercyHands(group) {
     });
     group.add(lLabel);
 
-    // Cofactor labels floating near the hand
-    const cofactorLabel = createTextSprite('B1 B2 B3 L B5', { x: handX, y: handY + 0.3, z: 0.15 }, {
-        scale: 0.25, textColor: 'rgba(255,200,100,0.8)',
+    // Cofactor labels -- emphasize the B4 gap
+    const cofactorLabel = createTextSprite('B1 B2 B3 [no B4!] B5', { x: handX, y: handY + 0.35, z: 0.15 }, {
+        scale: 0.22, textColor: 'rgba(255,200,100,0.8)',
     });
     group.add(cofactorLabel);
+    const lipoicLabel = createTextSprite('^ Lipoic acid', { x: handX + 0.02, y: handY + 0.25, z: 0.15 }, {
+        scale: 0.18, textColor: 'rgba(180,180,200,0.7)',
+    });
+    group.add(lipoicLabel);
 }
 
 // --- Interaction Handler ---
