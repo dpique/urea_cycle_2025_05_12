@@ -207,6 +207,7 @@ export function init(scene) {
     createCentralFountain(scene);
     createEnzymeStations(scene);
     createPortals(scene);
+    createGlycolysisPortal(scene);
     createDecorativeElements(scene);
     createWorldLighting(scene);
 
@@ -214,7 +215,53 @@ export function init(scene) {
     setTimeout(() => {
         tcaQuestState = TCA_QUEST.MEET_PERCY;
         showFeedback("You've entered the TCA Central Crossroads! Find Percy at the north gate.", 5000);
+        updateTCAQuestUI();
     }, 1500);
+}
+
+// Update quest UI panel to show TCA quest state
+function updateTCAQuestUI() {
+    const questName = document.getElementById('questName');
+    const questObjective = document.getElementById('questObjective');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+
+    if (questName) questName.textContent = 'TCA Cycle';
+
+    const stateKeys = Object.keys(TCA_QUEST);
+    const currentIdx = stateKeys.indexOf(
+        Object.keys(TCA_QUEST).find(k => TCA_QUEST[k] === tcaQuestState)
+    );
+    const progress = Math.round((currentIdx / (stateKeys.length - 1)) * 100);
+
+    if (progressFill) progressFill.style.width = `${progress}%`;
+    if (progressText) progressText.textContent = `${progress}%`;
+
+    const objectives = {
+        [TCA_QUEST.NOT_STARTED]: 'Enter the TCA Central Crossroads',
+        [TCA_QUEST.MEET_PERCY]: 'Find Percy (PDH Complex) at the north side',
+        [TCA_QUEST.COLLECT_ACETYL_COA]: 'Collect Acetyl-CoA and Oxaloacetate near the entrance',
+        [TCA_QUEST.VISIT_SID]: 'Bring Acetyl-CoA + Oxaloacetate to Sid (Citrate Synthase)',
+        [TCA_QUEST.COLLECT_CITRATE]: 'Collect the Citrate',
+        [TCA_QUEST.VISIT_ACO]: 'Bring Citrate to Aco (Aconitase)',
+        [TCA_QUEST.VISIT_IKE]: 'Bring Isocitrate to Ike (Isocitrate DH)',
+        [TCA_QUEST.COLLECT_FIRST_NADH]: 'Collect the first NADH, then visit Alpha',
+        [TCA_QUEST.VISIT_ALPHA]: 'Bring Alpha-KG to Alpha (Alpha-KG DH)',
+        [TCA_QUEST.COLLECT_SECOND_NADH]: 'Collect the second NADH, then visit Suki',
+        [TCA_QUEST.VISIT_SUKI]: 'Bring Succinyl-CoA to Suki (Succinyl-CoA Synthetase)',
+        [TCA_QUEST.COLLECT_GTP]: 'Collect the GTP, then visit Sadie',
+        [TCA_QUEST.VISIT_SADIE]: 'Bring Succinate to Sadie (Succinate DH / Complex II)',
+        [TCA_QUEST.COLLECT_FADH2]: 'Collect FADH2, then visit Fuma',
+        [TCA_QUEST.VISIT_FUMA]: 'Bring Fumarate to Fuma (Fumarase)',
+        [TCA_QUEST.VISIT_MAL]: 'Bring Malate to Mal (Malate DH)',
+        [TCA_QUEST.COLLECT_THIRD_NADH]: 'Collect the third NADH and Oxaloacetate',
+        [TCA_QUEST.CYCLE_COMPLETE]: 'Return to Percy for your reward!',
+        [TCA_QUEST.COMPLETED]: 'TCA Cycle mastered! Energy Mastery unlocked!',
+    };
+
+    if (questObjective) {
+        questObjective.textContent = objectives[tcaQuestState] || 'Explore the TCA Cycle';
+    }
 }
 
 // --- Terrain ---
@@ -695,7 +742,7 @@ function handleEnzymeInteraction(enzymeData, object, scene, tools) {
                 if (enzymeData.shortName === 'Mal') {
                     const inv = getInventory();
                     if (inv['Malate']) {
-                        showDialogue("Malate! The final step.\n\nMalate -> OXALOACETATE + NADH\n\nI produce the THIRD and final NADH of the cycle, and I regenerate Oxaloacetate -- which goes right back to Sid to accept another Acetyl-CoA and start the cycle again!\n\nOne turn of the TCA cycle produces:\n- 3 NADH\n- 1 FADH2\n- 1 GTP\n- 2 CO2", [
+                        showDialogue("Malate! The final step.\n\nMalate -> OXALOACETATE + NADH\n\nI produce the THIRD and final NADH of the cycle, and I regenerate Oxaloacetate -- which goes right back to Sid to accept another Acetyl-CoA and start the cycle again! Go collect your products, then report back to Percy.", [
                             { text: "The cycle is complete!", action: () => {
                                 removeFromInventory('Malate');
                                 playMoleculeGenerationSound();
@@ -813,6 +860,58 @@ function createPortals(scene) {
 // Urea cycle constants (needed for portal spawn point)
 const CONSTANTS_UC = { MAX_X: 80 };
 
+function createGlycolysisPortal(scene) {
+    // Portal to Glycolysis -- north side (glycolysis feeds pyruvate into TCA)
+    const portalGroup = new THREE.Group();
+    portalGroup.position.set(0, 0, -50);
+
+    const ringGeo = new THREE.TorusGeometry(2, 0.25, 8, 20);
+    const ringMat = new THREE.MeshStandardMaterial({
+        color: 0xff6b6b, emissive: 0xff4444, emissiveIntensity: 0.5,
+        transparent: true, opacity: 0.8,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.y = 2;
+    portalGroup.add(ring);
+
+    const innerGeo = new THREE.CircleGeometry(1.8, 16);
+    const innerMat = new THREE.MeshStandardMaterial({
+        color: 0xff6b6b, emissive: 0xff4444, emissiveIntensity: 0.3,
+        transparent: true, opacity: 0.4, side: THREE.DoubleSide,
+    });
+    const inner = new THREE.Mesh(innerGeo, innerMat);
+    inner.position.y = 2;
+    portalGroup.add(inner);
+
+    const label = createTextSprite('Glycolysis Gauntlet', { x: 0, y: 4.5, z: 0 }, { scale: 1.3 });
+    portalGroup.add(label);
+
+    const light = new THREE.PointLight(0xff6b6b, 0.8, 10);
+    light.position.set(0, 2, 0);
+    portalGroup.add(light);
+
+    scene.add(portalGroup);
+    tcaObjects.push(portalGroup);
+
+    portalGroup.userData = {
+        name: 'Portal to Glycolysis Gauntlet',
+        type: 'portal',
+        isInteractable: true,
+        onInteract: (obj, scene, tools) => {
+            const { showDialogue, setGameInteracting } = tools;
+            showDialogue("This portal leads to the Glycolysis Gauntlet -- where glucose is broken down into pyruvate. Ready to go?", [
+                { text: "Enter Glycolysis", action: () => {
+                    transitionTo('glycolysis', { x: 0, y: 0.5, z: 50 });
+                }},
+                { text: "Not yet" }
+            ], setGameInteracting);
+        }
+    };
+    interactiveObjects.push(portalGroup);
+    originalMaterials.set(ring, ring.material);
+    portalGroup.userData.mainMesh = ring;
+}
+
 // --- Decorative Elements ---
 function createDecorativeElements(scene) {
     // Floating energy particles around the cycle ring
@@ -909,7 +1008,7 @@ export function update(delta, elapsedTime) {
             obj.scale.x = 1 + Math.sin(elapsedTime * 3 + obj.position.z) * 0.1;
         }
         if (obj.userData && obj.userData.isParticles) {
-            obj.rotation.y = elapsedTime * 0.1;
+            obj.rotation.y = -elapsedTime * 0.1;
         }
     }
 
@@ -966,20 +1065,25 @@ export function update(delta, elapsedTime) {
             if (dist < 2) {
                 const name = obj.userData.name;
                 addToInventory(name);
-                showFeedback(`Collected ${name}!`, 2000);
 
                 // Remove from scene
                 if (obj.parent) obj.parent.remove(obj);
                 interactiveObjects.splice(i, 1);
 
-                // Advance quest based on what was collected
-                handleResourceCollected(name, worldScene);
+                // Advance quest -- this shows the appropriate feedback message
+                const questAdvanced = handleResourceCollected(name, worldScene);
+                if (!questAdvanced) {
+                    showFeedback(`Collected ${name}!`, 2000);
+                }
             }
         }
     }
 
     // Update interaction highlights
     updateInteraction(worldScene);
+
+    // Update quest UI
+    updateTCAQuestUI();
 }
 
 function handleResourceCollected(resourceName, scene) {
@@ -990,48 +1094,57 @@ function handleResourceCollected(resourceName, scene) {
                 if (inv['Acetyl-CoA'] && inv['Oxaloacetate']) {
                     tcaQuestState = TCA_QUEST.VISIT_SID;
                     showFeedback("You have Acetyl-CoA and Oxaloacetate! Visit Sid, the Citrate Synthase.", 4000);
+                    return true;
                 }
             }
-            break;
+            return false;
         case TCA_QUEST.COLLECT_CITRATE:
             if (resourceName === 'Citrate') {
                 tcaQuestState = TCA_QUEST.VISIT_ACO;
                 showFeedback("Bring the Citrate to Aco, the Aconitase.", 4000);
+                return true;
             }
-            break;
+            return false;
         case TCA_QUEST.COLLECT_FIRST_NADH:
             if (resourceName === 'NADH') {
                 tcaQuestState = TCA_QUEST.VISIT_ALPHA;
                 showFeedback("First NADH collected! Visit Alpha, the Alpha-KG Dehydrogenase.", 4000);
+                return true;
             }
-            break;
+            return false;
         case TCA_QUEST.COLLECT_SECOND_NADH:
             if (resourceName === 'NADH') {
                 tcaQuestState = TCA_QUEST.VISIT_SUKI;
                 showFeedback("Second NADH! Visit Suki, the Succinyl-CoA Synthetase.", 4000);
+                return true;
             }
-            break;
+            return false;
         case TCA_QUEST.COLLECT_GTP:
             if (resourceName === 'GTP') {
                 tcaQuestState = TCA_QUEST.VISIT_SADIE;
                 showFeedback("GTP collected! Visit Sadie, the Succinate Dehydrogenase.", 4000);
+                return true;
             }
-            break;
+            return false;
         case TCA_QUEST.COLLECT_FADH2:
             if (resourceName === 'FADH2') {
                 tcaQuestState = TCA_QUEST.VISIT_FUMA;
                 showFeedback("FADH2 collected! Visit Fuma, the Fumarase.", 4000);
+                return true;
             }
-            break;
+            return false;
         case TCA_QUEST.COLLECT_THIRD_NADH:
             if (resourceName === 'NADH' || resourceName === 'Oxaloacetate') {
                 const inv = getInventory();
                 if (inv['NADH'] && inv['Oxaloacetate']) {
                     tcaQuestState = TCA_QUEST.CYCLE_COMPLETE;
                     showFeedback("THE CYCLE IS COMPLETE! Return to Percy for your reward!", 6000);
+                    return true;
                 }
             }
-            break;
+            return false;
+        default:
+            return false;
     }
 }
 

@@ -30,6 +30,7 @@ export function toggleCameraMode() {
 
 export function initPlayer(scene) {
     player = new THREE.Group();
+    player.userData.isPlayer = true;
     player.position.set(-10, 0, -5); // Initial position away from bridge
     scene.add(player);
 

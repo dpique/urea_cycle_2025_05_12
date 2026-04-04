@@ -50,6 +50,7 @@ export function initScene(canvasElement) {
     });
     const sun = new THREE.Mesh(sunGeometry, sunMaterial);
     sun.position.set(50, 80, -100);
+    sun.userData.persistent = true;
     scene.add(sun);
     
     // Sun glow
@@ -61,6 +62,7 @@ export function initScene(canvasElement) {
     });
     const sunGlow = new THREE.Mesh(glowGeometry, glowMaterial);
     sunGlow.position.copy(sun.position);
+    sunGlow.userData.persistent = true;
     scene.add(sunGlow);
     
     // Add volumetric clouds at different heights
@@ -99,6 +101,7 @@ export function initScene(canvasElement) {
             cloudGroups.add(cloudGroup);
         }
     }
+    cloudGroups.userData.persistent = true;
     scene.add(cloudGroups);
     scene.userData.cloudGroups = cloudGroups;
 

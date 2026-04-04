@@ -1915,32 +1915,44 @@ function createBackgroundTerrain(scene) {
     scene.fog = new THREE.Fog(0x87CEEB, 50, horizonDistance * 0.8);
 }
 
+// Check if an object is the player or a descendant of the player
+function isPlayerOrChild(obj) {
+    let current = obj;
+    while (current) {
+        if (current.userData && current.userData.isPlayer) return true;
+        current = current.parent;
+    }
+    return false;
+}
+
 // Cleanup all world objects from the scene
 export function cleanupWorld(sceneRef) {
-    // Remove all meshes added by this world (everything except lights, camera, player)
+    // Only remove direct children of the scene that are world objects
+    // Skip: player, camera, persistent objects (sceneSetup lights/sun/clouds), scene-level lights
     const objectsToRemove = [];
-    sceneRef.traverse((child) => {
-        if (child.isMesh || child.isSprite || child.isGroup) {
-            // Don't remove the player or lights
-            if (child.userData && child.userData.isPlayer) return;
-            if (child.isLight) return;
-            objectsToRemove.push(child);
-        }
-    });
+    for (const child of [...sceneRef.children]) {
+        if (isPlayerOrChild(child)) continue;
+        if (child.isCamera) continue;
+        if (child.userData && child.userData.persistent) continue;
+        // Keep the ambient and directional lights from sceneSetup
+        if (child.isLight && !child.userData?.worldSpecific) continue;
+        objectsToRemove.push(child);
+    }
 
     // Remove from scene and dispose
     for (const obj of objectsToRemove) {
-        if (obj.parent) {
-            obj.parent.remove(obj);
-        }
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-            if (Array.isArray(obj.material)) {
-                obj.material.forEach(m => m.dispose());
-            } else {
-                obj.material.dispose();
+        sceneRef.remove(obj);
+        // Dispose all geometries and materials in the tree
+        obj.traverse((child) => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => m.dispose());
+                } else {
+                    child.material.dispose();
+                }
             }
-        }
+        });
     }
 
     // Clear module-level state

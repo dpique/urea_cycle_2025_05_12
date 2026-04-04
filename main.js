@@ -10,13 +10,14 @@ import { getClosestInteractiveObject, interactWithObject } from './js/interactio
 import { getGameState, getCurrentQuest } from './js/gameState.js';
 import { saveGame, loadGame } from './js/persistenceManager.js';
 import { handlePlayerDeath } from './js/gameManager.js';
-import { registerWorld, loadWorld, updateCurrentWorld, getCurrentWorld, getIsTransitioning } from './js/sceneManager.js';
+import { registerWorld, loadWorld, updateCurrentWorld, getCurrentWorld, getCurrentWorldId, getIsTransitioning, transitionTo } from './js/sceneManager.js';
 import { toggleMinimap } from './js/minimap.js';
 import { getTerrainHeightAt } from './js/worldManager.js';
 
 // Import world modules
 import * as ureaCycleWorld from './js/worlds/ureaCycleWorld.js';
 import * as tcaCycleWorld from './js/worlds/tcaCycleWorld.js';
+import * as glycolysisWorld from './js/worlds/glycolysisWorld.js';
 
 export const dialogueBox = document.getElementById('dialogueBox');
 export const realityRiverUI = document.getElementById('realityRiver');
@@ -35,9 +36,10 @@ initPlayer(scene);
 // --- Register worlds ---
 registerWorld('urea-cycle', ureaCycleWorld);
 registerWorld('tca-cycle', tcaCycleWorld);
+registerWorld('glycolysis', glycolysisWorld);
 
-// --- Load initial world ---
-loadWorld('urea-cycle', ureaCycleWorld.config.spawnPoint);
+// --- Load initial world (TCA is the central hub) ---
+loadWorld('tca-cycle', tcaCycleWorld.config.spawnPoint);
 
 // --- Setup UI ---
 function setupExternalLinks() {
@@ -157,6 +159,15 @@ document.addEventListener('keydown', (event) => {
     if (event.key === 'F9' && !gameState.isUserInteracting) {
         event.preventDefault();
         loadGame();
+    }
+    // T key: quick travel between worlds (for testing)
+    if (key === 't' && !gameState.isUserInteracting) {
+        const currentId = getCurrentWorldId();
+        if (currentId === 'urea-cycle') {
+            transitionTo('tca-cycle', { x: 0, y: 0.5, z: 45 });
+        } else {
+            transitionTo('urea-cycle', { x: -60, y: 0.5, z: -16 });
+        }
     }
 });
 
