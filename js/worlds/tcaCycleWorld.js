@@ -804,9 +804,11 @@ function spawnResource(scene, name, position, color) {
 
 // --- Portals ---
 function createPortals(scene) {
-    // Portal to Urea Cycle (east side)
+    // Portal to Urea Cycle -- positioned near Alpha (alpha-ketoglutarate dehydrogenase)
+    // because alpha-KG connects to glutamate → ammonium capture → urea cycle
+    // Alpha is at angle -PI/2, position (0, 0, 28). Portal goes just beyond.
     const portalGroup = new THREE.Group();
-    portalGroup.position.set(45, 0, 0);
+    portalGroup.position.set(8, 0, 38);
 
     const portalGeo = new THREE.TorusGeometry(2, 0.3, 8, 20);
     const portalMat = new THREE.MeshStandardMaterial({
@@ -817,7 +819,6 @@ function createPortals(scene) {
         opacity: 0.8,
     });
     const portalRing = new THREE.Mesh(portalGeo, portalMat);
-    portalRing.rotation.y = Math.PI / 2;
     portalRing.position.y = 2;
     portalGroup.add(portalRing);
 
@@ -832,12 +833,26 @@ function createPortals(scene) {
         side: THREE.DoubleSide,
     });
     const inner = new THREE.Mesh(innerGeo, innerMat);
-    inner.rotation.y = Math.PI / 2;
     inner.position.y = 2;
     portalGroup.add(inner);
 
     const portalLabel = createTextSprite('Urea Cycle', { x: 0, y: 4.5, z: 0 }, { scale: 1.5 });
     portalGroup.add(portalLabel);
+
+    // Connecting label explaining WHY it's here
+    const connectionLabel = createTextSprite('via alpha-KG / glutamate', { x: 0, y: 0.5, z: 1.5 }, {
+        scale: 0.6, textColor: 'rgba(100, 255, 150, 0.6)',
+    });
+    portalGroup.add(connectionLabel);
+
+    // Connecting path from Alpha's station to the portal
+    const pathGeo = new THREE.PlaneGeometry(3, 12);
+    const pathMat = new THREE.MeshStandardMaterial({ color: 0x1a3a2a, roughness: 0.8 });
+    const path = new THREE.Mesh(pathGeo, pathMat);
+    path.rotation.x = -Math.PI / 2;
+    path.position.set(4, 0.01, 33);
+    scene.add(path);
+    tcaObjects.push(path);
 
     // Portal light
     const portalLight = new THREE.PointLight(0x00ff88, 1, 10);
@@ -856,8 +871,8 @@ function createPortals(scene) {
         targetWorld: 'urea-cycle',
         onInteract: (obj, scene, tools) => {
             const { showDialogue, setGameInteracting } = tools;
-            showDialogue("This portal leads back to the Urea Cycle world. Do you want to travel there?", [
-                { text: "Travel to Urea Cycle", action: () => {
+            showDialogue("The Urea Cycle connects here through alpha-ketoglutarate and glutamate -- the ammonium capture pathway.\n\nAlpha-KG from the TCA cycle gets converted to glutamate, which feeds into ammonia disposal via the urea cycle. Travel there?", [
+                { text: "Enter the Urea Cycle", action: () => {
                     transitionTo('urea-cycle', { x: CONSTANTS_UC.MAX_X - 10, y: 0.5, z: -30 });
                 }},
                 { text: "Stay here" }
