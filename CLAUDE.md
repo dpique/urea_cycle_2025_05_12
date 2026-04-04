@@ -157,5 +157,20 @@ Portal placement and world adjacency should reflect real metabolic connections, 
 - **StudyRare** (studyrare.com) -- genetics board prep platform
 - **Target audience**: ABMGG/ABGC board exam candidates
 - **Value prop**: "Here's the flat PDF metabolic map. Now walk through it in 3D."
-- **Revenue model**: Free marketing funnel → qbank.studyrare.com subscriptions
-- Future: Freemium (urea cycle + TCA free, advanced worlds behind subscription), institutional licensing
+
+### Revenue Model: Normal Pathways Free, Disease States Behind Paywall
+
+**Free tier** -- Normal metabolic pathways (glycolysis, TCA, urea cycle, FA oxidation, etc.). Anyone can learn how metabolism works. This is the marketing funnel and the hook.
+
+**Paid tier** -- Disease states / Inborn Errors of Metabolism (IEMs). Each world boss is a real genetic disease (OTC deficiency, MCAD deficiency, PKU, MSUD, etc.). Understanding what goes wrong when an enzyme is broken is the high-yield board prep content. This is what genetics board candidates specifically need.
+
+This split is natural because:
+1. Normal pathways are general biochemistry (broad audience, good for marketing)
+2. Disease states are specialized genetics knowledge (narrow audience willing to pay)
+3. Students get hooked on the free gameplay, then need the disease content for board prep
+4. Institutional buyers (medical schools, GC programs) want the disease modules specifically
+
+**Other revenue streams:**
+- Institutional licensing (professor dashboards, cohort progress tracking)
+- Conference demos at ACMG/NSGC
+- Integration with qbank.studyrare.com (after completing a world, practice board-style questions)
