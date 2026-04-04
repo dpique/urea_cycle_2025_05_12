@@ -1558,7 +1558,7 @@ function createTerrain(scene) {
     for (let i = 0; i < verts.length; i += 3) {
         const localX = verts[i];
         const localZ = verts[i + 1]; // PlaneGeometry: x,y before rotation; y becomes z after rotation
-        const worldZ = -55 + localZ; // center of the plane is at z=-55
+        const worldZ = -55 - localZ; // PlaneGeometry Y flips to -Z after rotation.x=-PI/2
         const worldX = localX;
 
         const h = getGlyTerrainHeight(worldX, worldZ);
@@ -1603,7 +1603,7 @@ function createTerrain(scene) {
     const pathGeo = new THREE.PlaneGeometry(PATHWAY_WIDTH * 0.8, terrainDepth, 4, segsZ);
     const pathVerts = pathGeo.attributes.position.array;
     for (let i = 0; i < pathVerts.length; i += 3) {
-        const worldZ = -55 + pathVerts[i + 1];
+        const worldZ = -55 - pathVerts[i + 1];
         pathVerts[i + 2] = getGlyTerrainHeight(0, worldZ) + 0.05;
     }
     pathGeo.computeVertexNormals();
@@ -1756,7 +1756,7 @@ function createPPPBranchPath(scene) {
     const connGeo = new THREE.PlaneGeometry(4, 1.5);
     const conn = new THREE.Mesh(connGeo, sidePathMat);
     conn.rotation.x = -Math.PI / 2;
-    conn.position.set(-PATHWAY_WIDTH / 2 - 1, 0.015, branchZ);
+    conn.position.set(-PATHWAY_WIDTH / 2 - 1, getGlyTerrainHeight(0, branchZ) + 0.015, branchZ);
     scene.add(conn);
     glyObjects.push(conn);
 
@@ -1770,20 +1770,20 @@ function createPPPBranchPath(scene) {
         opacity: 0.6,
     });
     const portal = new THREE.Mesh(portalGeo, portalMat);
-    portal.position.set(branchX, 1.5, branchZ);
+    portal.position.set(branchX, getGlyTerrainHeight(0, branchZ) + 1.5, branchZ);
     portal.rotation.y = Math.PI / 2;
     scene.add(portal);
     glyObjects.push(portal);
 
     // Label
-    const label = createTextSprite('Pentose Phosphate\nPathway', { x: branchX, y: 3.2, z: branchZ }, {
+    const label = createTextSprite('Pentose Phosphate\nPathway', { x: branchX, y: getGlyTerrainHeight(0, branchZ) + 3.2, z: branchZ }, {
         scale: 1.0, textColor: 'rgba(180, 140, 255, 0.8)',
     });
     scene.add(label);
     glyObjects.push(label);
 
     // "Branches from G6P" sublabel
-    const subLabel = createTextSprite('branches from G6P', { x: branchX, y: 0.5, z: branchZ + 2.5 }, {
+    const subLabel = createTextSprite('branches from G6P', { x: branchX, y: getGlyTerrainHeight(0, branchZ) + 0.5, z: branchZ + 2.5 }, {
         scale: 0.6, textColor: 'rgba(180, 140, 255, 0.5)',
     });
     scene.add(subLabel);
@@ -1796,14 +1796,14 @@ function createPPPBranchPath(scene) {
         transparent: true, opacity: 0.6,
     });
     const arrow = new THREE.Mesh(arrowGeo, arrowMat);
-    arrow.position.set(-PATHWAY_WIDTH / 2 - 0.5, 0.4, branchZ);
+    arrow.position.set(-PATHWAY_WIDTH / 2 - 0.5, getGlyTerrainHeight(0, branchZ) + 0.4, branchZ);
     arrow.rotation.z = Math.PI / 2; // Point left
     scene.add(arrow);
     glyObjects.push(arrow);
 
     // Light
     const light = new THREE.PointLight(0x9966cc, 0.4, 6);
-    light.position.set(branchX, 2, branchZ);
+    light.position.set(branchX, getGlyTerrainHeight(0, branchZ) + 2, branchZ);
     scene.add(light);
     glyObjects.push(light);
 
@@ -1841,7 +1841,10 @@ function createLighting(scene) {
 }
 
 function spawnResource(scene, name, position, color) {
-    createResource(scene, name, position, color, { worldId: 'glycolysis' });
+    // Adjust Y to sit on the terrain
+    const terrainY = getGlyTerrainHeight(position.x || 0, position.z || 0);
+    const pos = { x: position.x || 0, y: terrainY + 0.5, z: position.z || 0 };
+    createResource(scene, name, pos, color, { worldId: 'glycolysis' });
 }
 
 // ========================
@@ -1927,16 +1930,18 @@ export function update(delta, elapsedTime) {
         }
     }
 
-    // Glucose model follows the player (floats beside/above them)
+    // Glucose model follows the player (floats beside/above them on the terrain)
     if (glucoseModel) {
         const targetX = player.position.x + (glucoseModel.userData.offsetX || 1.2);
         const targetZ = player.position.z + (glucoseModel.userData.offsetZ || 0);
-        const baseY = glucoseModel.userData.baseY || 2.2;
-        // Smooth follow with a slight lag for a bouncy/comedic feel (4.8/s ≈ 0.08/frame @ 60fps)
+        const floatHeight = 1.8; // How high above the player's feet it hovers
+        // Smooth follow with a slight lag for a bouncy/comedic feel
         const glucoseFollow = Math.min(1, 4.8 * delta);
         glucoseModel.position.x += (targetX - glucoseModel.position.x) * glucoseFollow;
         glucoseModel.position.z += (targetZ - glucoseModel.position.z) * glucoseFollow;
-        glucoseModel.position.y = baseY + Math.sin(elapsedTime * 1.2) * 0.15;
+        // Y follows terrain at the molecule's own X/Z position (not the player's Y)
+        const molTerrainY = getGlyTerrainHeight(glucoseModel.position.x, glucoseModel.position.z);
+        glucoseModel.position.y = molTerrainY + floatHeight + Math.sin(elapsedTime * 1.2) * 0.15;
         // Don't override rotation during timing mini-game (it has its own spin)
         if (!phosphateGame.isActive) {
             glucoseModel.rotation.y = elapsedTime * 0.3;
@@ -1949,7 +1954,7 @@ export function update(delta, elapsedTime) {
         const targetZ = player.position.z + 0.5;
         fragmentA.position.x += (targetX - fragmentA.position.x) * Math.min(1, 4.2 * delta);
         fragmentA.position.z += (targetZ - fragmentA.position.z) * Math.min(1, 4.2 * delta);
-        fragmentA.position.y = 2.0 + Math.sin(elapsedTime * 1.5) * 0.1;
+        fragmentA.position.y = getGlyTerrainHeight(fragmentA.position.x, fragmentA.position.z) + 1.6 + Math.sin(elapsedTime * 1.5) * 0.1;
         fragmentA.rotation.y = elapsedTime * 0.4;
     }
     if (fragmentB) {
@@ -1957,7 +1962,7 @@ export function update(delta, elapsedTime) {
         const targetZ = player.position.z - 0.5;
         fragmentB.position.x += (targetX - fragmentB.position.x) * Math.min(1, 3.6 * delta);
         fragmentB.position.z += (targetZ - fragmentB.position.z) * Math.min(1, 3.6 * delta);
-        fragmentB.position.y = 2.0 + Math.sin(elapsedTime * 1.5 + 1) * 0.1;
+        fragmentB.position.y = getGlyTerrainHeight(fragmentB.position.x, fragmentB.position.z) + 1.6 + Math.sin(elapsedTime * 1.5 + 1) * 0.1;
         fragmentB.rotation.y = -elapsedTime * 0.4;
     }
 
@@ -2017,7 +2022,7 @@ export function update(delta, elapsedTime) {
     if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
         // Jumping
         player.position.y += player.userData.verticalVelocity * delta;
-        player.userData.verticalVelocity -= 1.2 * delta; // gravity: 0.02/frame → 1.2/s
+        player.userData.verticalVelocity -= 45.0 * delta; // strong gravity for snappy jump
         if (player.position.y <= terrainY) {
             player.position.y = terrainY;
             player.userData.verticalVelocity = 0;
