@@ -5,6 +5,133 @@
 import * as THREE from 'three';
 import { createTextSprite } from './utils.js';
 
+// Darken a hex color by a factor (0-1)
+function darkenColor(hex, factor) {
+    const r = ((hex >> 16) & 0xff) * factor;
+    const g = ((hex >> 8) & 0xff) * factor;
+    const b = (hex & 0xff) * factor;
+    return (Math.floor(r) << 16) | (Math.floor(g) << 8) | Math.floor(b);
+}
+
+// Create a canvas texture for a face (RSC-style painted-on features)
+function createFaceTexture(expression, skinColor) {
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    // Transparent background (face sits on top of head mesh)
+    ctx.clearRect(0, 0, size, size);
+
+    const cx = size / 2;
+    const eyeY = size * 0.38;
+    const mouthY = size * 0.68;
+
+    // Draw based on expression
+    ctx.fillStyle = '#222';
+    switch (expression) {
+        case 'stern':
+            // Angry brows, narrow eyes
+            ctx.fillRect(cx - 28, eyeY - 2, 18, 7);
+            ctx.fillRect(cx + 10, eyeY - 2, 18, 7);
+            // Angled brows
+            ctx.save();
+            ctx.translate(cx - 19, eyeY - 10);
+            ctx.rotate(-0.3);
+            ctx.fillRect(0, 0, 20, 3);
+            ctx.restore();
+            ctx.save();
+            ctx.translate(cx + 1, eyeY - 12);
+            ctx.rotate(0.3);
+            ctx.fillRect(0, 0, 20, 3);
+            ctx.restore();
+            // Flat mouth
+            ctx.fillRect(cx - 12, mouthY, 24, 3);
+            break;
+        case 'friendly':
+            // Big round eyes with highlights
+            ctx.beginPath();
+            ctx.arc(cx - 18, eyeY, 8, 0, Math.PI * 2);
+            ctx.arc(cx + 18, eyeY, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx - 15, eyeY - 3, 3, 0, Math.PI * 2);
+            ctx.arc(cx + 21, eyeY - 3, 3, 0, Math.PI * 2);
+            ctx.fill();
+            // Smile
+            ctx.fillStyle = '#222';
+            ctx.beginPath();
+            ctx.arc(cx, mouthY, 12, 0.1, Math.PI - 0.1);
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = '#222';
+            ctx.stroke();
+            break;
+        case 'intense':
+            // Narrow slit eyes
+            ctx.fillRect(cx - 28, eyeY, 22, 5);
+            ctx.fillRect(cx + 6, eyeY, 22, 5);
+            break;
+        case 'wise':
+            // Half-closed eyes, gentle smile
+            ctx.fillRect(cx - 25, eyeY, 18, 4);
+            ctx.fillRect(cx + 7, eyeY, 18, 4);
+            ctx.beginPath();
+            ctx.arc(cx, mouthY, 8, 0.2, Math.PI - 0.2);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#222';
+            ctx.stroke();
+            break;
+        case 'surprised':
+            // Wide round eyes, O mouth
+            ctx.beginPath();
+            ctx.arc(cx - 18, eyeY, 10, 0, Math.PI * 2);
+            ctx.arc(cx + 18, eyeY, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx - 15, eyeY - 3, 4, 0, Math.PI * 2);
+            ctx.arc(cx + 21, eyeY - 3, 4, 0, Math.PI * 2);
+            ctx.fill();
+            // O mouth
+            ctx.fillStyle = '#222';
+            ctx.beginPath();
+            ctx.arc(cx, mouthY, 7, 0, Math.PI * 2);
+            ctx.fill();
+            break;
+        case 'smug':
+            // One eye bigger, raised brow, smirk
+            ctx.beginPath();
+            ctx.arc(cx - 18, eyeY, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(cx + 18, eyeY - 2, 8, 0, Math.PI * 2);
+            ctx.fill();
+            // Raised brow
+            ctx.fillRect(cx + 8, eyeY - 16, 22, 3);
+            // Smirk (asymmetric)
+            ctx.beginPath();
+            ctx.moveTo(cx - 8, mouthY);
+            ctx.quadraticCurveTo(cx + 5, mouthY + 10, cx + 15, mouthY - 2);
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = '#222';
+            ctx.stroke();
+            break;
+        default:
+            // Simple dot eyes
+            ctx.beginPath();
+            ctx.arc(cx - 16, eyeY, 6, 0, Math.PI * 2);
+            ctx.arc(cx + 16, eyeY, 6, 0, Math.PI * 2);
+            ctx.fill();
+            break;
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+}
+
 // Body type presets
 const BODY_TYPES = {
     stocky:    { bodyW: 0.55, bodyH: 0.7, bodyD: 0.4, legH: 0.4, armLen: 0.5, headR: 0.32, scale: 1.0 },
@@ -308,15 +435,22 @@ export function buildCharacter(config) {
     const group = new THREE.Group();
     group.scale.setScalar(bt.scale);
 
-    const bodyMat = new THREE.MeshStandardMaterial({ color: config.bodyColor || 0x4488cc, roughness: 0.6, metalness: 0.15 });
-    const skinMat = new THREE.MeshStandardMaterial({ color: config.skinColor || 0xffcc99, roughness: 0.7 });
-    const limbMat = new THREE.MeshStandardMaterial({ color: config.bodyColor || 0x4488cc, roughness: 0.7 });
+    const bodyColor = config.bodyColor || 0x4488cc;
+    const pantsColor = config.pantsColor || darkenColor(bodyColor, 0.6);
+    const skinColor = config.skinColor || 0xffcc99;
 
-    // Legs (tagged for idle animation)
-    const legGeo = new THREE.CylinderGeometry(0.09, 0.11, bt.legH, 6);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.75, metalness: 0.05 });
+    const pantsMat = new THREE.MeshStandardMaterial({ color: pantsColor, roughness: 0.8, metalness: 0.05 });
+    const skinMat = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 });
+
+    // RSC-style: boxy geometry, flat shading look
+
+    // Legs -- box geometry (RSC chunky legs)
+    const legW = 0.14;
+    const legGeo = new THREE.BoxGeometry(legW, bt.legH, legW * 1.1);
     const legs = [];
-    [-0.12, 0.12].forEach((x, i) => {
-        const leg = new THREE.Mesh(legGeo, limbMat);
+    [-0.09, 0.09].forEach((x, i) => {
+        const leg = new THREE.Mesh(legGeo, pantsMat);
         leg.position.set(x, bt.legH / 2, 0);
         leg.castShadow = true;
         leg.userData.partType = 'leg';
@@ -326,8 +460,19 @@ export function buildCharacter(config) {
         legs.push(leg);
     });
 
-    // Body (tagged as mainMesh for highlight system)
-    const bodyGeo = new THREE.CylinderGeometry(bt.bodyW / 2 - 0.02, bt.bodyW / 2, bt.bodyH, 8);
+    // Feet (small boxes)
+    [-0.09, 0.09].forEach(x => {
+        const foot = new THREE.Mesh(
+            new THREE.BoxGeometry(0.16, 0.06, 0.2),
+            new THREE.MeshStandardMaterial({ color: 0x553322, roughness: 0.9 })
+        );
+        foot.position.set(x, 0.03, 0.03);
+        foot.castShadow = true;
+        group.add(foot);
+    });
+
+    // Body/torso -- box (RSC-style blocky)
+    const bodyGeo = new THREE.BoxGeometry(bt.bodyW, bt.bodyH, bt.bodyD);
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.y = bt.legH + bt.bodyH / 2;
     body.castShadow = true;
@@ -335,13 +480,21 @@ export function buildCharacter(config) {
     body.userData.restY = bt.legH + bt.bodyH / 2;
     group.add(body);
 
-    // Arms (tagged for idle animation)
-    const armGeo = new THREE.CylinderGeometry(0.06, 0.07, bt.armLen, 6);
+    // Shoulders (slightly wider than body for RSC look)
+    const shoulderGeo = new THREE.BoxGeometry(bt.bodyW + 0.12, 0.08, bt.bodyD + 0.04);
+    const shoulder = new THREE.Mesh(shoulderGeo, bodyMat);
+    shoulder.position.y = bt.legH + bt.bodyH - 0.04;
+    group.add(shoulder);
+
+    // Arms -- box geometry
+    const armW = 0.11;
     const armPose = config.armPose !== undefined ? config.armPose : Math.PI / 6;
     const arms = [];
     [-1, 1].forEach((side, i) => {
-        const arm = new THREE.Mesh(armGeo, limbMat);
-        arm.position.set(side * (bt.bodyW / 2 + 0.08), bt.legH + bt.bodyH * 0.85, 0);
+        // Upper arm
+        const armGeo = new THREE.BoxGeometry(armW, bt.armLen * 0.55, armW);
+        const arm = new THREE.Mesh(armGeo, bodyMat);
+        arm.position.set(side * (bt.bodyW / 2 + armW / 2 + 0.02), bt.legH + bt.bodyH * 0.75, 0);
         arm.rotation.z = side * armPose;
         arm.castShadow = true;
         arm.userData.partType = 'arm';
@@ -349,29 +502,46 @@ export function buildCharacter(config) {
         arm.userData.restRotZ = side * armPose;
         group.add(arm);
         arms.push(arm);
+
+        // Hand (skin-colored box)
+        const hand = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 0.1, 0.1),
+            skinMat
+        );
+        hand.position.set(
+            side * (bt.bodyW / 2 + armW / 2 + 0.06),
+            bt.legH + bt.bodyH * 0.52,
+            0
+        );
+        group.add(hand);
     });
 
-    // Head (tagged for idle animation)
+    // Head -- slightly oversized box with rounded edges (RSC iconic)
     const headR = bt.headR;
-    const headGeo = (HEAD_SHAPES[config.headShape || 'round'])(headR);
+    const headSize = headR * 2;
+    const headGeo = new THREE.BoxGeometry(headSize, headSize * 1.05, headSize * 0.9);
     const head = new THREE.Mesh(headGeo, skinMat);
-    const headY = bt.legH + bt.bodyH + headR * 0.9;
+    const headY = bt.legH + bt.bodyH + headR * 0.95;
     head.position.y = headY;
     head.castShadow = true;
     head.userData.partType = 'head';
     head.userData.restY = headY;
     group.add(head);
 
-    // Face (follows head)
+    // Canvas-painted face on the front of the head
     const faceGroup = new THREE.Group();
     faceGroup.position.y = headY;
     faceGroup.userData.partType = 'face';
     faceGroup.userData.restY = headY;
-    addFace(faceGroup, headR, config.expression || 'default');
+    const faceTexture = createFaceTexture(config.expression || 'default', skinColor);
+    const faceMat = new THREE.MeshBasicMaterial({ map: faceTexture, transparent: true });
+    const facePlane = new THREE.Mesh(new THREE.PlaneGeometry(headSize * 0.8, headSize * 0.8), faceMat);
+    facePlane.position.z = headSize * 0.45 + 0.001;
+    faceGroup.add(facePlane);
     group.add(faceGroup);
 
     // Store references for animation and highlighting
-    group.userData.bodyMesh = body;  // For highlight system
+    group.userData.bodyMesh = body;
     group.userData.parts = { body, head, faceGroup, arms, legs };
 
     // Hat
