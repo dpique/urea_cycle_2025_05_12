@@ -8,6 +8,7 @@ import { player } from '../playerManager.js';
 import { showFeedback } from '../uiManager.js';
 import { getGameState, setGameState, getCurrentQuest, setCurrentQuest, advanceCurrentQuestState, getInventory, addToInventory, removeFromInventory, getHealth, damageHealth, healHealth, setWorldProgress, addAbility, unlockWorld } from '../gameState.js';
 import { handlePlayerDeath } from '../gameManager.js';
+import { buildCharacter, PRESETS } from '../characterBuilder.js';
 import { camera, renderer } from '../sceneSetup.js';
 import { transitionTo } from '../sceneManager.js';
 import { updateInteraction } from '../interactionManager.js';
@@ -404,74 +405,23 @@ function createPathIndicators(scene, fromAngle, toAngle, color) {
 }
 
 function createEnzymeNPC(data, x, z) {
-    const group = new THREE.Group();
+    // Use characterBuilder for distinct silhouettes per enzyme
+    const presetName = data.character || 'average';
+    const preset = PRESETS[presetName] || {};
+    const bodyColor = typeof data.bodyColor === 'string' ? parseInt(data.bodyColor.replace('#', ''), 16) : data.bodyColor;
+    const hatColor = typeof data.color === 'string' ? parseInt(data.color.replace('#', ''), 16) : data.color;
+
+    const group = buildCharacter({
+        ...preset,
+        bodyColor: bodyColor,
+        hatColor: hatColor,
+        accessoryColor: hatColor,
+        label: data.shortName,
+        sublabel: data.enzyme,
+        sublabelColor: `rgba(200, 200, 200, 0.6)`,
+    });
+
     group.position.set(x, 0.4, z);
-
-    // Body
-    const bodyGeo = new THREE.CylinderGeometry(0.35, 0.4, 1.0, 8);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: data.bodyColor, roughness: 0.6, metalness: 0.2 });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.y = 0.9;
-    body.castShadow = true;
-    group.add(body);
-
-    // Head
-    const headGeo = new THREE.SphereGeometry(0.35, 12, 10);
-    const headMat = new THREE.MeshStandardMaterial({ color: 0xffcc99, roughness: 0.7 });
-    const head = new THREE.Mesh(headGeo, headMat);
-    head.position.y = 1.75;
-    head.castShadow = true;
-    group.add(head);
-
-    // Eyes
-    const eyeGeo = new THREE.SphereGeometry(0.06, 6, 6);
-    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(-0.12, 1.8, 0.3);
-    group.add(leftEye);
-    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(0.12, 1.8, 0.3);
-    group.add(rightEye);
-
-    // Hat/crown based on enzyme color
-    const hatGeo = new THREE.ConeGeometry(0.3, 0.5, 6);
-    const hatMat = new THREE.MeshStandardMaterial({
-        color: data.color,
-        emissive: data.color,
-        emissiveIntensity: 0.2,
-        metalness: 0.4,
-    });
-    const hat = new THREE.Mesh(hatGeo, hatMat);
-    hat.position.y = 2.2;
-    group.add(hat);
-
-    // Arms
-    const armGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.5, 6);
-    const armMat = new THREE.MeshStandardMaterial({ color: data.bodyColor });
-    const leftArm = new THREE.Mesh(armGeo, armMat);
-    leftArm.position.set(-0.5, 1.1, 0);
-    leftArm.rotation.z = Math.PI / 6;
-    group.add(leftArm);
-    const rightArm = new THREE.Mesh(armGeo, armMat);
-    rightArm.position.set(0.5, 1.1, 0);
-    rightArm.rotation.z = -Math.PI / 6;
-    group.add(rightArm);
-
-    // Legs
-    const legGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.5, 6);
-    const leftLeg = new THREE.Mesh(legGeo, armMat);
-    leftLeg.position.set(-0.15, 0.25, 0);
-    group.add(leftLeg);
-    const rightLeg = new THREE.Mesh(legGeo, armMat);
-    rightLeg.position.set(0.15, 0.25, 0);
-    group.add(rightLeg);
-
-    // Name label
-    const label = createTextSprite(data.shortName, { x: 0, y: 2.8, z: 0 }, {
-        scale: 1.2,
-        textColor: `rgba(255, 255, 255, 0.9)`,
-    });
-    group.add(label);
 
     // Face center toward the plaza center
     group.lookAt(0, group.position.y, 0);
