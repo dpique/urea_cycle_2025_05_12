@@ -10,9 +10,6 @@ import { getGameState, setGameState, getCurrentQuest, getInventory, addToInvento
 import { createSimpleParticleSystem, createCollectionEffect } from './utils.js';
 import { setNPCInteracting } from './npcManager.js';
 
-const PRE_SURVEY_LINK = "https://forms.gle/yourpretestsurvey";
-const POST_SURVEY_LINK = "https://forms.gle/yourposttestsurvey";
-
 
 let closestInteractiveObject = null;
 const highlightMaterial = new THREE.MeshStandardMaterial({ emissive: 0xffff00, emissiveIntensity: 0.7, roughness: 0.3 });
@@ -295,7 +292,7 @@ export function interactWithObject(object, scene) {
                                          showDialogue("Indeed! Ammonia is extremely toxic to cells. Liverland needs your help to convert this dangerous ammonia into urea, a much safer molecule that can be safely disposed of.", [
                                              { text: "How can I help?", hideOnClick: false, action: () => {
                                                  showDialogue("Before we begin this important quest, would you like to take a brief pre-quest survey? Your feedback is valuable!", [
-                                                     { text: "Take Pre-Quest Survey", action: () => { window.open(PRE_SURVEY_LINK, '_blank'); }},
+                                                     { text: "Take Pre-Quest Survey", action: () => { window.open(CONSTANTS.PRE_SURVEY_LINK, '_blank'); }},
                                                      { text: "Accept Quest", action: () => {
                                                          if(startUreaCycleQuest()) {
                                                             startBackgroundMusic();
@@ -319,7 +316,7 @@ export function interactWithObject(object, scene) {
                      ], setGameInteracting);
                 } else if (currentQuest.state === CONSTANTS.QUEST_STATE.COMPLETED) {
                      showDialogue("Congratulations on completing the Urea Cycle quest! Your understanding is superb. Would you like to take a short post-quest survey to help us improve?", [
-                         { text: "Take Post-Quest Survey", action: () => { window.open(POST_SURVEY_LINK, '_blank'); }},
+                         { text: "Take Post-Quest Survey", action: () => { window.open(CONSTANTS.POST_SURVEY_LINK, '_blank'); }},
                          { text: "You're welcome."}
                      ], setGameInteracting);
                 } else {

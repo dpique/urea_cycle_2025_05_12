@@ -186,3 +186,8 @@ export const AMINO_ACIDS = Object.freeze([
 export const ACETYL_COA_COLOR = 0x3d2817; // Dark brown like coffee grounds
 export const NAG_COLOR = 0x4a3728; // Coffee color
 export const GLUTAMATE_COLOR = 0xe8e8e8; // Milky white
+
+// --- Survey Links ---
+export const PRE_SURVEY_LINK = 'https://forms.gle/yourpretestsurvey';
+export const POST_SURVEY_LINK = 'https://forms.gle/yourposttestsurvey';
+export const FEEDBACK_SURVEY_LINK = 'https://forms.gle/yourfeedbacksurvey';

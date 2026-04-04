@@ -22,10 +22,6 @@ import * as glycolysisWorld from './js/worlds/glycolysisWorld.js';
 export const dialogueBox = document.getElementById('dialogueBox');
 export const realityRiverUI = document.getElementById('realityRiver');
 
-// Placeholder survey links
-const PRE_SURVEY_LINK = "https://forms.gle/yourpretestsurvey";
-const POST_SURVEY_LINK = "https://forms.gle/yourposttestsurvey";
-const FEEDBACK_SURVEY_LINK = "https://forms.gle/yourfeedbacksurvey";
 
 // --- Initialize core systems (world-agnostic) ---
 const canvasElement = document.getElementById('gameCanvas');
@@ -50,17 +46,17 @@ function setupExternalLinks() {
 
     if (feedbackButton) {
         feedbackButton.addEventListener('click', () => {
-            window.open(FEEDBACK_SURVEY_LINK, '_blank');
+            window.open(CONSTANTS.FEEDBACK_SURVEY_LINK, '_blank');
         });
     }
     if (preTestSurveyButton) {
         preTestSurveyButton.addEventListener('click', () => {
-            window.open(PRE_SURVEY_LINK, '_blank');
+            window.open(CONSTANTS.PRE_SURVEY_LINK, '_blank');
         });
     }
     if (postTestSurveyButton) {
         postTestSurveyButton.addEventListener('click', () => {
-            window.open(POST_SURVEY_LINK, '_blank');
+            window.open(CONSTANTS.POST_SURVEY_LINK, '_blank');
         });
     }
     if (muteButton) {

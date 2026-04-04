@@ -3,10 +3,24 @@ import { getGameState, setGameState } from './gameState.js';
 import { player } from './playerManager.js';
 import { updateInventoryUI, updateQuestUI, showFeedback } from './uiManager.js';
 
+const SAVE_VERSION = 1;
+
+// Migrate save data from older schema versions to the current one.
+// Add new migration blocks here as the schema evolves.
+function migrateData(data) {
+    const version = data.version || 0;
+    // Example future migration: if (version < 2) { data.newField = defaultValue; }
+    if (version < SAVE_VERSION) {
+        data.version = SAVE_VERSION;
+    }
+    return data;
+}
+
 // Save game functionality
 export function saveGame() {
     const gameState = getGameState();
     const saveData = {
+        version: SAVE_VERSION,
         inventory: gameState.inventory,
         currentQuest: gameState.currentQuest,
         playerLocation: gameState.playerLocation,
@@ -47,7 +61,7 @@ export function loadGame() {
     }
     
     try {
-        const saveData = JSON.parse(savedDataStr);
+        const saveData = migrateData(JSON.parse(savedDataStr));
         const newGameState = {
             inventory: saveData.inventory || {},
             currentQuest: saveData.currentQuest || null,
