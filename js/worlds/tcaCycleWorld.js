@@ -708,11 +708,30 @@ function handleEnzymeInteraction(enzymeData, object, scene, tools) {
                 break;
         }
 
-        // Default: show enzyme greeting
-        showDialogue(enzymeData.greeting, [{ text: "Thanks!" }], setGameInteracting);
+        // Default: show greeting, chained one line at a time (RSC style)
+        if (enzymeData.greetingChain && enzymeData.greetingChain.length > 0) {
+            showChainedDialogue(enzymeData.greeting, enzymeData.greetingChain, -1, showDialogue, setGameInteracting);
+        } else {
+            showDialogue(enzymeData.greeting, [{ text: "..." }], setGameInteracting);
+        }
     };
 
     advanceQuest();
+}
+
+// Show dialogue one short line at a time, RSC style
+function showChainedDialogue(firstLine, chain, index, showDialogue, setGameInteracting) {
+    if (index >= chain.length) {
+        // Last line
+        showDialogue(chain[chain.length - 1], [{ text: "..." }], setGameInteracting);
+        return;
+    }
+    const text = index === -1 ? firstLine : chain[index];
+    const nextIndex = index + 1;
+    const isLast = nextIndex >= chain.length;
+    showDialogue(text, [{ text: isLast ? "Got it." : "...", hideOnClick: !isLast, action: isLast ? undefined : () => {
+        showChainedDialogue(firstLine, chain, nextIndex, showDialogue, setGameInteracting);
+    }}], setGameInteracting);
 }
 
 function enzymeStationPosition(enzymeData) {
