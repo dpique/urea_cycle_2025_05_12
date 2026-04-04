@@ -755,8 +755,12 @@ function spawnGlucoseModel(scene, position) {
         scene.remove(glucoseModel);
     }
     glucoseModel = createHexagonalRing(1.2, 0.08, 0xffffff);
-    glucoseModel.position.set(position.x, position.y + 1.4, position.z);
-    glucoseModel.userData.baseY = position.y + 1.4;
+    // Start at player position -- it will follow the player in the update loop
+    glucoseModel.position.set(player.position.x + 1.2, 2.2, player.position.z);
+    glucoseModel.userData.baseY = 2.2;
+    glucoseModel.userData.followPlayer = true;
+    glucoseModel.userData.offsetX = 1.2; // Float to the right of the player
+    glucoseModel.userData.offsetZ = 0;
 
     // "Glucose" label above the ring
     const label = createTextSprite('Glucose', { x: 0, y: 1.2, z: 0 }, { scale: 0.8 });
@@ -768,7 +772,9 @@ function spawnGlucoseModel(scene, position) {
     moleculeStage = 'hexagon';
 }
 
+// REMOVED: moveGlucoseToStation -- the molecule now follows the player
 function moveGlucoseToStation(targetZ, duration) {
+    // No-op: molecule follows player now. Kept as stub so existing calls don't break.
     if (!glucoseModel) return;
     const startPos = glucoseModel.position.clone();
     const targetPos = new THREE.Vector3(PATHWAY_X, glucoseModel.userData.baseY, targetZ);
@@ -816,6 +822,9 @@ function morphToPentagon(scene) {
     glucoseModel = createPentagonalRing(1.1, 0.08, 0xffa07a);
     glucoseModel.position.copy(pos);
     glucoseModel.userData.baseY = baseY;
+    glucoseModel.userData.followPlayer = true;
+    glucoseModel.userData.offsetX = 1.2;
+    glucoseModel.userData.offsetZ = 0;
 
     // Re-attach phosphateA
     const verts = glucoseModel.userData.vertices;
@@ -862,14 +871,14 @@ function splitMolecule(scene, stationZ) {
     phosphateA = null;
     phosphateB = null;
 
-    // Create two triangle fragments
+    // Create two triangle fragments -- start at split point, will follow player after fly-apart
     fragmentA = createTriangleFragment(0.6, 0.06, 0xff8c00, 'G3P');
-    fragmentA.position.set(pos.x - 1.5, pos.y, pos.z);
+    fragmentA.position.set(pos.x, pos.y, pos.z);
     scene.add(fragmentA);
     glyObjects.push(fragmentA);
 
     fragmentB = createTriangleFragment(0.6, 0.06, 0xffb347, 'DHAP');
-    fragmentB.position.set(pos.x + 1.5, pos.y, pos.z);
+    fragmentB.position.set(pos.x, pos.y, pos.z);
     scene.add(fragmentB);
     glyObjects.push(fragmentB);
 
@@ -894,21 +903,24 @@ function splitMolecule(scene, stationZ) {
     // Screen shake effect
     triggerScreenShake(0.5, 0.15);
 
-    // Animate fragments flying apart
+    // Animate fragments bursting apart, then they'll follow the player via the update loop
     const startTime = performance.now();
-    const aStart = fragmentA.position.clone();
-    const bStart = fragmentB.position.clone();
-    const aEnd = new THREE.Vector3(pos.x - 2.5, pos.y, pos.z);
-    const bEnd = new THREE.Vector3(pos.x + 2.5, pos.y, pos.z);
+    const aStart = pos.clone();
+    const bStart = pos.clone();
+    const aEnd = new THREE.Vector3(pos.x + 3, pos.y + 1, pos.z + 2);
+    const bEnd = new THREE.Vector3(pos.x - 3, pos.y + 1, pos.z - 2);
 
     activeAnimations.push({
         id: 'splitApart',
         update: () => {
             const elapsed = (performance.now() - startTime) / 1000;
-            const t = Math.min(elapsed / 0.8, 1);
+            const t = Math.min(elapsed / 0.6, 1);
             const eased = 1 - Math.pow(1 - t, 3);
-            if (fragmentA) fragmentA.position.lerpVectors(aStart, aEnd, eased);
-            if (fragmentB) fragmentB.position.lerpVectors(bStart, bEnd, eased);
+            // Only control position during the burst -- after that the update loop takes over
+            if (t < 1) {
+                if (fragmentA) fragmentA.position.lerpVectors(aStart, aEnd, eased);
+                if (fragmentB) fragmentB.position.lerpVectors(bStart, bEnd, eased);
+            }
             return t >= 1;
         },
     });
@@ -1469,21 +1481,34 @@ export function update(delta, elapsedTime) {
         }
     }
 
-    // Glucose model gentle rotation and hover
+    // Glucose model follows the player (floats beside/above them)
     if (glucoseModel) {
+        const targetX = player.position.x + (glucoseModel.userData.offsetX || 1.2);
+        const targetZ = player.position.z + (glucoseModel.userData.offsetZ || 0);
+        const baseY = glucoseModel.userData.baseY || 2.2;
+        // Smooth follow with a slight lag for a bouncy/comedic feel
+        glucoseModel.position.x += (targetX - glucoseModel.position.x) * 0.08;
+        glucoseModel.position.z += (targetZ - glucoseModel.position.z) * 0.08;
+        glucoseModel.position.y = baseY + Math.sin(elapsedTime * 1.2) * 0.15;
         glucoseModel.rotation.y = elapsedTime * 0.3;
-        const baseY = glucoseModel.userData.baseY || 1.4;
-        glucoseModel.position.y = baseY + Math.sin(elapsedTime * 1.2) * 0.1;
     }
 
-    // Fragment idle bob
+    // Fragments follow the player (one on each side, like tiny companions)
     if (fragmentA) {
+        const targetX = player.position.x + 1.0;
+        const targetZ = player.position.z + 0.5;
+        fragmentA.position.x += (targetX - fragmentA.position.x) * 0.07;
+        fragmentA.position.z += (targetZ - fragmentA.position.z) * 0.07;
+        fragmentA.position.y = 2.0 + Math.sin(elapsedTime * 1.5) * 0.1;
         fragmentA.rotation.y = elapsedTime * 0.4;
-        fragmentA.position.y = 1.4 + Math.sin(elapsedTime * 1.5) * 0.08;
     }
     if (fragmentB) {
+        const targetX = player.position.x - 1.0;
+        const targetZ = player.position.z - 0.5;
+        fragmentB.position.x += (targetX - fragmentB.position.x) * 0.06;
+        fragmentB.position.z += (targetZ - fragmentB.position.z) * 0.06;
+        fragmentB.position.y = 2.0 + Math.sin(elapsedTime * 1.5 + 1) * 0.1;
         fragmentB.rotation.y = -elapsedTime * 0.4;
-        fragmentB.position.y = 1.4 + Math.sin(elapsedTime * 1.5 + 1) * 0.08;
     }
 
     // Phosphate glow pulse
