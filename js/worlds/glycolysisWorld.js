@@ -51,8 +51,9 @@ const ENZYMES = [
         enzyme: 'Hexokinase', z: 30, color: 0xff6b6b, bodyColor: 0xcc4444,
         phase: 'investment',
         reaction: 'Glucose + ATP -> Glucose-6-Phosphate + ADP',
-        greeting: "I'm Hexy the Hexokinase! I TRAP glucose inside the cell by slapping a phosphate on it. Costs you 1 ATP, but now glucose can't escape! I'm basically a bouncer -- once you're in, you're in.",
-        questDialogue: "Give me that Glucose and 1 ATP, and I'll phosphorylate it into Glucose-6-Phosphate! First investment of the pathway.",
+        greeting: "See that glucose? Beautiful six-sided ring. Incredibly stable. The energy locked inside it could power the whole cell -- but good luck getting it out. That ring does NOT want to break.",
+        questDialogue: "Here's what we do. We take a stick of dynamite -- a high-energy phosphate from ATP -- and we strap it onto one end of the glucose. *CLICK*\n\nThere. Glucose-6-Phosphate. Now that glucose can't escape the cell, and we've started destabilizing it. One stick of dynamite attached... let's see if it's enough.",
+        questResult: "...nothing. The glucose just sits there with its stick of dynamite, still in its stubborn six-sided ring. One phosphate wasn't enough. We need a new approach.",
         input: ['Glucose', 'ATP'], output: ['Glucose-6-P'],
     },
     {
@@ -60,8 +61,9 @@ const ENZYMES = [
         enzyme: 'Phosphoglucose Isomerase', z: 16, color: 0xffa07a, bodyColor: 0xcc7755,
         phase: 'investment',
         reaction: 'Glucose-6-P -> Fructose-6-P',
-        greeting: "I'm Izzy! Phosphoglucose Isomerase. I just rearrange Glucose-6-P into Fructose-6-P. Nothing fancy -- just an isomerization. Think of me as the interior decorator of glycolysis.",
-        questDialogue: "Hand me that G6P and I'll rearrange it into Fructose-6-Phosphate. Quick and painless!",
+        greeting: "That dynamite didn't crack it? Not surprising. That six-sided ring is tough. But watch this -- I have strong hands.",
+        questDialogue: "Give me that glucose-6-phosphate. I'm going to SQUEEZE it. Really hard.\n\n*SQUEEZE*\n\nSee that? One of the carbons just popped out of the ring! We went from a six-sided ring to a five-sided ring. It's now Fructose-6-Phosphate.\n\n...but it's STILL a ring. Still holding together. We need more firepower.",
+        questResult: "A five-sided ring now, but still intact. Frustrating. We need to try something bigger.",
         input: ['Glucose-6-P'], output: ['Fructose-6-P'],
     },
     {
@@ -69,8 +71,9 @@ const ENZYMES = [
         enzyme: 'Phosphofructokinase-1', z: 2, color: 0xff4444, bodyColor: 0xaa2222,
         phase: 'investment',
         reaction: 'Fructose-6-P + ATP -> Fructose-1,6-BP + ADP',
-        greeting: "I'm Phil. PFK-1. The RATE-LIMITING STEP. Nothing gets past me unless I say so. I'm regulated by ATP, AMP, citrate, fructose-2,6-bisphosphate... basically everything. I decide whether glycolysis happens or not.",
-        questDialogue: "Fructose-6-P and your LAST ATP. This is the point of no return -- the COMMITTED STEP. After me, there's no going back. I'm the most important regulatory enzyme in glycolysis.",
+        greeting: "I'm Phil. PFK-1. I'm the gatekeeper -- the RATE-LIMITING STEP. Nothing happens without my say-so. I'm regulated by everything: ATP, AMP, citrate... I decide whether we commit to breaking this sugar or not.",
+        questDialogue: "One stick of dynamite didn't work? Fine. Let's double up.\n\nI'm going to strap a SECOND stick of dynamite onto the OTHER end of the molecule. Carbon 1 has a phosphate, carbon 6 has a phosphate. That's Fructose-1,6-bisphosphate.\n\nThis is the POINT OF NO RETURN. After me, there's no going back. We're committed to breaking this sugar open. Hand me that last ATP.",
+        questResult: "Two sticks of dynamite. One on each end. The molecule is primed... but it's STILL holding together. Time for brute force.",
         input: ['Fructose-6-P', 'ATP'], output: ['Fructose-1,6-BP'],
     },
     {
@@ -78,8 +81,9 @@ const ENZYMES = [
         enzyme: 'Aldolase', z: -12, color: 0xff8c00, bodyColor: 0xcc6600,
         phase: 'split',
         reaction: 'Fructose-1,6-BP -> DHAP + G3P',
-        greeting: "I'm Al, the Aldolase! I do the SPLIT! I crack Fructose-1,6-bisphosphate right in half -- one DHAP and one G3P. From here on, everything happens TWICE because you've got two 3-carbon pieces!",
-        questDialogue: "Watch this -- I'm going to split your 6-carbon sugar into TWO 3-carbon fragments! DHAP and G3P. This is why everything after me happens twice per glucose!",
+        greeting: "Two sticks of dynamite and the sugar's STILL in one piece? Hand it here. I don't do subtle.",
+        questDialogue: "Squeezing didn't work. Dynamite didn't work. So this time, we PULL.\n\nI grab one phosphate with my left hand, the other phosphate with my right hand, and I PULL with everything I've got --\n\n*CRACK!*\n\nTHE GLUCOSE BREAKS IN HALF! Two 3-carbon pieces! G3P and DHAP -- each one still carrying a stick of dynamite.\n\nFrom here on, everything happens TWICE. You broke one 6-carbon sugar into two 3-carbon fragments. The investment phase is OVER.",
+        questResult: "FINALLY! The glucose is in pieces! Two 3-carbon fragments, each with one phosphate. Now we can start extracting the energy.",
         input: ['Fructose-1,6-BP'], output: ['DHAP', 'G3P'],
     },
     {
@@ -87,8 +91,9 @@ const ENZYMES = [
         enzyme: 'Triose Phosphate Isomerase', z: -24, color: 0xffb347, bodyColor: 0xcc8833,
         phase: 'split',
         reaction: 'DHAP -> G3P',
-        greeting: "I'm Tim! Triose Phosphate Isomerase -- the fastest enzyme in glycolysis. I convert DHAP to G3P so fast it's almost instant. I'm considered a 'catalytically perfect' enzyme. Yeah, I'm kind of a big deal.",
-        questDialogue: "Give me that DHAP and I'll convert it to G3P instantly. I'm catalytically perfect -- my reaction rate is limited only by diffusion!",
+        greeting: "Those two fragments -- G3P and DHAP -- they're almost identical. Three carbons, one phosphate each. So similar they can become each other.",
+        questDialogue: "DHAP and G3P are like fraternal twins -- almost the same molecule. I can convert one into the other instantly.\n\nI'm called 'catalytically perfect' because I work as fast as molecules can physically bump into me. No enzyme in glycolysis is faster.\n\nThe name 'triose phosphate' means 3-carbon ('tri-ose') molecule with a phosphate. That's what both G3P and DHAP are.",
+        questResult: "Now you have two G3P molecules. Two identical fragments, ready for the payoff phase. This is where you start earning energy BACK.",
         input: ['DHAP'], output: ['G3P'],
     },
     {
@@ -96,8 +101,9 @@ const ENZYMES = [
         enzyme: 'G3P Dehydrogenase', z: -38, color: 0x00cc66, bodyColor: 0x009944,
         phase: 'payoff',
         reaction: 'G3P + NAD+ + Pi -> 1,3-BPG + NADH (x2)',
-        greeting: "I'm Gary, Glyceraldehyde-3-Phosphate Dehydrogenase -- GAPDH for short. I'm the turning point! This is where payoff begins. I oxidize G3P and produce NADH. Remember, this happens TWICE per glucose!",
-        questDialogue: "Here's where the energy payoff starts! I'll oxidize your G3P and produce 1,3-BPG plus NADH. Two of each per glucose!",
+        greeting: "Welcome to the PAYOFF PHASE. You spent 2 ATP breaking glucose apart. Now it's time to earn it back -- and then some.",
+        questDialogue: "Here's where we start harvesting energy from the wreckage.\n\nI pull electrons off the G3P fragments and hand them to NAD+, making NADH -- that's stored energy that'll be worth ATP later in the electron transport chain.\n\nI also attach ANOTHER phosphate, giving you 1,3-BPG -- a molecule with TWO high-energy phosphates. Remember, this happens TWICE because you have two fragments.",
+        questResult: "First energy harvest! 2 NADH produced (one per fragment). And each fragment now carries two phosphates -- loaded with transferable energy.",
         input: ['G3P'], output: ['1,3-BPG', 'NADH'],
     },
     {
@@ -105,8 +111,9 @@ const ENZYMES = [
         enzyme: 'Phosphoglycerate Kinase', z: -52, color: 0x00ff88, bodyColor: 0x00cc66,
         phase: 'payoff',
         reaction: '1,3-BPG + ADP -> 3-PG + ATP (x2)',
-        greeting: "I'm Peggy! Phosphoglycerate Kinase. I make the FIRST ATP of the payoff phase! This is substrate-level phosphorylation -- direct transfer of phosphate to ADP. Two ATPs here (one per 3-carbon unit), which repays your initial investment!",
-        questDialogue: "ATP time! I transfer a phosphate directly from 1,3-BPG to ADP. You get 2 ATP total here -- that pays back what you spent on Hexy and Phil!",
+        greeting: "1,3-BPG has TWO phosphates. One of them is incredibly high-energy. I'm going to rip it off and use it to make ATP.",
+        questDialogue: "This is SUBSTRATE-LEVEL PHOSPHORYLATION -- I transfer a phosphate directly from the substrate to ADP, making ATP. No mitochondria needed, no electron transport chain. Just raw, direct energy transfer.\n\nThis happens twice (one per fragment), so you get 2 ATP here. That's your investment PAID BACK -- you spent 2 ATP earlier, and now you've earned 2 ATP. We're break-even. Everything from here is PROFIT.",
+        questResult: "Break even! 2 ATP earned, 2 ATP spent. But we're not done -- there's more energy to extract.",
         input: ['1,3-BPG'], output: ['3-PG', 'ATP'],
     },
     {
@@ -114,8 +121,9 @@ const ENZYMES = [
         enzyme: 'Phosphoglycerate Mutase', z: -64, color: 0x66ccff, bodyColor: 0x4499cc,
         phase: 'payoff',
         reaction: '3-PG -> 2-PG (x2)',
-        greeting: "I'm Mutty, Phosphoglycerate Mutase. I just shift the phosphate group from carbon 3 to carbon 2. It's a small change, but it sets up the next reaction perfectly. Think of me as the set-up person.",
-        questDialogue: "Just a quick rearrangement -- moving the phosphate from position 3 to position 2. Setting the stage for Eno!",
+        greeting: "Still one phosphate left on each fragment. But it's in the wrong position to release its energy. I need to move it.",
+        questDialogue: "I shift the phosphate from carbon 3 to carbon 2. Doesn't sound like much, but it's essential -- it sets up the next reaction where Eno will create a HIGH-ENERGY bond.\n\nThink of it like repositioning a lever before you pull it.",
+        questResult: "Phosphate repositioned. The stage is set for Eno to create something special.",
         input: ['3-PG'], output: ['2-PG'],
     },
     {
@@ -123,8 +131,9 @@ const ENZYMES = [
         enzyme: 'Enolase', z: -78, color: 0x9999ff, bodyColor: 0x6666cc,
         phase: 'payoff',
         reaction: '2-PG -> PEP + H2O (x2)',
-        greeting: "I'm Eno, the Enolase! I dehydrate 2-PG to make PEP -- Phosphoenolpyruvate. PEP is a HIGH-ENERGY compound. In fact, it has the highest phosphoryl transfer potential of any common metabolite. I'm creating a loaded spring!",
-        questDialogue: "Watch me remove water from 2-PG to create PEP -- the highest energy phosphorylated compound in the cell! This sets up Pike's grand finale.",
+        greeting: "Watch carefully. I'm about to create the most energetically loaded molecule in all of common metabolism.",
+        questDialogue: "I remove a water molecule from 2-PG and create PEP -- Phosphoenolpyruvate.\n\nPEP has the HIGHEST phosphoryl transfer potential of any common metabolite. That phosphate bond is like a compressed spring -- absolutely BURSTING with energy, just waiting to be released.\n\nI'm loading the cannon. Pike gets to fire it.",
+        questResult: "The spring is loaded. PEP is primed to release a massive amount of energy. One more step to go!",
         input: ['2-PG'], output: ['PEP'],
     },
     {
@@ -132,8 +141,9 @@ const ENZYMES = [
         enzyme: 'Pyruvate Kinase', z: -92, color: 0xff44ff, bodyColor: 0xcc22cc,
         phase: 'payoff',
         reaction: 'PEP + ADP -> Pyruvate + ATP (x2)',
-        greeting: "I'm Pike, Pyruvate Kinase! THE GRAND FINALE! I take that high-energy PEP and rip off the phosphate to make ATP! Two more ATPs here -- that's your NET PROFIT! Pyruvate heads off to the TCA cycle next.",
-        questDialogue: "The big finish! I transfer PEP's phosphate to ADP, making the SECOND set of ATP. You now have a net gain of 2 ATP + 2 NADH + 2 Pyruvate per glucose!",
+        greeting: "This is it. The GRAND FINALE. That loaded spring Eno created? I'm about to release it.",
+        questDialogue: "I rip the phosphate off PEP and slam it onto ADP -- making ATP!\n\nThis happens twice (one per fragment), giving you 2 MORE ATP. That's 4 ATP total earned, minus 2 ATP invested = NET GAIN of 2 ATP.\n\nPlus you've got 2 NADH and 2 Pyruvate. The pyruvate heads to Percy in the TCA Cycle to become Acetyl-CoA and keep the energy flowing.\n\nYou just broke glucose in half and extracted its energy. THAT is glycolysis.",
+        questResult: "GLYCOLYSIS COMPLETE! From one glucose: 2 ATP (net) + 2 NADH + 2 Pyruvate. The pyruvate continues to the TCA Cycle!",
         input: ['PEP'], output: ['Pyruvate', 'ATP'],
     },
 ];
@@ -171,13 +181,25 @@ export function init(scene) {
     createDecorations(scene);
     createLighting(scene);
 
-    // Spawn glucose and initial ATP near entrance
+    // Opening narrative
     setTimeout(() => {
-        questState = GLY_QUEST.COLLECT_GLUCOSE;
-        spawnResource(scene, 'Glucose', { x: -3, y: 0.5, z: 45 }, COLORS.glucose);
-        spawnResource(scene, 'ATP', { x: 3, y: 0.5, z: 45 }, COLORS.atp);
-        spawnResource(scene, 'ATP', { x: 5, y: 0.5, z: 43 }, COLORS.atp);
-        showFeedback("Welcome to the Glycolysis Gauntlet! Collect Glucose and 2 ATP to begin.", 5000);
+        const setInteracting = (state) => setGameState({ isUserInteracting: state });
+        const showDialogue = (text, options, cb) => {
+            import('../uiManager.js').then(({ showDialogue: sd }) => sd(text, options, cb));
+        };
+
+        showDialogue("You stand before a single molecule of GLUCOSE -- a six-sided sugar ring, deceptively simple, incredibly stable.\n\nLocked inside it is enough energy to power thousands of cellular reactions. But that ring does NOT want to break.", [
+            { text: "How do we break it?", hideOnClick: false, action: () => {
+                showDialogue("That's the challenge. You'll need to invest energy FIRST -- spend 2 ATP as 'sticks of dynamite' to destabilize the ring. Strap one phosphate on each end, then rip it apart.\n\nOnly THEN can you harvest the energy inside.\n\nCollect the Glucose and 2 ATP ahead to begin.", [
+                    { text: "Let's do this.", action: () => {
+                        questState = GLY_QUEST.COLLECT_GLUCOSE;
+                        spawnResource(worldScene, 'Glucose', { x: -3, y: 0.5, z: 45 }, COLORS.glucose);
+                        spawnResource(worldScene, 'ATP', { x: 3, y: 0.5, z: 45 }, COLORS.atp);
+                        spawnResource(worldScene, 'ATP', { x: 5, y: 0.5, z: 43 }, COLORS.atp);
+                    }}
+                ], setInteracting);
+            }}
+        ], setInteracting);
     }, 1500);
 }
 
@@ -358,8 +380,8 @@ function handleGlyInteraction(enzymeData, object, scene, tools) {
         const hasAll = enzymeData.input.every(item => inv[item] && inv[item] > 0);
 
         if (hasAll) {
-            showDialogue(`${enzymeData.questDialogue}\n\n${enzymeData.reaction}`, [
-                { text: "Do it!", action: () => {
+            showDialogue(enzymeData.questDialogue, [
+                { text: "Let's go!", hideOnClick: false, action: () => {
                     // Consume inputs
                     for (const item of enzymeData.input) {
                         removeFromInventory(item);
@@ -371,27 +393,25 @@ function handleGlyInteraction(enzymeData, object, scene, tools) {
                         addToInventory(item);
                     }
 
-                    // Special: after Al (Aldolase), note the doubling
-                    if (enzymeData.shortName === 'Al') {
-                        feedback("The glucose SPLIT! You now have DHAP + G3P. Everything after this happens x2!", 5000);
-                    } else if (enzymeData.shortName === 'Pike') {
-                        // Final enzyme!
-                        questState = GLY_QUEST.COMPLETED;
-                        addAbility('glucose-handling');
-                        setWorldProgress('glycolysis', { completed: true });
-                        feedback("GLYCOLYSIS COMPLETE! Net gain: 2 ATP + 2 NADH + 2 Pyruvate per glucose! Glucose Handling unlocked!", 6000);
+                    // Show the result as a follow-up dialogue
+                    if (enzymeData.shortName === 'Pike') {
+                        // Final enzyme -- show completion
+                        showDialogue(enzymeData.questResult, [
+                            { text: "Glycolysis mastered!", action: () => {
+                                questState = GLY_QUEST.COMPLETED;
+                                addAbility('glucose-handling');
+                                setWorldProgress('glycolysis', { completed: true });
+                                feedback("GLUCOSE HANDLING unlocked! You can now process carbohydrates in other pathways.", 6000);
+                            }}
+                        ], setGameInteracting);
                     } else {
-                        // Advance to next enzyme
                         const nextIdx = idx + 1;
-                        questState = questForEnzyme[nextIdx];
                         const nextEnzyme = ENZYMES[nextIdx];
-                        feedback(`Got ${enzymeData.output.join(' + ')}! Visit ${nextEnzyme.shortName} next.`, 3000);
-                    }
-
-                    // Spawn any needed ATP for next step
-                    if (enzymeData.shortName === 'Hexy') {
-                        // Player needs ATP for Phil (PFK-1), spawn one more if they don't have enough
-                        // They should still have 1 ATP from the initial 2
+                        showDialogue(enzymeData.questResult, [
+                            { text: `On to ${nextEnzyme.shortName}!`, action: () => {
+                                questState = questForEnzyme[nextIdx];
+                            }}
+                        ], setGameInteracting);
                     }
                 }}
             ], setGameInteracting);
@@ -400,7 +420,7 @@ function handleGlyInteraction(enzymeData, object, scene, tools) {
             showDialogue(`I need ${missing.join(' and ')} to proceed. Go collect ${missing.length > 1 ? 'them' : 'it'} first!`, [{ text: "OK" }], setGameInteracting);
         }
     } else {
-        // Not the right time for this enzyme -- show greeting
+        // Not the right time -- show the narrative greeting (context about this enzyme's role in the story)
         showDialogue(enzymeData.greeting, [{ text: "Got it!" }], setGameInteracting);
     }
 }

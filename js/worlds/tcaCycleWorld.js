@@ -211,11 +211,21 @@ export function init(scene) {
     createDecorativeElements(scene);
     createWorldLighting(scene);
 
-    // Start quest automatically when entering
+    // Opening intro
     setTimeout(() => {
-        tcaQuestState = TCA_QUEST.MEET_PERCY;
-        showFeedback("You've entered the TCA Central Crossroads! Find Percy at the north gate.", 5000);
-        updateTCAQuestUI();
+        const setInteracting = (state) => setGameState({ isUserInteracting: state });
+        import('../uiManager.js').then(({ showDialogue }) => {
+            showDialogue("Welcome to the TCA CENTRAL CROSSROADS -- the metabolic hub of the cell.\n\nEvery major pathway converges here. Glucose, fatty acids, amino acids -- they all feed into this cycle, and energy flows out.\n\nPortals around the plaza lead to different metabolic worlds. The cycle itself awaits your exploration.", [
+                { text: "Explore the TCA Cycle", action: () => {
+                    tcaQuestState = TCA_QUEST.MEET_PERCY;
+                    showFeedback("Find Percy (PDH Complex) at the north side of the plaza to begin.", 5000);
+                    updateTCAQuestUI();
+                }},
+                { text: "Visit another world first", action: () => {
+                    showFeedback("Use the portals around the plaza to visit other metabolic worlds. Press T to quick-travel.", 5000);
+                }}
+            ], setInteracting);
+        });
     }, 1500);
 }
 
