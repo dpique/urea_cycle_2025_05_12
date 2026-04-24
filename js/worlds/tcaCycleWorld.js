@@ -17,14 +17,14 @@ import tcaData from '../../data/tca.json';
 // --- World Config ---
 export const config = {
     id: 'tca-cycle',
-    name: 'TCA Central Crossroads',
-    description: 'The Citric Acid Cycle -- the metabolic hub of the cell',
-    skyColor: 0x1a0a2e,      // Deep twilight purple
-    fogColor: 0x1a0a2e,
-    fogNear: 60,
-    fogFar: 250,
-    ambientLightIntensity: 0.5,
-    ambientLightColor: 0x8888cc,
+    name: "Percy's Ship — TCA Cycle",
+    description: 'The main deck of the pirate ship — the metabolic hub',
+    skyColor: 0x0a1628,      // Dark ocean night sky
+    fogColor: 0x0a1628,
+    fogNear: 70,
+    fogFar: 280,
+    ambientLightIntensity: 0.45,
+    ambientLightColor: 0x99886a,  // Warm lantern-tinted ambient
     bounds: {
         minX: -60,
         maxX: 60,
@@ -86,13 +86,18 @@ let tcaQuestState = TCA_QUEST.NOT_STARTED;
 let portalToUrea = null;
 let centralFountain = null;
 
-// --- World Colors ---
+// --- World Colors (Nautical / Pirate Ship) ---
 const COLORS = {
-    ground: 0x1e1e3a,        // Dark indigo ground
-    groundAccent: 0x2a2a4a,  // Slightly lighter
-    path: 0x3d3066,          // Purple-tinted stone paths
-    centralPool: 0x00aaff,   // Glowing blue energy pool
-    ambientGlow: 0x6644aa,   // Ambient purple glow
+    deckLight: 0x9C7A3C,     // Light weathered wood planks
+    deckDark: 0x6B4E2A,      // Darker wood grain
+    deckPath: 0x7A5C30,      // Worn path on deck
+    ocean: 0x0a3d5c,         // Deep ocean surrounding the ship
+    oceanDeep: 0x061e2f,     // Very deep water
+    brass: 0xb5890a,         // Brass fittings / railing caps
+    rope: 0xc4a35a,          // Tan rope
+    lantern: 0xff9933,       // Warm lantern glow
+    hull: 0x4a3520,          // Ship hull dark brown
+    railing: 0x5c3d1e,       // Railing brown
     nadh: 0x00ff88,          // Bright green for NADH
     fadh2: 0xff8800,         // Orange for FADH2
     gtp: 0xffdd00,           // Gold for GTP
@@ -128,14 +133,14 @@ export function init(scene) {
     setTimeout(() => {
         const setInteracting = (state) => setGameState({ isUserInteracting: state });
         import('../uiManager.js').then(({ showDialogue }) => {
-            showDialogue("Welcome to the TCA CENTRAL CROSSROADS -- the metabolic hub of the cell.\n\nEvery major pathway converges here. Glucose, fatty acids, amino acids -- they all feed into this cycle, and energy flows out.\n\nPortals around the plaza lead to different metabolic worlds. The cycle itself awaits your exploration.", [
-                { text: "Explore the TCA Cycle", action: () => {
+            showDialogue("Welcome aboard Percy's Ship -- the main deck of the mitochondria.\n\nThis is the TCA Cycle, the metabolic hub. Everything converges here: pyruvate from the shore, fatty acids from the cargo hold, amino acids from every port.\n\nThe gangplank north leads to shore. The crew awaits your orders.", [
+                { text: "Meet the crew", action: () => {
                     tcaQuestState = TCA_QUEST.MEET_PERCY;
-                    showFeedback("Find Percy (PDH Complex) at the north side of the plaza to begin.", 5000);
+                    showFeedback("Find Percy the Dehydrated Pirate -- he's the captain of this ship.", 5000);
                     updateTCAQuestUI();
                 }},
-                { text: "Visit another world first", action: () => {
-                    showFeedback("Use the portals around the plaza to visit other metabolic worlds. Press T to quick-travel.", 5000);
+                { text: "Explore first", action: () => {
+                    showFeedback("Walk the deck. The gangplank north leads to shore (glycolysis). Press T to quick-travel.", 5000);
                 }}
             ], setInteracting);
         });
@@ -187,28 +192,44 @@ function updateTCAQuestUI() {
     }
 }
 
-// --- Terrain ---
+// --- Terrain (Ship Deck + Ocean) ---
 function createTerrain(scene) {
-    // Main ground - circular plaza
-    const groundGeometry = new THREE.CircleGeometry(PLAZA_RADIUS + 20, 64);
-    const groundMaterial = new THREE.MeshStandardMaterial({
-        color: COLORS.ground,
-        roughness: 0.9,
-        metalness: 0.1,
-    });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.01;
-    ground.receiveShadow = true;
-    scene.add(ground);
-    tcaObjects.push(ground);
+    // === WOODEN DECK (main playing surface) ===
+    // Build the deck from individual planks for a real wood-plank look
+    const deckRadius = PLAZA_RADIUS + 15;
+    const plankWidth = 1.8;
+    const plankDepth = 0.12;
+    const plankMaterials = [
+        new THREE.MeshStandardMaterial({ color: COLORS.deckLight, roughness: 0.85, metalness: 0.05 }),
+        new THREE.MeshStandardMaterial({ color: COLORS.deckDark, roughness: 0.9, metalness: 0.05 }),
+        new THREE.MeshStandardMaterial({ color: 0x87693A, roughness: 0.87, metalness: 0.05 }),
+    ];
 
-    // Circular path ring where enzymes sit
+    // Lay planks across the deck (running east-west)
+    for (let z = -deckRadius; z <= deckRadius; z += plankWidth) {
+        // Calculate plank length at this z-position (circular hull shape)
+        const halfLength = Math.sqrt(Math.max(0, deckRadius * deckRadius - z * z));
+        if (halfLength < 2) continue;
+
+        const plankGeo = new THREE.BoxGeometry(halfLength * 2, plankDepth, plankWidth * 0.95);
+        const mat = plankMaterials[Math.abs(Math.round(z)) % plankMaterials.length].clone();
+        // Subtle per-plank color variation
+        const variation = (Math.sin(z * 3.7) * 0.5 + 0.5) * 0.08;
+        mat.color.offsetHSL(0, 0, variation - 0.04);
+
+        const plank = new THREE.Mesh(plankGeo, mat);
+        plank.position.set(0, -plankDepth / 2, z);
+        plank.receiveShadow = true;
+        scene.add(plank);
+        tcaObjects.push(plank);
+    }
+
+    // Worn path ring on deck (darker stained wood where the crew walks the cycle)
     const pathRingOuter = new THREE.RingGeometry(STATION_RADIUS - 3, STATION_RADIUS + 3, 64);
     const pathMaterial = new THREE.MeshStandardMaterial({
-        color: COLORS.path,
-        roughness: 0.7,
-        metalness: 0.2,
+        color: COLORS.deckPath,
+        roughness: 0.95,
+        metalness: 0.05,
     });
     const pathRing = new THREE.Mesh(pathRingOuter, pathMaterial);
     pathRing.rotation.x = -Math.PI / 2;
@@ -217,106 +238,168 @@ function createTerrain(scene) {
     scene.add(pathRing);
     tcaObjects.push(pathRing);
 
-    // Radial spokes connecting center to stations
+    // Radial spokes (darker plank inlays connecting center to stations)
     const allEnzymes = [...ENZYME_STATIONS, MALATE_DH];
+    const spokeMat = new THREE.MeshStandardMaterial({ color: COLORS.deckDark, roughness: 0.9, metalness: 0.05 });
     for (const enzyme of allEnzymes) {
-        const spokeGeo = new THREE.PlaneGeometry(1.5, STATION_RADIUS - 6);
-        const spoke = new THREE.Mesh(spokeGeo, pathMaterial.clone());
+        const spokeGeo = new THREE.PlaneGeometry(1.2, STATION_RADIUS - 6);
+        const spoke = new THREE.Mesh(spokeGeo, spokeMat.clone());
         spoke.rotation.x = -Math.PI / 2;
         spoke.rotation.z = -enzyme.angle + Math.PI / 2;
         spoke.position.set(
             Math.cos(enzyme.angle) * (STATION_RADIUS / 2),
-            0.015,
+            0.025,
             -Math.sin(enzyme.angle) * (STATION_RADIUS / 2)
         );
         scene.add(spoke);
         tcaObjects.push(spoke);
     }
 
-    // Background terrain
-    const bgGeo = new THREE.PlaneGeometry(500, 500, 20, 20);
-    const bgVerts = bgGeo.attributes.position.array;
-    for (let i = 0; i < bgVerts.length; i += 3) {
-        bgVerts[i + 2] = (Math.sin(bgVerts[i] * 0.02) * Math.cos(bgVerts[i + 1] * 0.02)) * 2;
+    // === SHIP HULL (visible ring around the deck edge) ===
+    const hullSegments = 48;
+    for (let i = 0; i < hullSegments; i++) {
+        const angle = (i / hullSegments) * Math.PI * 2;
+        const nextAngle = ((i + 1) / hullSegments) * Math.PI * 2;
+        const midAngle = (angle + nextAngle) / 2;
+
+        const hullPlank = new THREE.Mesh(
+            new THREE.BoxGeometry(4, 3, 0.6),
+            new THREE.MeshStandardMaterial({ color: COLORS.hull, roughness: 0.9, metalness: 0.1 })
+        );
+        hullPlank.position.set(
+            Math.cos(midAngle) * (deckRadius + 0.3),
+            -1.5,
+            Math.sin(midAngle) * (deckRadius + 0.3)
+        );
+        hullPlank.rotation.y = -midAngle + Math.PI / 2;
+        hullPlank.castShadow = true;
+        scene.add(hullPlank);
+        tcaObjects.push(hullPlank);
     }
-    bgGeo.computeVertexNormals();
-    const bgMat = new THREE.MeshStandardMaterial({ color: 0x0d0d20, roughness: 1.0, fog: true });
-    const bg = new THREE.Mesh(bgGeo, bgMat);
-    bg.rotation.x = -Math.PI / 2;
-    bg.position.y = -1;
-    bg.receiveShadow = true;
-    scene.add(bg);
-    tcaObjects.push(bg);
+
+    // === OCEAN (surrounding water) ===
+    const oceanGeo = new THREE.PlaneGeometry(500, 500, 30, 30);
+    const oceanVerts = oceanGeo.attributes.position.array;
+    for (let i = 0; i < oceanVerts.length; i += 3) {
+        oceanVerts[i + 2] = Math.sin(oceanVerts[i] * 0.05) * Math.cos(oceanVerts[i + 1] * 0.04) * 0.8;
+    }
+    oceanGeo.computeVertexNormals();
+    const oceanMat = new THREE.MeshStandardMaterial({
+        color: COLORS.ocean,
+        roughness: 0.3,
+        metalness: 0.2,
+        transparent: true,
+        opacity: 0.85,
+    });
+    const ocean = new THREE.Mesh(oceanGeo, oceanMat);
+    ocean.rotation.x = -Math.PI / 2;
+    ocean.position.y = -3;
+    ocean.receiveShadow = true;
+    ocean.userData.isOcean = true;
+    scene.add(ocean);
+    tcaObjects.push(ocean);
+
+    // Deeper ocean layer
+    const deepOceanGeo = new THREE.PlaneGeometry(600, 600);
+    const deepOceanMat = new THREE.MeshStandardMaterial({ color: COLORS.oceanDeep, roughness: 1.0 });
+    const deepOcean = new THREE.Mesh(deepOceanGeo, deepOceanMat);
+    deepOcean.rotation.x = -Math.PI / 2;
+    deepOcean.position.y = -5;
+    scene.add(deepOcean);
+    tcaObjects.push(deepOcean);
 }
 
-// --- Central Energy Fountain ---
+// --- Central Mast ---
 function createCentralFountain(scene) {
-    // Glowing energy pool at the center
-    const poolGeo = new THREE.CircleGeometry(5, 32);
-    const poolMat = new THREE.MeshStandardMaterial({
-        color: COLORS.centralPool,
-        emissive: COLORS.centralPool,
-        emissiveIntensity: 0.4,
-        transparent: true,
-        opacity: 0.7,
-        roughness: 0.1,
-    });
-    const pool = new THREE.Mesh(poolGeo, poolMat);
-    pool.rotation.x = -Math.PI / 2;
-    pool.position.y = 0.05;
-    scene.add(pool);
-    tcaObjects.push(pool);
-    centralFountain = pool;
+    // Main mast (tall wooden pole)
+    const mastGeo = new THREE.CylinderGeometry(0.35, 0.5, 16, 8);
+    const mastMat = new THREE.MeshStandardMaterial({ color: 0x5c3d1e, roughness: 0.9, metalness: 0.05 });
+    const mast = new THREE.Mesh(mastGeo, mastMat);
+    mast.position.y = 8;
+    mast.castShadow = true;
+    scene.add(mast);
+    tcaObjects.push(mast);
 
-    // Ring around the pool
-    const ringGeo = new THREE.TorusGeometry(5.5, 0.3, 8, 32);
-    const ringMat = new THREE.MeshStandardMaterial({
-        color: 0x444488,
-        metalness: 0.6,
-        roughness: 0.3,
-    });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = 0.3;
-    scene.add(ring);
-    tcaObjects.push(ring);
+    // Crow's nest platform (ring near the top)
+    const nestGeo = new THREE.CylinderGeometry(1.8, 1.6, 0.3, 12);
+    const nestMat = new THREE.MeshStandardMaterial({ color: COLORS.hull, roughness: 0.85 });
+    const nest = new THREE.Mesh(nestGeo, nestMat);
+    nest.position.y = 14;
+    scene.add(nest);
+    tcaObjects.push(nest);
 
-    // Pillar in the center with text
-    const pillarGeo = new THREE.CylinderGeometry(0.5, 0.7, 3, 8);
-    const pillarMat = new THREE.MeshStandardMaterial({ color: 0x555577, metalness: 0.4, roughness: 0.5 });
-    const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-    pillar.position.y = 1.5;
-    pillar.castShadow = true;
-    scene.add(pillar);
-    tcaObjects.push(pillar);
+    // Crow's nest railing (torus)
+    const nestRailGeo = new THREE.TorusGeometry(1.7, 0.08, 6, 16);
+    const nestRailMat = new THREE.MeshStandardMaterial({ color: COLORS.railing, roughness: 0.8 });
+    const nestRail = new THREE.Mesh(nestRailGeo, nestRailMat);
+    nestRail.rotation.x = Math.PI / 2;
+    nestRail.position.y = 14.4;
+    scene.add(nestRail);
+    tcaObjects.push(nestRail);
 
-    // Floating crystal on top
-    const crystalGeo = new THREE.OctahedronGeometry(0.6, 0);
-    const crystalMat = new THREE.MeshStandardMaterial({
-        color: 0x00ddff,
-        emissive: 0x0088aa,
+    // Cross-beam (yard arm)
+    const yardGeo = new THREE.CylinderGeometry(0.12, 0.12, 10, 6);
+    const yard = new THREE.Mesh(yardGeo, mastMat.clone());
+    yard.rotation.z = Math.PI / 2;
+    yard.position.y = 11;
+    yard.castShadow = true;
+    scene.add(yard);
+    tcaObjects.push(yard);
+
+    // Lantern hanging from the mast (warm glow at deck level)
+    const lanternGeo = new THREE.BoxGeometry(0.5, 0.7, 0.5);
+    const lanternMat = new THREE.MeshStandardMaterial({
+        color: COLORS.lantern,
+        emissive: COLORS.lantern,
         emissiveIntensity: 0.6,
         transparent: true,
-        opacity: 0.8,
-        metalness: 0.8,
-        roughness: 0.1,
+        opacity: 0.9,
     });
-    const crystal = new THREE.Mesh(crystalGeo, crystalMat);
-    crystal.position.y = 3.5;
-    crystal.userData.isCrystal = true;
-    scene.add(crystal);
-    tcaObjects.push(crystal);
+    const lantern = new THREE.Mesh(lanternGeo, lanternMat);
+    lantern.position.set(0, 3.5, 0);
+    lantern.userData.isCrystal = true; // reuse crystal animation for gentle bob
+    scene.add(lantern);
+    tcaObjects.push(lantern);
+    centralFountain = lantern;
 
-    // Label
-    const label = createTextSprite('TCA Cycle', { x: 0, y: 5, z: 0 }, { scale: 2.5, textColor: 'rgba(100, 200, 255, 0.9)' });
+    // Compass rose inlaid in the deck (dark wood circle with brass accents)
+    const roseGeo = new THREE.CircleGeometry(4.5, 32);
+    const roseMat = new THREE.MeshStandardMaterial({
+        color: COLORS.deckDark,
+        roughness: 0.8,
+        metalness: 0.1,
+    });
+    const rose = new THREE.Mesh(roseGeo, roseMat);
+    rose.rotation.x = -Math.PI / 2;
+    rose.position.y = 0.04;
+    scene.add(rose);
+    tcaObjects.push(rose);
+
+    // Brass ring around compass rose
+    const brassRingGeo = new THREE.TorusGeometry(4.8, 0.15, 8, 32);
+    const brassRingMat = new THREE.MeshStandardMaterial({
+        color: COLORS.brass,
+        metalness: 0.7,
+        roughness: 0.3,
+    });
+    const brassRing = new THREE.Mesh(brassRingGeo, brassRingMat);
+    brassRing.rotation.x = Math.PI / 2;
+    brassRing.position.y = 0.08;
+    scene.add(brassRing);
+    tcaObjects.push(brassRing);
+
+    // Ship name label
+    const label = createTextSprite("Percy's Ship — TCA Cycle", { x: 0, y: 5.5, z: 0 }, {
+        scale: 2.5, textColor: 'rgba(255, 220, 150, 0.9)',
+    });
     scene.add(label);
     tcaObjects.push(label);
 
-    // Point light from the pool
-    const poolLight = new THREE.PointLight(COLORS.centralPool, 1.5, 20);
-    poolLight.position.set(0, 2, 0);
-    scene.add(poolLight);
-    tcaObjects.push(poolLight);
+    // Warm mast lantern light
+    const mastLight = new THREE.PointLight(COLORS.lantern, 1.2, 25);
+    mastLight.position.set(0, 3.5, 0);
+    scene.add(mastLight);
+    tcaObjects.push(mastLight);
 }
 
 // --- Enzyme Station NPCs ---
@@ -327,21 +410,35 @@ function createEnzymeStations(scene) {
         const x = Math.cos(enzymeData.angle) * STATION_RADIUS;
         const z = -Math.sin(enzymeData.angle) * STATION_RADIUS;
 
-        // Platform for each station
-        const platformGeo = new THREE.CylinderGeometry(3, 3.5, 0.4, 8);
+        // Wooden platform for each station (raised deck section)
+        const platformGeo = new THREE.BoxGeometry(5, 0.3, 5);
         const platformMat = new THREE.MeshStandardMaterial({
-            color: enzymeData.color,
-            metalness: 0.3,
-            roughness: 0.6,
-            emissive: enzymeData.color,
-            emissiveIntensity: 0.1,
+            color: COLORS.deckDark,
+            roughness: 0.9,
+            metalness: 0.05,
         });
         const platform = new THREE.Mesh(platformGeo, platformMat);
-        platform.position.set(x, 0.2, z);
+        platform.position.set(x, 0.15, z);
         platform.castShadow = true;
         platform.receiveShadow = true;
         scene.add(platform);
         tcaObjects.push(platform);
+
+        // Small colored accent strip (enzyme's color) on the platform edge
+        const accentGeo = new THREE.BoxGeometry(5, 0.08, 0.3);
+        const accentColor = typeof enzymeData.color === 'string' ? parseInt(enzymeData.color.replace('#', ''), 16) : enzymeData.color;
+        const accentMat = new THREE.MeshStandardMaterial({
+            color: accentColor,
+            emissive: accentColor,
+            emissiveIntensity: 0.15,
+            roughness: 0.6,
+        });
+        const accent = new THREE.Mesh(accentGeo, accentMat);
+        accent.position.set(x, 0.32, z + 2.35);
+        // Rotate accent to face center
+        accent.lookAt(0, accent.position.y, 0);
+        scene.add(accent);
+        tcaObjects.push(accent);
 
         // Create NPC character
         const npcGroup = createEnzymeNPC(enzymeData, x, z);
@@ -357,8 +454,8 @@ function createEnzymeStations(scene) {
             npcGroup.userData.mainMesh = mainMesh;
         }
 
-        // Station light
-        const stationLight = new THREE.PointLight(enzymeData.color, 0.5, 10);
+        // Station lantern light (warm, with enzyme color tint)
+        const stationLight = new THREE.PointLight(COLORS.lantern, 0.4, 10);
         stationLight.position.set(x, 3, z);
         scene.add(stationLight);
         tcaObjects.push(stationLight);
@@ -784,16 +881,15 @@ function createPortals(scene) {
 
     // Connecting label explaining WHY it's here
     const connectionLabel = createTextSprite('via alpha-KG / glutamate', { x: 0, y: 0.5, z: 1.5 }, {
-        scale: 0.6, textColor: 'rgba(100, 255, 150, 0.6)',
+        scale: 0.6, textColor: 'rgba(100, 255, 150, 0.5)',
     });
     portalGroup.add(connectionLabel);
 
-    // Connecting path from Alpha's station (z=28) to the portal (z=45)
-    const pathGeo = new THREE.PlaneGeometry(3, 18);
-    const pathMat = new THREE.MeshStandardMaterial({ color: 0x1a3a2a, roughness: 0.8 });
+    // Wooden walkway from Alpha's station to the portal (darker planks)
+    const pathGeo = new THREE.BoxGeometry(3, 0.15, 18);
+    const pathMat = new THREE.MeshStandardMaterial({ color: COLORS.deckDark, roughness: 0.9 });
     const path = new THREE.Mesh(pathGeo, pathMat);
-    path.rotation.x = -Math.PI / 2;
-    path.position.set(0, 0.015, 36);
+    path.position.set(0, 0.05, 36);
     scene.add(path);
     tcaObjects.push(path);
 
@@ -829,49 +925,75 @@ function createPortals(scene) {
 const CONSTANTS_UC = { MAX_X: 80 };
 
 function createGlycolysisPortal(scene) {
-    // Portal to Glycolysis -- north side (glycolysis feeds pyruvate into TCA)
+    // GANGPLANK to Shore (Glycolysis) -- north side
+    // Percy's ship is docked; the gangplank leads to the shore (cytosol) where glycolysis happens
     const portalGroup = new THREE.Group();
     portalGroup.position.set(0, 0, -50);
 
-    const ringGeo = new THREE.TorusGeometry(2, 0.25, 8, 20);
+    // Gangplank (wooden ramp)
+    const plankGeo = new THREE.BoxGeometry(3, 0.2, 10);
+    const plankMat = new THREE.MeshStandardMaterial({ color: 0x8B7355, roughness: 0.9 });
+    const gangplank = new THREE.Mesh(plankGeo, plankMat);
+    gangplank.position.set(0, 0.1, 4);
+    gangplank.rotation.x = 0.05; // Slight downward slope toward shore
+    portalGroup.add(gangplank);
+
+    // Rope railings on gangplank
+    for (const side of [-1, 1]) {
+        const ropeGeo = new THREE.CylinderGeometry(0.04, 0.04, 10, 4);
+        const ropeMat = new THREE.MeshStandardMaterial({ color: COLORS.rope, roughness: 0.95 });
+        const rope = new THREE.Mesh(ropeGeo, ropeMat);
+        rope.rotation.x = Math.PI / 2;
+        rope.position.set(side * 1.6, 1.0, 4);
+        portalGroup.add(rope);
+
+        // Posts at each end of the gangplank
+        for (const zOff of [-4, 4]) {
+            const postGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.5, 6);
+            const post = new THREE.Mesh(postGeo, new THREE.MeshStandardMaterial({ color: COLORS.railing, roughness: 0.85 }));
+            post.position.set(side * 1.6, 0.75, 4 + zOff);
+            portalGroup.add(post);
+        }
+    }
+
+    // Glowing portal ring at the end of the gangplank
+    const ringGeo = new THREE.TorusGeometry(2, 0.2, 8, 20);
     const ringMat = new THREE.MeshStandardMaterial({
-        color: 0xff6b6b, emissive: 0xff4444, emissiveIntensity: 0.5,
-        transparent: true, opacity: 0.8,
+        color: 0xff6b6b, emissive: 0xff4444, emissiveIntensity: 0.4,
+        transparent: true, opacity: 0.7,
     });
     const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.position.y = 2;
+    ring.position.set(0, 2, 8);
     portalGroup.add(ring);
 
-    const innerGeo = new THREE.CircleGeometry(1.8, 16);
-    const innerMat = new THREE.MeshStandardMaterial({
-        color: 0xff6b6b, emissive: 0xff4444, emissiveIntensity: 0.3,
-        transparent: true, opacity: 0.4, side: THREE.DoubleSide,
+    const label = createTextSprite('The Shore — Glycolysis', { x: 0, y: 4.5, z: 8 }, {
+        scale: 1.3, textColor: 'rgba(255, 200, 150, 0.9)',
     });
-    const inner = new THREE.Mesh(innerGeo, innerMat);
-    inner.position.y = 2;
-    portalGroup.add(inner);
-
-    const label = createTextSprite('Glycolysis Gauntlet', { x: 0, y: 4.5, z: 0 }, { scale: 1.3 });
     portalGroup.add(label);
 
-    const light = new THREE.PointLight(0xff6b6b, 0.8, 10);
-    light.position.set(0, 2, 0);
+    const subLabel = createTextSprite('"Walk the plank... to shore!"', { x: 0, y: 0.5, z: 9 }, {
+        scale: 0.6, textColor: 'rgba(255, 200, 150, 0.5)',
+    });
+    portalGroup.add(subLabel);
+
+    const light = new THREE.PointLight(COLORS.lantern, 0.6, 10);
+    light.position.set(0, 2, 4);
     portalGroup.add(light);
 
     scene.add(portalGroup);
     tcaObjects.push(portalGroup);
 
     portalGroup.userData = {
-        name: 'Portal to Glycolysis Gauntlet',
+        name: 'Gangplank to Shore (Glycolysis)',
         type: 'portal',
         isInteractable: true,
         onInteract: (obj, scene, tools) => {
             const { showDialogue, setGameInteracting } = tools;
-            showDialogue("This portal leads to the Glycolysis Gauntlet -- where glucose is broken down into pyruvate. Ready to go?", [
-                { text: "Enter Glycolysis", action: () => {
+            showDialogue("The gangplank leads to shore -- the cytosol, where glucose is broken down in the Glycolysis Gauntlet. Walk the plank?", [
+                { text: "Walk to shore", action: () => {
                     transitionTo('glycolysis', { x: 0, y: 0.5, z: 50 });
                 }},
-                { text: "Not yet" }
+                { text: "Stay on the ship" }
             ], setGameInteracting);
         }
     };
@@ -882,133 +1004,215 @@ function createGlycolysisPortal(scene) {
 
 // --- Decorative Elements ---
 function createCompassMarkers(scene) {
-    const compassDist = PLAZA_RADIUS + 10;
+    const compassDist = PLAZA_RADIUS + 8;
     const markers = [
-        { label: 'N', x: 0, z: -compassDist, desc: 'Glycolysis' },
+        { label: 'N — Shore', x: 0, z: -compassDist, desc: 'Glycolysis (Land)' },
         { label: 'S', x: 0, z: compassDist, desc: 'Urea Cycle' },
         { label: 'E', x: compassDist, z: 0, desc: '' },
         { label: 'W', x: -compassDist, z: 0, desc: '' },
     ];
 
     for (const m of markers) {
-        // Large compass letter on the ground
+        // Brass compass letter painted on deck
         const letterLabel = createTextSprite(m.label, { x: m.x, y: 0.3, z: m.z }, {
-            scale: 2.5, textColor: 'rgba(200, 200, 255, 0.35)',
+            scale: 2.2, textColor: 'rgba(200, 180, 100, 0.5)',
         });
         scene.add(letterLabel);
         tcaObjects.push(letterLabel);
 
-        // Small pathway name below the letter
         if (m.desc) {
             const descLabel = createTextSprite(m.desc, { x: m.x, y: 0.15, z: m.z + (m.z < 0 ? 2.5 : -2.5) }, {
-                scale: 0.8, textColor: 'rgba(200, 200, 255, 0.25)',
+                scale: 0.7, textColor: 'rgba(200, 180, 100, 0.3)',
             });
             scene.add(descLabel);
             tcaObjects.push(descLabel);
         }
 
-        // Ground marker disc
-        const discGeo = new THREE.CircleGeometry(1.5, 16);
+        // Brass disc inlaid in deck
+        const discGeo = new THREE.CircleGeometry(1.3, 16);
         const discMat = new THREE.MeshStandardMaterial({
-            color: 0x333355, roughness: 0.8, metalness: 0.2,
+            color: COLORS.brass, roughness: 0.5, metalness: 0.5,
         });
         const disc = new THREE.Mesh(discGeo, discMat);
         disc.rotation.x = -Math.PI / 2;
-        disc.position.set(m.x, 0.03, m.z);
+        disc.position.set(m.x, 0.04, m.z);
         scene.add(disc);
         tcaObjects.push(disc);
     }
 
-    // Central compass rose (small cross on the ground at spawn point)
-    const crossMat = new THREE.MeshStandardMaterial({ color: 0x444466, roughness: 0.6 });
-    const hBar = new THREE.Mesh(new THREE.BoxGeometry(4, 0.05, 0.3), crossMat);
-    hBar.position.set(0, 0.04, 0);
+    // Central compass rose (brass cross inlaid in the deck)
+    const crossMat = new THREE.MeshStandardMaterial({ color: COLORS.brass, roughness: 0.4, metalness: 0.5 });
+    const hBar = new THREE.Mesh(new THREE.BoxGeometry(4, 0.05, 0.25), crossMat);
+    hBar.position.set(0, 0.05, 0);
     scene.add(hBar);
     tcaObjects.push(hBar);
-    const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 4), crossMat);
-    vBar.position.set(0, 0.04, 0);
+    const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.05, 4), crossMat);
+    vBar.position.set(0, 0.05, 0);
     scene.add(vBar);
     tcaObjects.push(vBar);
 }
 
 function createDecorativeElements(scene) {
-    // Floating energy particles around the cycle ring
-    const particleCount = 200;
+    const deckEdge = PLAZA_RADIUS + 12;
+
+    // === SHIP RAILING (posts + horizontal rails around the deck perimeter) ===
+    const railPostCount = 32;
+    const railMat = new THREE.MeshStandardMaterial({ color: COLORS.railing, roughness: 0.85, metalness: 0.05 });
+    for (let i = 0; i < railPostCount; i++) {
+        const angle = (i / railPostCount) * Math.PI * 2;
+        const rx = Math.cos(angle) * deckEdge;
+        const rz = Math.sin(angle) * deckEdge;
+
+        // Vertical post
+        const postGeo = new THREE.BoxGeometry(0.2, 2.5, 0.2);
+        const post = new THREE.Mesh(postGeo, railMat);
+        post.position.set(rx, 1.25, rz);
+        post.castShadow = true;
+        scene.add(post);
+        tcaObjects.push(post);
+
+        // Brass cap on top
+        const capGeo = new THREE.SphereGeometry(0.15, 6, 6);
+        const capMat = new THREE.MeshStandardMaterial({ color: COLORS.brass, metalness: 0.7, roughness: 0.3 });
+        const cap = new THREE.Mesh(capGeo, capMat);
+        cap.position.set(rx, 2.55, rz);
+        scene.add(cap);
+        tcaObjects.push(cap);
+    }
+
+    // Horizontal rail (torus around the deck)
+    const topRailGeo = new THREE.TorusGeometry(deckEdge, 0.08, 6, 64);
+    const topRail = new THREE.Mesh(topRailGeo, new THREE.MeshStandardMaterial({ color: COLORS.railing, roughness: 0.8 }));
+    topRail.rotation.x = Math.PI / 2;
+    topRail.position.y = 2.2;
+    scene.add(topRail);
+    tcaObjects.push(topRail);
+
+    const midRailGeo = new THREE.TorusGeometry(deckEdge, 0.06, 6, 64);
+    const midRail = new THREE.Mesh(midRailGeo, new THREE.MeshStandardMaterial({ color: COLORS.railing, roughness: 0.8 }));
+    midRail.rotation.x = Math.PI / 2;
+    midRail.position.y = 1.2;
+    scene.add(midRail);
+    tcaObjects.push(midRail);
+
+    // === LANTERN POSTS (at cardinal directions, replacing stone columns) ===
+    const lanternPositions = [
+        { x: 0, z: PLAZA_RADIUS + 5 },
+        { x: 0, z: -(PLAZA_RADIUS + 5) },
+        { x: PLAZA_RADIUS + 5, z: 0 },
+        { x: -(PLAZA_RADIUS + 5), z: 0 },
+    ];
+
+    for (const pos of lanternPositions) {
+        // Wooden post
+        const postGeo = new THREE.CylinderGeometry(0.18, 0.22, 4, 6);
+        const post = new THREE.Mesh(postGeo, railMat);
+        post.position.set(pos.x, 2, pos.z);
+        post.castShadow = true;
+        scene.add(post);
+        tcaObjects.push(post);
+
+        // Lantern box on top
+        const lGeo = new THREE.BoxGeometry(0.6, 0.8, 0.6);
+        const lMat = new THREE.MeshStandardMaterial({
+            color: COLORS.lantern,
+            emissive: COLORS.lantern,
+            emissiveIntensity: 0.5,
+            transparent: true,
+            opacity: 0.85,
+        });
+        const lanternBox = new THREE.Mesh(lGeo, lMat);
+        lanternBox.position.set(pos.x, 4.4, pos.z);
+        lanternBox.userData.isFlame = true;
+        scene.add(lanternBox);
+        tcaObjects.push(lanternBox);
+
+        // Lantern light
+        const lLight = new THREE.PointLight(COLORS.lantern, 0.6, 12);
+        lLight.position.set(pos.x, 4.4, pos.z);
+        scene.add(lLight);
+        tcaObjects.push(lLight);
+    }
+
+    // === ROPE COILS (scattered on deck) ===
+    const ropePositions = [
+        { x: 12, z: 12 }, { x: -15, z: 8 }, { x: 10, z: -14 }, { x: -8, z: -16 },
+    ];
+    for (const rp of ropePositions) {
+        const ropeGeo = new THREE.TorusGeometry(0.6, 0.12, 6, 12);
+        const ropeMat = new THREE.MeshStandardMaterial({ color: COLORS.rope, roughness: 0.95 });
+        const rope = new THREE.Mesh(ropeGeo, ropeMat);
+        rope.rotation.x = Math.PI / 2;
+        rope.position.set(rp.x, 0.15, rp.z);
+        scene.add(rope);
+        tcaObjects.push(rope);
+    }
+
+    // === BARRELS (near the mast and around deck) ===
+    const barrelPositions = [
+        { x: 3, z: 3 }, { x: -4, z: 2 }, { x: -2, z: -4.5 },
+        { x: 18, z: 6 }, { x: -20, z: -5 },
+    ];
+    const barrelMat = new THREE.MeshStandardMaterial({ color: 0x6B4E2A, roughness: 0.9 });
+    const hoopMat = new THREE.MeshStandardMaterial({ color: COLORS.brass, metalness: 0.5, roughness: 0.4 });
+    for (const bp of barrelPositions) {
+        const barrelGeo = new THREE.CylinderGeometry(0.55, 0.5, 1.2, 10);
+        const barrel = new THREE.Mesh(barrelGeo, barrelMat);
+        barrel.position.set(bp.x, 0.6, bp.z);
+        barrel.castShadow = true;
+        scene.add(barrel);
+        tcaObjects.push(barrel);
+
+        // Brass hoops
+        for (const hy of [0.3, 0.9]) {
+            const hoopGeo = new THREE.TorusGeometry(0.56, 0.03, 6, 16);
+            const hoop = new THREE.Mesh(hoopGeo, hoopMat);
+            hoop.rotation.x = Math.PI / 2;
+            hoop.position.set(bp.x, hy, bp.z);
+            scene.add(hoop);
+            tcaObjects.push(hoop);
+        }
+    }
+
+    // === FLOATING PARTICLES (sea spray / lantern sparks, warm-tinted) ===
+    const particleCount = 150;
     const particleGeo = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     for (let i = 0; i < particleCount; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const r = STATION_RADIUS + (Math.random() - 0.5) * 6;
+        const r = STATION_RADIUS + (Math.random() - 0.5) * 8;
         positions[i * 3] = Math.cos(angle) * r;
-        positions[i * 3 + 1] = 0.5 + Math.random() * 3;
+        positions[i * 3 + 1] = 0.5 + Math.random() * 2.5;
         positions[i * 3 + 2] = -Math.sin(angle) * r;
     }
     particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     const particleMat = new THREE.PointsMaterial({
-        color: 0x8866ff,
-        size: 0.15,
+        color: 0xffcc66,
+        size: 0.12,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.4,
     });
     const particles = new THREE.Points(particleGeo, particleMat);
     particles.userData.isParticles = true;
     scene.add(particles);
     tcaObjects.push(particles);
-
-    // Decorative columns at cardinal directions
-    const columnPositions = [
-        { x: 0, z: PLAZA_RADIUS + 5 },    // North
-        { x: 0, z: -(PLAZA_RADIUS + 5) }, // South
-        { x: PLAZA_RADIUS + 5, z: 0 },    // East (near urea portal)
-        { x: -(PLAZA_RADIUS + 5), z: 0 }, // West
-    ];
-
-    for (const pos of columnPositions) {
-        const colGeo = new THREE.CylinderGeometry(0.5, 0.6, 4, 6);
-        const colMat = new THREE.MeshStandardMaterial({ color: 0x444466, metalness: 0.5, roughness: 0.4 });
-        const col = new THREE.Mesh(colGeo, colMat);
-        col.position.set(pos.x, 2, pos.z);
-        col.castShadow = true;
-        scene.add(col);
-        tcaObjects.push(col);
-
-        // Flame on top
-        const flameGeo = new THREE.ConeGeometry(0.3, 0.8, 6);
-        const flameMat = new THREE.MeshStandardMaterial({
-            color: 0xff6600,
-            emissive: 0xff4400,
-            emissiveIntensity: 0.8,
-            transparent: true,
-            opacity: 0.9,
-        });
-        const flame = new THREE.Mesh(flameGeo, flameMat);
-        flame.position.set(pos.x, 4.5, pos.z);
-        flame.userData.isFlame = true;
-        scene.add(flame);
-        tcaObjects.push(flame);
-
-        const flameLight = new THREE.PointLight(0xff6600, 0.4, 8);
-        flameLight.position.set(pos.x, 4.5, pos.z);
-        scene.add(flameLight);
-        tcaObjects.push(flameLight);
-    }
 }
 
-// --- World Lighting ---
+// --- World Lighting (Nautical Night) ---
 function createWorldLighting(scene) {
-    // Moonlight-like directional light
-    const moonLight = new THREE.DirectionalLight(0x8888cc, 0.4);
-    moonLight.position.set(20, 30, 10);
+    // Moonlight -- cool blue-white, coming from above-right
+    const moonLight = new THREE.DirectionalLight(0x8899bb, 0.35);
+    moonLight.position.set(20, 35, -15);
     moonLight.castShadow = true;
     moonLight.shadow.mapSize.width = 1024;
     moonLight.shadow.mapSize.height = 1024;
     scene.add(moonLight);
     tcaObjects.push(moonLight);
 
-    // Ambient glow from below (simulating the energy of the cycle)
-    const underGlow = new THREE.HemisphereLight(0x4422aa, 0x111122, 0.3);
-    scene.add(underGlow);
-    tcaObjects.push(underGlow);
+    // Warm hemisphere light (lantern glow from above, ocean reflection from below)
+    const hemiLight = new THREE.HemisphereLight(0xcc9955, 0x112233, 0.35);
+    scene.add(hemiLight);
+    tcaObjects.push(hemiLight);
 }
 
 // --- Update ---
@@ -1030,9 +1234,21 @@ export function update(delta, elapsedTime) {
         }
     }
 
-    // Animate central pool
+    // Animate central lantern glow
     if (centralFountain) {
-        centralFountain.material.emissiveIntensity = 0.3 + Math.sin(elapsedTime * 2) * 0.15;
+        centralFountain.material.emissiveIntensity = 0.4 + Math.sin(elapsedTime * 1.5) * 0.2;
+    }
+
+    // Animate ocean waves
+    for (const obj of tcaObjects) {
+        if (obj.userData && obj.userData.isOcean && obj.geometry) {
+            const verts = obj.geometry.attributes.position.array;
+            for (let i = 0; i < verts.length; i += 3) {
+                verts[i + 2] = Math.sin(verts[i] * 0.05 + elapsedTime * 0.6) *
+                    Math.cos(verts[i + 1] * 0.04 + elapsedTime * 0.4) * 0.8;
+            }
+            obj.geometry.attributes.position.needsUpdate = true;
+        }
     }
 
     // NPC idle animations (breathing, head turn, arm sway, weight shift)

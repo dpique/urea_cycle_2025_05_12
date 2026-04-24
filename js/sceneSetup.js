@@ -1,8 +1,8 @@
 // js/sceneSetup.js
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-export let scene, camera, renderer, controls, ambientLight, directionalLight; // Export lights
+export let scene, camera, renderer, controls, ambientLight, directionalLight;
 
 export function initScene(canvasElement) {
     scene = new THREE.Scene();
@@ -133,21 +133,11 @@ export function initScene(canvasElement) {
     scene.fog = new THREE.Fog(0x87CEEB, 50, 400);
 
 
-    // OrbitControls
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
-    controls.screenSpacePanning = false;
-    controls.enableRotate = true;  // Enable mouse rotation
-    controls.enableZoom = false;
-    controls.enablePan = false;
-    controls.mouseButtons = {
-        LEFT: THREE.MOUSE.ROTATE,
-        RIGHT: THREE.MOUSE.ROTATE
-    };
-    // Limit vertical rotation
-    controls.minPolarAngle = Math.PI / 4; // 45 degrees
-    controls.maxPolarAngle = Math.PI * 0.75; // 135 degrees
+    // First-person PointerLockControls
+    controls = new PointerLockControls(camera, renderer.domElement);
+    // Add camera to scene so children (first-person arms) render
+    scene.add(camera);
+    camera.userData.persistent = true;
 
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -156,4 +146,21 @@ export function initScene(canvasElement) {
     });
 
     return { scene, camera, renderer, controls, ambientLight, directionalLight };
+}
+
+// --- Pointer lock helpers ---
+export function lockControls() {
+    if (controls && !controls.isLocked) {
+        controls.lock();
+    }
+}
+
+export function unlockControls() {
+    if (controls && controls.isLocked) {
+        controls.unlock();
+    }
+}
+
+export function isControlsLocked() {
+    return controls ? controls.isLocked : false;
 }
