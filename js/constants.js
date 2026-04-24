@@ -90,7 +90,17 @@ export const PLAYER_TOTAL_HEIGHT = PLAYER_LEG_HEIGHT + PLAYER_BODY_HEIGHT + PLAY
 
 
 // --- Interaction Constants ---
-export const INTERACTION_RADIUS_SQ = 4.0 * 4.0; 
+export const INTERACTION_RADIUS_SQ = 4.0 * 4.0;
+
+// --- Health / Damage Constants ---
+export const AMMONIA_DAMAGE_RATE_LOW = 1;   // HP/sec while holding 1 NH3
+export const AMMONIA_DAMAGE_RATE_HIGH = 3;  // HP/sec while holding 2+ NH3
+export const GRAVEYARD_DAMAGE_INTERVAL = 10000; // ms between graveyard ticks
+export const GRAVEYARD_DAMAGE_AMOUNT = 1;   // HP per graveyard tick
+export const HEALTH_REGEN_RATE = 1;         // HP/sec when safe
+export const JUMP_STRENGTH = 0.32;
+export const GRAVITY = 0.02;
+export const BRIDGE_RAMP_LENGTH = 4.0;
 
 // --- Quest States ---
 export const QUEST_STATE = Object.freeze({

@@ -143,6 +143,7 @@ export function createCollectionEffect(scene, position, color, itemName) {
             requestAnimationFrame(animateText);
         } else {
             scene.remove(textSprite);
+            if (textSprite.material.map) textSprite.material.map.dispose();
             textSprite.material.dispose();
         }
     };

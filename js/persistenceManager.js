@@ -1,5 +1,5 @@
 // js/persistenceManager.js
-import { getGameState, setGameState } from './gameState.js';
+import { getGameState, setGameState, setHealth } from './gameState.js';
 import { player } from './playerManager.js';
 import { updateInventoryUI, updateQuestUI, showFeedback } from './uiManager.js';
 import { transitionTo } from './sceneManager.js';
@@ -26,6 +26,9 @@ export function saveGame() {
         currentQuest: gameState.currentQuest,
         playerLocation: gameState.playerLocation,
         hasPortalPermission: gameState.hasPortalPermission,
+        health: gameState.health,
+        ammoniaCollectedCount: gameState.ammoniaCollectedCount,
+        hasVisitedGraveyard: gameState.hasVisitedGraveyard,
         playerPosition: {
             x: player.position.x,
             y: player.position.y,
@@ -68,6 +71,8 @@ export function loadGame() {
             currentQuest: saveData.currentQuest || null,
             playerLocation: saveData.playerLocation || 'mitochondria',
             hasPortalPermission: saveData.hasPortalPermission || false,
+            ammoniaCollectedCount: saveData.ammoniaCollectedCount || 0,
+            hasVisitedGraveyard: saveData.hasVisitedGraveyard || false,
             // Multi-world state
             currentWorldId: saveData.currentWorldId || 'urea-cycle',
             abilities: saveData.abilities || [],
@@ -75,6 +80,10 @@ export function loadGame() {
             worldProgress: saveData.worldProgress || {},
         };
         setGameState(newGameState);
+
+        // Restore health (default to 100 for older saves)
+        setHealth(saveData.health != null ? saveData.health : 100);
+
 
         // Update UI
         updateInventoryUI(newGameState.inventory);

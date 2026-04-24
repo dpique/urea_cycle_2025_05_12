@@ -180,7 +180,20 @@
 
 
          <!-- Loading Indicator -->
-         <div id="loadingScreen" class="ui-panel">Loading...</div>
+         <div id="loadingScreen" class="ui-panel loading-screen">
+             <h2>Metabolon</h2>
+             <p id="loadingStatus">Initializing...</p>
+             <div class="loading-bar-container">
+                 <div id="loadingBar" class="loading-bar"></div>
+             </div>
+         </div>
+
+         <!-- Error Screen (hidden by default) -->
+         <div id="errorScreen" class="ui-panel hidden" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);max-width:500px;z-index:9999;background:rgba(30,0,0,0.95);border:2px solid #f44;padding:24px;text-align:center;">
+             <h2 style="color:#f66;">Something went wrong</h2>
+             <p id="errorMessage" style="color:#ccc;margin:12px 0;"></p>
+             <button onclick="location.reload()" style="padding:8px 24px;cursor:pointer;">Reload Game</button>
+         </div>
 
          <!-- Minimap -->
          <div id="minimapContainer" class="minimap-container">

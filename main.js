@@ -14,6 +14,7 @@ import { handlePlayerDeath } from './js/gameManager.js';
 import { registerWorld, loadWorld, updateCurrentWorld, getCurrentWorld, getCurrentWorldId, getIsTransitioning, transitionTo } from './js/sceneManager.js';
 import { toggleMinimap } from './js/minimap.js';
 import { getWorldTerrainHeight } from './js/worldManager.js';
+import { initTouchControls } from './js/touchControls.js';
 
 // Import world modules
 import * as ureaCycleWorld from './js/worlds/ureaCycleWorld.js';
@@ -24,17 +25,53 @@ export const dialogueBox = document.getElementById('dialogueBox');
 export const realityRiverUI = document.getElementById('realityRiver');
 
 
-// --- Initialize core systems (world-agnostic) ---
-const canvasElement = document.getElementById('gameCanvas');
-initScene(canvasElement);
-initUIManager();
-onEvent('health:change', updateHealthUI);
-initPlayer(scene);
+// --- Loading progress helpers ---
+const loadingBar = document.getElementById('loadingBar');
+const loadingStatus = document.getElementById('loadingStatus');
+function setLoadProgress(pct, msg) {
+    if (loadingBar) loadingBar.style.width = pct + '%';
+    if (loadingStatus) loadingStatus.textContent = msg;
+}
 
-// --- Register worlds ---
-registerWorld('urea-cycle', ureaCycleWorld);
-registerWorld('tca-cycle', tcaCycleWorld);
-registerWorld('glycolysis', glycolysisWorld);
+// --- Error boundary ---
+function showFatalError(err) {
+    const errorScreen = document.getElementById('errorScreen');
+    const errorMessage = document.getElementById('errorMessage');
+    if (errorScreen && errorMessage) {
+        errorMessage.textContent = String(err?.message || err);
+        errorScreen.classList.remove('hidden');
+    }
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) loadingScreen.classList.add('hidden');
+}
+window.addEventListener('error', (e) => showFatalError(e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => showFatalError(e.reason));
+
+// --- Initialize core systems (world-agnostic) ---
+let canvasElement;
+try {
+    setLoadProgress(10, 'Setting up scene...');
+    canvasElement = document.getElementById('gameCanvas');
+    initScene(canvasElement);
+
+    setLoadProgress(25, 'Loading UI...');
+    initUIManager();
+    onEvent('health:change', updateHealthUI);
+
+    setLoadProgress(40, 'Creating player...');
+    initPlayer(scene);
+
+    setLoadProgress(55, 'Setting up input...');
+    initTouchControls();
+
+    setLoadProgress(70, 'Registering worlds...');
+    registerWorld('urea-cycle', ureaCycleWorld);
+    registerWorld('tca-cycle', tcaCycleWorld);
+    registerWorld('glycolysis', glycolysisWorld);
+} catch (err) {
+    showFatalError(err);
+    throw err;
+}
 
 // --- Load initial world (TCA is the central hub) ---
 loadWorld('tca-cycle', tcaCycleWorld.config.spawnPoint);
@@ -230,7 +267,8 @@ function animate() {
         }
     }
 
-    // Delegate to current world's update (handles all world-specific logic)
+    // Delegate to current world's update (handles all world-specific logic:
+    // ammonia toxicity, bridge ramps, terrain following, location tracking, etc.)
     updateCurrentWorld(delta, elapsedTime);
 
     // Generic player update (movement, animation)
@@ -240,5 +278,13 @@ function animate() {
 }
 
 getAudioContext();
+
+// Hide loading screen and start game loop
+setLoadProgress(100, 'Ready!');
+const loadingScreenEl = document.getElementById('loadingScreen');
+if (loadingScreenEl) {
+    setTimeout(() => loadingScreenEl.classList.add('hidden'), 300);
+}
+
 animate();
 console.log("Metabolon RPG Initialized (Multi-World Architecture).");

@@ -11,6 +11,7 @@ import { lockControls, unlockControls } from './sceneSetup.js';
 import { getGameState, setGameState, getCurrentQuest, setCurrentQuest, advanceCurrentQuestState, getInventory, removeFromInventory } from './gameState.js';
 import { updateCycleDisplay } from './cycleDisplay.js';
 import { emit } from './eventBus.js';
+import { createGameBoySound } from './audioManager.js';
 
 export const ureaCycleQuestData = {
     id: 'ureaCycle',
@@ -91,6 +92,7 @@ export function advanceUreaCycleQuest(newState) {
         advanceCurrentQuestState(newState);
         console.log(`Advancing quest ${ureaCycleQuestData.id} from ${currentQuest.state} to ${newState}`);
         emit('quest:advance', { questId: ureaCycleQuestData.id, state: newState });
+        createGameBoySound('interact'); // audio cue on quest step advance
 
         const objectiveText = ureaCycleQuestData.objectives[newState];
         if (newState === CONSTANTS.QUEST_STATE.COMPLETED) {
