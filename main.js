@@ -1,9 +1,9 @@
 // main.js - World-agnostic game loop with SceneManager
 import * as THREE from 'three';
 import * as CONSTANTS from './js/constants.js';
-import { initScene, scene, camera, renderer, controls, lockControls, isControlsLocked } from './js/sceneSetup.js';
+import { initScene, scene, camera, renderer, controls } from './js/sceneSetup.js';
 import { wallBoundingBoxes } from './js/worldManager.js';
-import { initPlayer, player, updatePlayer } from './js/playerManager.js';
+import { initPlayer, player, updatePlayer, toggleCameraMode } from './js/playerManager.js';
 import { initUIManager, showFeedback, updateHealthUI } from './js/uiManager.js';
 import { getAudioContext, toggleMuteMusic } from './js/audioManager.js';
 import { getClosestInteractiveObject, interactWithObject } from './js/interactionManager.js';
@@ -107,43 +107,9 @@ function setupExternalLinks() {
 }
 setupExternalLinks();
 
-// --- First-person pointer lock setup ---
-const crosshairEl = document.getElementById('crosshair');
-const pointerLockOverlay = document.getElementById('pointerLockOverlay');
-
-// Click canvas to lock pointer (enter first-person mode)
-canvasElement.addEventListener('click', () => {
-    const gameState = getGameState();
-    if (!gameState.isUserInteracting) {
-        lockControls();
-    }
-});
-
-// Also allow clicking the overlay to lock
-if (pointerLockOverlay) {
-    pointerLockOverlay.addEventListener('click', () => {
-        lockControls();
-    });
-}
-
-// Show/hide crosshair and overlay based on lock state
-controls.addEventListener('lock', () => {
-    if (crosshairEl) crosshairEl.classList.remove('hidden');
-    if (pointerLockOverlay) pointerLockOverlay.classList.add('hidden');
-});
-
-controls.addEventListener('unlock', () => {
-    if (crosshairEl) crosshairEl.classList.add('hidden');
-    // Only show overlay if not in a dialogue/quiz
-    const gameState = getGameState();
-    if (!gameState.isUserInteracting) {
-        if (pointerLockOverlay) pointerLockOverlay.classList.remove('hidden');
-    }
-});
-
 // Welcome message
 setTimeout(() => {
-    showFeedback("Welcome to Metabolon! WASD to move, mouse to look. E to interact. Space to jump. H for help.", 6000);
+    showFeedback("Welcome to Metabolon! WASD to move, click-drag to rotate camera. E to interact. C to toggle camera view. Space to jump. H for help.", 6000);
 }, 1000);
 
 // Auto-save every 30 seconds
@@ -189,13 +155,13 @@ document.addEventListener('keydown', (event) => {
 
     if (getIsTransitioning()) return;
 
-    if (key === 'e' && getClosestInteractiveObject() && !gameState.isUserInteracting && isControlsLocked()) {
+    if (key === 'e' && getClosestInteractiveObject() && !gameState.isUserInteracting) {
         if (dialogueBox.classList.contains('hidden') && realityRiverUI.classList.contains('hidden')) {
             interactWithObject(getClosestInteractiveObject(), scene);
         }
     }
 
-    if (key === ' ' && !gameState.isUserInteracting && isControlsLocked()) {
+    if (key === ' ' && !gameState.isUserInteracting) {
         const terrainHeight = getWorldTerrainHeight(player.position.x, player.position.z);
         const currentHeight = player.position.y;
         const bridgeMinZ = CONSTANTS.BRIDGE_CENTER_Z - CONSTANTS.BRIDGE_WIDTH / 2;
@@ -213,7 +179,10 @@ document.addEventListener('keydown', (event) => {
     if (key === 'h' && !gameState.isUserInteracting) window.toggleHelpMenu();
     if (key === 'g' && !gameState.isUserInteracting) window.toggleGlossary();
     if (key === 'm' && !gameState.isUserInteracting) toggleMinimap();
-    // C key removed (was camera toggle, now first-person only)
+    if (key === 'c' && !gameState.isUserInteracting) {
+        const modeName = toggleCameraMode();
+        showFeedback(`Camera: ${modeName}`, 2000);
+    }
     if (event.key === 'F5' && !gameState.isUserInteracting) {
         event.preventDefault();
         if (getCurrentQuest()) {
