@@ -226,8 +226,8 @@ document.addEventListener('keydown', (event) => {
         event.preventDefault();
         loadGame();
     }
-    // T key: cycle through worlds (DEV-only teleport)
-    if (import.meta.env.DEV && key === 't' && !gameState.isUserInteracting) {
+    // T key: cycle through worlds (quick-travel)
+    if (key === 't' && !gameState.isUserInteracting) {
         const currentId = getCurrentWorldId();
         const cycle = ['tca-cycle', 'urea-cycle', 'glycolysis'];
         const nextIdx = (cycle.indexOf(currentId) + 1) % cycle.length;
