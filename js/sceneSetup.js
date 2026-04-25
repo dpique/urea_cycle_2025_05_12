@@ -146,9 +146,3 @@ export function initScene(canvasElement) {
     return { scene, camera, renderer, controls, ambientLight, directionalLight };
 }
 
-// Stubs kept for API compatibility with existing callers (first-person pointer-lock
-// was removed in favor of OrbitControls-based third-person). Always reports "locked"
-// so input handlers that gated on pointer lock still fire.
-export function lockControls() {}
-export function unlockControls() {}
-export function isControlsLocked() { return true; }

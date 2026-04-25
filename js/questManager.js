@@ -7,7 +7,6 @@ import {
     updateRiverFeedback, clearRiverFeedback,
     updateRiverProgressUI, disableRiverAnswerButtons
 } from './uiManager.js';
-import { lockControls, unlockControls } from './sceneSetup.js';
 import { getGameState, setGameState, getCurrentQuest, setCurrentQuest, advanceCurrentQuestState, getInventory, removeFromInventory } from './gameState.js';
 import { updateCycleDisplay } from './cycleDisplay.js';
 import { emit } from './eventBus.js';
@@ -111,7 +110,6 @@ export function startRealityRiverChallenge() {
     showRealityRiverUI();
     displayNextRiverQuestion();
     updateRiverProgress();
-    unlockControls();
     setGameState({ isUserInteracting: true });
 }
 
@@ -158,7 +156,6 @@ function updateRiverProgress() {
 
 function endRealityRiver(success) {
     hideRealityRiverUI();
-    lockControls();
     setGameState({ isUserInteracting: false });
 
     if (success) {

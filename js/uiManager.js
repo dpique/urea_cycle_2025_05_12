@@ -1,5 +1,4 @@
 // js/uiManager.js
-import { lockControls, unlockControls } from './sceneSetup.js';
 import * as CONSTANTS from './constants.js';
 
 // --- DOM Element References ---
@@ -108,10 +107,6 @@ export function showDialogue(text, options = [], setGameInteractingState) {
         dialogueBoxEl.classList.remove('fade-in');
     }, 50);
     
-    unlockControls();
-    // Hide pointer lock overlay so dialogue buttons are clickable
-    const overlay = document.getElementById('pointerLockOverlay');
-    if (overlay) overlay.classList.add('hidden');
     setGameInteractingState(true);
 }
 
@@ -125,14 +120,7 @@ export function hideDialogue(setGameInteractingState) {
         dialogueBoxEl.classList.remove('fade-out');
     }, 300);
     
-    // Only re-enable controls if no other modal is active (e.g., reality river)
-    if (realityRiverUIEl && realityRiverUIEl.classList.contains('hidden')) {
-        lockControls();
-    }
-    // It's crucial that setGameInteractingState(false) is only called if no other modal is active.
-    // The caller (interactionManager or questManager) should manage the overall interacting state.
-    // For simple dialogues, this is okay. For complex flows, manage state more globally.
-    if (setGameInteractingState) { // Check if function is provided
+    if (setGameInteractingState) {
        setGameInteractingState(false);
     }
 }
