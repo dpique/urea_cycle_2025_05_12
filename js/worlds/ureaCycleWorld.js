@@ -227,9 +227,14 @@ export function update(delta, elapsedTime) {
         const terrainHeight = getTerrainHeightAt(player.position.x, player.position.z);
         const targetY = Math.max(0.01, terrainHeight + 0.01);
 
-        if (player.position.y > targetY + 0.1) {
+        if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
+            // Jumping up — apply velocity, decay with gravity
+            player.position.y += player.userData.verticalVelocity * delta;
+            player.userData.verticalVelocity -= 72 * delta;
+        } else if (player.position.y > targetY + 0.1) {
+            // Falling
             if (!player.userData.verticalVelocity) player.userData.verticalVelocity = 0;
-            player.userData.verticalVelocity -= 72 * delta; // gravity: 0.02/frame @ 60fps = 72 units/s²
+            player.userData.verticalVelocity -= 72 * delta;
             player.position.y += player.userData.verticalVelocity * delta;
             if (player.position.y <= targetY) {
                 player.position.y = targetY;
@@ -239,12 +244,6 @@ export function update(delta, elapsedTime) {
             player.position.y += (targetY - player.position.y) * Math.min(1, 12.0 * delta);
             player.userData.verticalVelocity = 0;
         }
-    }
-
-    // Jump velocity
-    if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
-        player.position.y += player.userData.verticalVelocity * delta;
-        player.userData.verticalVelocity -= 72 * delta;
     }
 
     // --- Update subsystems ---
