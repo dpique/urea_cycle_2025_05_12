@@ -129,21 +129,43 @@ Keep NPC dialogue to 1-2 lines per screen. Use `greetingChain` arrays in JSON fo
 ### Character Mnemonics
 NPCs should be visual mnemonics, not just named characters. Example: Percy the Dehydrated Pirate has 4 fingers (B1, B2, B3, B5) + L-shaped prosthetic (Lipoic acid) where the ring finger (B4) was. The missing finger IS the teaching point. Design characters so their appearance encodes the biochemistry.
 
-## Overarching Spatial Metaphor: The Pirate Ship
+## Overarching Spatial Metaphor: The Living Metropolis
 
-**The entire game maps to a single continuous space:**
+**The entire game is a single cell rendered as a horizontal city.** Each pathway is a district with its own aesthetic. Cell-as-city is the metaphor every cell biology textbook already uses ("the cell is a factory") taken literally and walkable.
 
-- **Shore / Land** = Cytosol (glycolysis happens here -- the demolition yard)
-- **The Dock** = Transition zone (pyruvate is cargo being loaded)
-- **The Pirate Ship** = Mitochondria (Percy's ship)
-  - **Main Deck** = TCA Cycle (the circular plaza)
-  - **The Engine Room** = ETC / Oxidative Phosphorylation (below deck)
-  - **The Gangplank** = Mitochondrial membrane transport (Percy guards it -- irreversible entry)
-- **Urea Cycle** = Straddles ship and shore (some steps below deck, some on the dock)
+**Macro is horizontal** (walkable city, third-person camera, matches the existing engine and the Stanford subway-map orientation).
 
-Percy the Dehydrated Pirate is the captain. "I only sail in one direction." Pyruvate boards the ship and never comes back as pyruvate. The TCA world should have nautical theming: wooden deck, ship railings, rope details, lanterns.
+**Micro is vertical at compartment boundaries**: descend into mitochondria, ascend into ER, nucleus is sealed off at street level. Membrane transport teaches itself — passive transport = stairs (free), active transport = elevators (cost ATP at the turnstile). Membrane disorders become "the elevator's broken" puzzles.
 
-**TODO:** Retheme TCA with nautical elements. Redesign glycolysis→TCA transition as walking from shore onto the ship.
+### Districts (one per subway-map region)
+
+| Region | District | Theme | Worlds |
+|---|---|---|---|
+| Carbohydrates | **Demolition Yard** | Wrecking-crew streets, dockside | Glycolysis, Glycogen, PPP |
+| Oxidative metabolism | **Mitochondrial Waterfront** | Harbor with Percy's freighter docked | TCA (ship's deck), ETC (engine room below deck), FA-ox (cargo hold) |
+| Lipids | **Warehouse Row** | Cargo holds and rendering vats | FA synthesis, ketone bodies, cholesterol, steroids |
+| Amino acids | **Tenement Quarter** | Crowded quarter, sea-chest shops | BCAA, aromatic AA, urea cycle, single-carbon |
+| Nucleotides | **Archive District** | Library + copy shops | Purine/pyrimidine synthesis, salvage, breakdown |
+| Heme | **Ironworks** | Forge district | Heme synthesis + degradation |
+
+### What survives from the pirate-ship era
+
+The pirate ship is not abandoned — it becomes the **Mitochondrial Waterfront** district, with Percy's freighter physically docked at the harbor. Percy is still captain, still has the four-fingers-plus-L-prosthetic mnemonic, still guards the gangplank as the irreversible PDH entry point. The TCA hub is still the ship's main deck. The "ship = mitochondrion" metaphor still holds *for that district*. It just isn't the global metaphor for the game anymore — other districts can have radically different aesthetics (ironworks, archive, tenement) without breaking cohesion.
+
+### Cohesion mechanisms
+
+1. **Regional theme sets** — every world inherits its district's floor, palette, props.
+2. **One recurring NPC** — the Ship's Navigator (lives on the TCA waterfront, appears as a holographic parrot in every other world) carries continuity across 25 worlds.
+3. **Mutagen as the through-line** — corruption spreading district by district. Free-tier worlds = pathway works. Paid-tier disease modules = "this district has gone dark."
+4. **One running joke per region** — carbohydrate worlds bicker like a construction crew, lipid worlds gossip like a ship crew, amino-acid worlds have tenement drama. The gag IS the mnemonic.
+
+### Portal-as-lesson
+
+Every inter-world transit is a 1-2s animated reaction, not a loading screen. The substrate visibly transforms into the product with a one-line caption naming the enzyme. See `data/dsl/atlas.yaml` `adjacencies[].transit` for the data; `js/portalTransit.js` for the runtime. Cumulatively over 25 worlds, the player learns the entire connection table by feel.
+
+### Visual fidelity bar
+
+**Low-poly stylized 3D** (think *A Short Hike*, *Animal Crossing*, *Crossy Road*). A few primitive shapes per object, color does the heavy lifting, geometric humanoids. Lets one author ship a new district per week instead of per month. Keeps the spatial-immersion advantage of 3D without the AAA art budget.
 
 ## Roadmap: Worlds to Build
 

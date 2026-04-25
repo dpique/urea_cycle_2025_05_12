@@ -1,0 +1,234 @@
+# Urea Cycle world spec — the stress test for the DSL.
+#
+# This world is the largest one we've built (475 LOC, 32 quest steps,
+# river+bridge mechanics, ammonia toxicity, two zones). Writing it as
+# YAML is the honest test of whether the DSL holds up.
+#
+# Annotations below mark each section as:
+#   FITS    — the DSL handles this declaratively
+#   STRETCH — the DSL handles it but only because we extended the schema
+#   SCRIPT  — falls through to the JS escape hatch (and that's fine)
+
+id: urea-cycle
+name: "Urea Cycle"
+region: amino_acids
+
+# --- Scene ---
+sky:
+  color: 0x223344
+  fog:  { near: 30, far: 180, color: 0x223344 }
+ambient_light: { intensity: 0.4 }
+bounds: { minX: -100, maxX: 100, minZ: -60, maxZ: 60 }
+spawn:  { x: -40, y: 0.5, z: 0, facing: east }
+
+# --- Terrain (STRETCH) -----------------------------------------------
+# Urea cycle has TWO zones (mitochondria, cytosol) split by a river
+# with a bridge. None of the other worlds need this, so we have a
+# choice: bake "river_bridge" into the DSL, or call out to a script.
+#
+# Recommendation: keep `zones` in the DSL (cheap, useful for any future
+# compartmentalization — peroxisome, lysosome, etc.) but the river+bridge
+# *geometry* is a script-built decor block. That way we don't carry a
+# `bridge_length` parameter forever.
+terrain:
+  type: zoned
+  zones:
+    - { id: mitochondria, region: { minX: -100, maxX: -8 }, ambient_tint: 0xff8866, label: "Matrix" }
+    - { id: cytosol,      region: { minX:    8, maxX: 100 }, ambient_tint: 0x88aaff, label: "Cytosol" }
+  height: 0.01
+  on_zone_enter:
+    feedback: "You are entering the {zone.label}"
+
+decor:
+  - { type: compass_markers, radius: 60 }
+  # SCRIPT: the river + bridge geometry lives in this module, since no
+  # other world has it. Loader instantiates it like any other decor.
+  - { type: script, module: ./decor/urea-river-bridge.js }
+  - { type: script, module: ./decor/urea-graveyard.js }     # for Casper / coffin grounds vibe
+
+# --- Carries (first-class) ------------------------------------------
+# What the player physically holds and watches transform. In urea, six
+# different molecules over the run — NH3 → bicarbonate → carbamoyl-P
+# → citrulline → argininosuccinate → arginine → urea. Authoring a new
+# world should start here: name the substrate, name the product, name
+# every transformation in between.
+carries:
+  trigger: { has_any: [NH3, bicarbonate, carbamoyl-phosphate, citrulline, argininosuccinate, arginine, urea] }
+  initial: { model: nh3, offset: { x: 1.2, y: 2.2, z: 0 }, hud_warn: "Toxic!" }
+  transforms:
+    - { on_step: make-bicarbonate,    become: bicarbonate }
+    - { on_step: make-carb-phos,      become: carbamoyl-phosphate }
+    - { on_step: make-citrulline,     become: citrulline }
+    - { on_step: cross-membrane,      become: citrulline,  vfx: phase_through_wall }
+    # ... etc through arginine → urea
+
+# --- Hazards (STRETCH) ----------------------------------------------
+# Carrying NH3 damages you per second. Generic enough that BCAA / aromatic
+# AA worlds will use the same primitive (toxic intermediates are common).
+hazards:
+  - id: ammonia-toxicity
+    when: { has: NH3 }
+    effect: { damage_per_sec: 2, vfx: greenish_haze, hud_warning: "Ammonia in inventory" }
+  - id: river-drowning
+    when: { in_terrain: water }    # the river decor module tags water tiles
+    effect: { kill: true, message: "You drowned in the river. Use the bridge." }
+
+# --- Stations -------------------------------------------------------
+# 10 enzyme NPCs split across two zones. Each one corresponds to a real
+# urea cycle enzyme; the character names are the StudyRare mnemonics.
+stations:
+  # ===== MITOCHONDRIA =====
+  - id: nagesh
+    template: npc
+    enzyme: "N-Acetylglutamate Synthase (NAGS)"
+    position: { x: -55, y: 0, z: -15 }
+    zone: mitochondria
+    character: { type: barista }
+    role: cofactor_provider     # produces NAG that activates Casper
+    dialogue:
+      greeting:
+        - "Namaste, friend! Welcome to my brewing station."
+        - "I am Nagesh — N-acetylglutamate Synthase."
+        - "Acidic Coffin Grounds + Ghoul Milk → Nagesh's Coffee (NAG). Casper can't fire without it."
+
+  - id: casper
+    template: npc
+    enzyme: "Carbamoyl Phosphate Synthetase I (CPS1)"
+    position: { x: -40, y: 0, z: 0 }
+    zone: mitochondria
+    character: { type: ghost }
+    role: rate_limiting        # the urea cycle's rate-limiting step
+    inputs:  [NH3, bicarbonate, "ATP×2", NAG]
+    outputs: [carbamoyl-phosphate]
+
+  - id: otis
+    template: npc
+    enzyme: "Ornithine Transcarbamoylase (OTC)"
+    position: { x: -20, y: 0, z: 5 }
+    zone: mitochondria
+    character: { type: otter }
+    inputs:  [carbamoyl-phosphate, ornithine]
+    outputs: [citrulline]
+    boss_room: otc-deficiency  # paid-tier disease module attaches here
+
+  - id: usher
+    template: npc
+    enzyme: "ORNT1 / CITR1 Transporter"
+    position: { x: -8, y: 0, z: 0 }
+    zone: mitochondria
+    role: gatekeeper           # opens the portal across the inner mito membrane
+    character: { type: doorman }
+
+  # ===== CYTOSOL =====
+  - id: donkey
+    template: npc
+    enzyme: "Argininosuccinate Synthetase (ASS)"
+    position: { x: 25, y: 0, z: -10 }
+    zone: cytosol
+    character: { type: donkey }
+    inputs:  [citrulline, aspartate, ATP]
+    outputs: [argininosuccinate]
+
+  - id: aslan
+    template: npc
+    enzyme: "Argininosuccinate Lyase (ASL)"
+    position: { x: 50, y: 0, z: 5 }
+    zone: cytosol
+    character: { type: lion }
+    inputs:  [argininosuccinate]
+    outputs: [arginine, fumarate]   # fumarate links to TCA — atlas knows
+
+  - id: argus
+    template: npc
+    enzyme: "Arginase 1 (ARG1)"
+    position: { x: 75, y: 0, z: 0 }
+    zone: cytosol
+    character: { type: many-eyed }
+    inputs:  [arginine, water]
+    outputs: [urea, ornithine]
+
+# --- Portals --------------------------------------------------------
+# The TCA portal (eastern cytosol) was hand-coded; the atlas now declares
+# it. Urea also exposes an internal "membrane" portal because the player
+# physically crosses from matrix to cytosol via Usher, not by walking.
+portals:
+  - to: tca-cycle
+    anchor: { station: aslan, offset: { x: 6, y: 0, z: 0 } }   # near fumarate output
+    style:  { ring_color: 0xfdd835, label: "Fumarate → TCA" }
+  - to: ":membrane:"   # special target — internal teleport, not another world
+    anchor: { station: usher }
+    locked_until: { quest_step: usher-opens-passage }
+
+# --- Quest (FITS — flat list of 32 steps still works) ---------------
+# Sub-step IDs (1A, 1B…) stay as identifiers, not nested structure.
+# Linear graph; no branching. Companion `transforms:` track what the
+# player is carrying at each step.
+quest:
+  id: urea-loop
+  hud_title: "Detoxify the Ammonia"
+  start: gather-water
+  steps:
+    # --- Bicarbonate prep ---
+    - { id: gather-water,     trigger: { collect: water },                                 next: gather-co2 }
+    - { id: gather-co2,       trigger: { collect: CO2 },                                   next: make-bicarbonate }
+    - { id: make-bicarbonate, trigger: { craft: bicarbonate, from: [water, CO2] },         next: collect-nh3 }
+
+    # --- NH3 + Cofactor side quest ---
+    - { id: collect-nh3,      trigger: { collect: NH3 },                                   next: collect-atp-1,
+        on_enter: { hud_warn: "NH3 is toxic! Move quickly." } }
+    - { id: collect-atp-1,    trigger: { collect: ATP },                                   next: collect-atp-2 }
+    - { id: collect-atp-2,    trigger: { collect: ATP },                                   next: casper-needs-coffee }
+    - { id: casper-needs-coffee, trigger: { interact: casper },                            next: talk-to-nagesh }
+    - { id: talk-to-nagesh,   trigger: { interact: nagesh },                               next: collect-coffin-grounds }
+    - { id: collect-coffin-grounds, trigger: { collect: coffin-grounds },                  next: collect-glutamine }
+    - { id: collect-glutamine, trigger: { collect: glutamine },                            next: nagesh-brews-nag,
+        on_complete: { sfx: bubbling-coffee } }
+    - { id: nagesh-brews-nag, trigger: { interact: nagesh, requires: [coffin-grounds, glutamine] },
+        effect: { consume: [coffin-grounds, glutamine], give: [NAG] }, next: collect-nag }
+    - { id: collect-nag,      trigger: { collect: NAG },                                   next: make-carb-phos }
+
+    # --- CPS1 reaction ---
+    - { id: make-carb-phos,   trigger: { interact: casper, requires: [NH3, bicarbonate, "ATP×2", NAG] },
+        effect: { consume: [NH3, bicarbonate, "ATP×2", NAG], give: [carbamoyl-phosphate] },
+        next: collect-carb-phos }
+    - { id: collect-carb-phos, trigger: { collect: carbamoyl-phosphate },                  next: meet-otis }
+
+    # --- OTC reaction + membrane crossing ---
+    - { id: meet-otis,        trigger: { interact: otis },                                 next: make-citrulline }
+    - { id: make-citrulline,  trigger: { interact: otis, requires: [carbamoyl-phosphate, ornithine] },
+        effect: { consume: [carbamoyl-phosphate, ornithine], give: [citrulline] },
+        next: usher-opens-passage }
+    - { id: usher-opens-passage, trigger: { interact: usher, requires: [citrulline] },     next: cross-membrane,
+        on_complete: { unlock_portal: ":membrane:" } }
+    - { id: cross-membrane,   trigger: { teleport_through: ":membrane:" },                 next: collect-aspartate }
+
+    # --- Cytosol leg (ASS/ASL/ARG1) ---
+    # ... 12 more steps ending in:
+    - { id: dispose-urea,     trigger: { deliver: urea, to: river },                       next: river-challenge }
+
+    # --- Final mini-game ---
+    - { id: river-challenge,  trigger: { minigame_complete: reality-river },               next: null,
+        on_complete: { unlock_ability: nitrogen-mastery, unlock_world: bcaa } }
+
+# --- Mini-games ----------------------------------------------------
+minigames:
+  - id: reality-river
+    type: trivia_quiz       # NEW template — quiz-style game (4-choice MCQs)
+    trigger: { interact: river-challenge-stone }
+    params:
+      questions_file: ./quizzes/urea-river.yaml
+      pass_threshold: 4         # need 4/5 correct
+      reward: { unlock_world: bcaa }
+
+# --- Yields summary --------------------------------------------------
+# Per cycle. Used by the HUD and by the post-cycle scorecard.
+yields:
+  consumed: [NH3, bicarbonate, "ATP×2", aspartate]   # plus Nagesh subquest items
+  produced: [urea, fumarate]
+  energy:   { ATP: -3, AMP: +1 }    # net cost: 4 high-energy phosphates
+
+# --- Escape hatch --------------------------------------------------
+# River collision, bridge ramp interpolation, ammonia screen tint,
+# zone-tinted ambient lighting, and quest-marker quest-target lookup
+# all live here. ~200 LOC, down from the current 475.
+script: ./scripts/urea-cycle-extras.js

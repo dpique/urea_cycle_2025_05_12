@@ -1,0 +1,246 @@
+# Metabolon Atlas — derived from the Stanford subway map
+#
+# This file IS the world graph. It declares every pathway as a node and
+# every biological connection as an adjacency. The engine reads it at
+# boot to:
+#   1. register worlds (loading their .world.yaml file lazily)
+#   2. place portals at biologically accurate connection points
+#   3. drive the in-game minimap / atlas screen
+#   4. enforce free-vs-paid tier (disease modules are paid)
+#
+# Grid coords match the subway map (cols A-M, rows 1-6) so authors can
+# point at the printed map and find the world. Adjacencies are the
+# molecule that crosses between worlds — the in-game label for the
+# portal ("Pyruvate gangplank", "α-KG path", etc.) — never an arbitrary
+# game-design choice.
+
+version: 1
+
+# Spatial metaphor: THE LIVING METROPOLIS.
+# The whole game is a single cell rendered as a horizontal city. Each
+# subway-map region becomes a city district with its own aesthetic.
+# Macro is horizontal (walkable, top-down city), micro is vertical at
+# compartment boundaries (descend into mitochondria, ascend into ER,
+# nucleus is sealed off at street level — active transport = elevators
+# that cost ATP, passive transport = stairs).
+#
+# The pirate ship survives as ONE district: the Mitochondrial Waterfront.
+# Percy's freighter is docked there; the TCA hub is its main deck.
+
+regions:
+  carbohydrates:    { color: 0xf2c4cc, district: demolition_yard,   blurb: "Wrecking-crew streets — glucose gets dismantled here" }
+  oxidative:        { color: 0xfbe1b6, district: mito_waterfront,   blurb: "Harbor district. Percy's freighter. Engine room below." }
+  lipids:           { color: 0xefefb6, district: warehouse_row,     blurb: "Cargo holds and rendering vats — fats stored, broken, built" }
+  amino_acids:      { color: 0xc9d8ee, district: tenement_quarter,  blurb: "Crowded quarter where amino acids board, brawl, and get broken down" }
+  nucleotides:      { color: 0xd6cae8, district: archive_district,  blurb: "Library and copy shops — bases salvaged, nucleotides assembled" }
+  heme:             { color: 0xe9c4b4, district: ironworks,         blurb: "Forge district — porphyrin rings hammered out, iron seated" }
+
+pathways:
+  # --- BUILT (free tier) ---
+  - id: glycolysis
+    name: "Glycolysis & Gluconeogenesis"
+    region: carbohydrates
+    grid: [D, 2]
+    file: data/dsl/worlds/glycolysis.world.yaml
+    status: built
+    tier: free
+
+  - id: tca-cycle
+    name: "TCA Cycle — Percy's Ship"
+    region: oxidative
+    grid: [F, 5]
+    file: data/dsl/worlds/tca-cycle.world.yaml
+    status: built
+    tier: free
+
+  - id: urea-cycle
+    name: "Urea Cycle"
+    region: amino_acids
+    grid: [J, 4]
+    file: data/dsl/worlds/urea-cycle.world.yaml
+    status: built
+    tier: free
+
+  # --- PRIORITY 1 (next to build) ---
+  - id: etc-oxphos
+    name: "Electron Transport / OxPhos — Engine Room"
+    region: oxidative
+    grid: [G, 6]
+    status: planned
+    tier: free
+
+  - id: fa-oxidation
+    name: "Fatty Acid Oxidation — Cargo Hold"
+    region: lipids
+    grid: [D, 4]
+    status: planned
+    tier: free
+
+  # --- ATLAS-ONLY STUBS (visible on map, not yet playable) ---
+  # Generated from the subway map; flesh out as authored.
+  - { id: ppp,                  name: "Pentose Phosphate Pathway",       region: carbohydrates, grid: [F, 1], status: stub, tier: free }
+  - { id: glycogen-galactose,   name: "Glycogen & Galactose Metabolism", region: carbohydrates, grid: [B, 1], status: stub, tier: free }
+  - { id: fa-synthesis,         name: "Fatty Acid Synthesis",            region: lipids,        grid: [C, 3], status: stub, tier: free }
+  - { id: ketone-bodies,        name: "Ketone Body Metabolism",          region: lipids,        grid: [D, 5], status: stub, tier: free }
+  - { id: cholesterol,          name: "Cholesterol Synthesis",           region: lipids,        grid: [A, 2], status: stub, tier: free }
+  - { id: steroid-hormones,     name: "Steroid Hormone Synthesis",       region: lipids,        grid: [B, 2], status: stub, tier: free }
+  - { id: aromatic-aa,          name: "Aromatic Amino Acid Metabolism",  region: amino_acids,   grid: [H, 1], status: stub, tier: free }
+  - { id: bcaa,                 name: "Branched-Chain AA Breakdown",     region: amino_acids,   grid: [I, 3], status: stub, tier: free }
+  - { id: c1-sulfur-aa,         name: "Single-Carbon & Sulfur AAs",      region: amino_acids,   grid: [H, 2], status: stub, tier: free }
+  - { id: ammonium-cycle,       name: "Ammonium Capture & Release",      region: amino_acids,   grid: [I, 5], status: stub, tier: free }
+  - { id: purine-synthesis,     name: "Purine Synthesis",                region: nucleotides,   grid: [L, 1], status: stub, tier: free }
+  - { id: pyrimidine-synthesis, name: "Pyrimidine Synthesis",            region: nucleotides,   grid: [M, 1], status: stub, tier: free }
+  - { id: nucleotide-breakdown, name: "Nucleotide Breakdown",            region: nucleotides,   grid: [J, 5], status: stub, tier: free }
+  - { id: deoxyribonucleotides, name: "Deoxyribonucleotides",            region: nucleotides,   grid: [K, 5], status: stub, tier: free }
+  - { id: base-salvage,         name: "Base Salvage",                    region: nucleotides,   grid: [L, 4], status: stub, tier: free }
+  - { id: nucleoside-salvage,   name: "Nucleoside Salvage",              region: nucleotides,   grid: [L, 6], status: stub, tier: free }
+  - { id: heme-synthesis,       name: "Heme Synthesis",                  region: heme,          grid: [B, 6], status: stub, tier: free }
+  - { id: heme-degradation,     name: "Heme Degradation",                region: heme,          grid: [F, 6], status: stub, tier: free }
+
+# Adjacencies = portals. Each one names the molecule that physically
+# crosses (the in-game portal label) AND the `transit` block that
+# describes the molecule transformation animated when the player walks
+# through. The transit block is the core teaching moment — the portal
+# is no longer a loading screen, it's a 1-2 second animated reaction.
+#
+# transit fields:
+#   enzyme   — the catalyzing enzyme (named, with character ref if known)
+#   from     — substrate molecule id (matches a model in /models)
+#   to       — product molecule id
+#   change   — the visible morph (lose: [...], gain: [...], rearrange: ...)
+#   caption  — single-line teaching caption shown over the morph
+#   irrev    — true if irreversible (shows ⇒ instead of ⇌)
+adjacencies:
+  - from: glycolysis
+    to: tca-cycle
+    via: pyruvate
+    label: "The Gangplank"
+    transit:
+      enzyme: { id: pdh, name: "Pyruvate Dehydrogenase", character: percy }
+      from: pyruvate
+      to: acetyl-CoA
+      change: { lose: [CO2], gain: [CoA], reduce: [NAD+ → NADH] }
+      caption: "Pyruvate → Acetyl-CoA  ·  Pyruvate Dehydrogenase (Percy)  ·  irreversible"
+      irrev: true
+
+  - from: tca-cycle
+    to: etc-oxphos
+    via: NADH
+    label: "Hatch to Engine Room"
+    transit:
+      enzyme: { id: complex-i, name: "NADH Dehydrogenase (Complex I)" }
+      from: NADH
+      to: NAD+
+      change: { lose: [2H+, 2e-], note: "electrons enter Complex I, protons pump to IMS" }
+      caption: "NADH drops electrons into Complex I  ·  4H+ pumped per NADH"
+
+  - from: tca-cycle
+    to: urea-cycle
+    via: alpha-ketoglutarate
+    label: "α-KG Path"
+    transit:
+      enzyme: { id: glud1, name: "Glutamate Dehydrogenase" }
+      from: alpha-ketoglutarate
+      to: glutamate
+      change: { gain: [NH4+], reduce: [NADH → NAD+] }
+      caption: "α-KG + NH₄⁺ → Glutamate  ·  the nitrogen entry point to the urea cycle"
+
+  - from: tca-cycle
+    to: fa-oxidation
+    via: acetyl-CoA
+    label: "Cargo Hold Stairs"
+    transit:
+      enzyme: { id: thiolase, name: "β-Ketothiolase" }
+      from: acetyl-CoA
+      to: acetyl-CoA   # acetyl-CoA leaves FA-ox AS acetyl-CoA each spiral
+      change: { note: "each β-oxidation spiral lops off 2 carbons as acetyl-CoA" }
+      caption: "Fatty acyl-CoA spirals down  ·  acetyl-CoA falls off every turn"
+
+  - from: glycolysis
+    to: ppp
+    via: glucose-6-phosphate
+    label: "PPP Side Track"
+    transit:
+      enzyme: { id: g6pd, name: "Glucose-6-Phosphate Dehydrogenase" }
+      from: glucose-6-phosphate
+      to: 6-phosphogluconolactone
+      change: { reduce: [NADP+ → NADPH] }
+      caption: "G6P → 6-P-gluconolactone  ·  G6PD makes NADPH  ·  G6PDD = hemolytic anemia"
+
+  - from: glycolysis
+    to: glycogen-galactose
+    via: glucose-1-phosphate
+    label: "Storage Yard"
+    transit:
+      enzyme: { id: pgm, name: "Phosphoglucomutase" }
+      from: glucose-6-phosphate
+      to: glucose-1-phosphate
+      change: { rearrange: "phosphate migrates 6→1" }
+      caption: "G6P ⇌ G1P  ·  Phosphoglucomutase  ·  the gateway to glycogen storage"
+
+  - from: fa-oxidation
+    to: ketone-bodies
+    via: acetyl-CoA
+    label: "Liver Vat"
+    transit:
+      enzyme: { id: hmgcs, name: "HMG-CoA Synthase (mitochondrial)" }
+      from: acetyl-CoA
+      to: HMG-CoA
+      change: { combine: ["2 × acetyl-CoA → acetoacetyl-CoA", "+ acetyl-CoA → HMG-CoA"] }
+      caption: "Liver only: acetyl-CoA pools → ketone bodies  ·  fasting fuel for brain"
+
+  - from: cholesterol
+    to: steroid-hormones
+    via: pregnenolone
+    label: "Adrenal Lift"
+    transit:
+      enzyme: { id: scc, name: "Cholesterol Desmolase (CYP11A1 / SCC)" }
+      from: cholesterol
+      to: pregnenolone
+      change: { lose: [isocaproaldehyde], note: "side chain cleaved" }
+      caption: "Cholesterol → Pregnenolone  ·  the rate-limiting step of all steroidogenesis"
+      irrev: true
+
+  - from: bcaa
+    to: tca-cycle
+    via: succinyl-CoA
+    label: "BCAA Drain"
+    transit:
+      enzyme: { id: mut, name: "Methylmalonyl-CoA Mutase (B12)" }
+      from: methylmalonyl-CoA
+      to: succinyl-CoA
+      change: { rearrange: "carbon skeleton rearranged", cofactor: B12 }
+      caption: "Met-MM-CoA → Succinyl-CoA  ·  needs B12  ·  Val/Ile/Met converge here"
+
+  - from: aromatic-aa
+    to: tca-cycle
+    via: fumarate
+    label: "Aromatic Drain"
+    transit:
+      enzyme: { id: fah, name: "Fumarylacetoacetate Hydrolase" }
+      from: fumarylacetoacetate
+      to: fumarate
+      change: { also_yields: [acetoacetate] }
+      caption: "Phe/Tyr breakdown ends here  ·  FAH deficiency = Tyrosinemia I"
+
+  - from: heme-synthesis
+    to: heme-degradation
+    via: heme-b
+    label: "Lifecycle Loop"
+    transit:
+      enzyme: { id: ho1, name: "Heme Oxygenase" }
+      from: heme-b
+      to: biliverdin
+      change: { lose: [Fe2+, CO], gain: [O2 → 3] }
+      caption: "Old RBCs → biliverdin → bilirubin  ·  CO is the byproduct (yes, that CO)"
+
+# Disease modules (paid tier) — each attaches to a normal pathway as a
+# "boss room" you unlock from inside that world. Listed here so the
+# atlas can render lock icons and the storefront can find them.
+diseases:
+  - { id: otc-deficiency,  parent: urea-cycle,   name: "OTC Deficiency",       tier: paid }
+  - { id: mcad-deficiency, parent: fa-oxidation, name: "MCAD Deficiency",      tier: paid }
+  - { id: pku,             parent: aromatic-aa,  name: "Phenylketonuria",      tier: paid }
+  - { id: msud,            parent: bcaa,         name: "Maple Syrup Urine Dz", tier: paid }
+  - { id: g6pd-deficiency, parent: ppp,          name: "G6PD Deficiency",      tier: paid }
+  - { id: pompe,           parent: glycogen-galactose, name: "Pompe Disease",  tier: paid }

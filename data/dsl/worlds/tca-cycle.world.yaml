@@ -1,0 +1,167 @@
+# TCA Cycle world spec — proof of concept for the world DSL.
+#
+# The file is read by a (to-be-written) loader: dslLoader.js
+#   import { loadWorld } from './js/dslLoader.js'
+#   const tca = await loadWorld('data/dsl/worlds/tca-cycle.world.yaml')
+#   registerWorld(tca.config.id, tca)
+#
+# The loader returns a normal { config, init, update, cleanup } module —
+# so DSL worlds and hand-coded worlds coexist. You can drop into JS for
+# anything the DSL doesn't cover via the `script:` escape hatch below.
+
+id: tca-cycle
+name: "Percy's Ship — TCA Cycle"
+region: oxidative
+
+# --- Scene ---
+sky:
+  color: 0x0a1628
+  fog:  { near: 30, far: 200, color: 0x0a1628 }
+ambient_light: { intensity: 0.45, color: 0x88a0c0 }
+bounds: { minX: -80, maxX: 80, minZ: -80, maxZ: 80 }
+spawn:  { x: 0, y: 0.5, z: 30, facing: north }
+
+# --- Terrain ---
+# `flat` is one of: flat | hill | custom-script
+# Hill takes a hermite spline between START and END with a peak in the
+# middle. For anything more exotic, `type: script` + a path to a JS file.
+terrain:
+  type: flat
+  height: 0.01
+
+# --- Carries (first-class: what does the player physically hold?) ---
+# Promoted from `companion:` to a top-level field. Every world should
+# answer this question first — it IS the teaching mechanic. The molecule
+# floats next to the player and morphs at each enzyme step, so the
+# player physically sees the substrate become the product.
+carries:
+  trigger: { has: acetyl-CoA }
+  initial: { model: acetyl-coa, offset: { x: 1.2, y: 2.2, z: 0 } }
+  transforms:
+    - { on_step: visit-sid,   become: citrate }
+    - { on_step: visit-aco,   become: isocitrate }
+    - { on_step: visit-izzy,  become: alpha-ketoglutarate }
+    - { on_step: visit-alpha, become: succinyl-coa }
+
+# --- Decor (no behavior, just visuals) ---
+decor:
+  - { type: ship_deck,         radius: 50, planks: 36 }
+  - { type: ocean,             level: -2,  size: 400 }
+  - { type: ship_railing,      radius: 50 }
+  - { type: lanterns,          count: 8,   radius: 45, glow: 0xff9944 }
+  - { type: compass_markers,   radius: 60 }
+
+# --- Stations ---
+# Each station compiles to a Three.js Group with userData.onInteract
+# hooked into the existing interactionManager. `template` picks one of
+# the built-in builders (npc | enzyme_station | machine | resource_node).
+# Anything not covered lives in `script` (one-off custom mesh + behavior).
+stations:
+  - id: percy
+    template: npc
+    enzyme: "Pyruvate Dehydrogenase"
+    role: gatekeeper            # blocks the gangplank portal until quest step `meet-percy` is done
+    position: { x: 0, y: 0, z: 25 }
+    character:
+      type: pirate              # picks a builder in characterBuilder.js
+      mnemonic:
+        # Percy's appearance encodes the cofactors. The mesh builder
+        # reads this and renders fingers + prosthetic accordingly.
+        fingers:    [B1, B2, B3, B5]   # missing B4
+        prosthetic: { slot: ring_finger, item: lipoic_acid, shape: L }
+    dialogue:
+      greeting:
+        - "HALT! Name's Percy. The Dehydrated Pirate. I only sail in ONE direction."
+        - "Captain of the PDH Complex. Irreversible. No going back."
+        - "Count the fingers. B1... B2... B3... SKIP to B5. The RING finger? Gone."
+        - "In its place — Lipoic acid. The one cofactor that isn't a B vitamin."
+        - "Percy's Five: B1, B2, B3, L, B5. Five tools. One direction."
+
+  - id: sid
+    template: enzyme_station
+    enzyme: "Citrate Synthase"
+    position: { x: 30, y: 0, z: 0 }      # E
+    inputs:  [acetyl-CoA, oxaloacetate]
+    outputs: [citrate]
+    feedback: "Sid welds Acetyl-CoA onto OAA. Citrate rolls off the bench."
+
+  - id: aco
+    template: enzyme_station
+    enzyme: "Aconitase"
+    position: { x: 21, y: 0, z: -21 }    # SE
+    inputs:  [citrate]
+    outputs: [isocitrate]
+    feedback: "Aco shuffles the OH group. Same atoms, different shape."
+
+  - id: izzy-tca
+    template: enzyme_station
+    enzyme: "Isocitrate Dehydrogenase"
+    position: { x: 0, y: 0, z: -30 }     # S
+    inputs:  [isocitrate, "NAD+"]
+    outputs: [α-ketoglutarate, NADH, CO2]
+    yields:
+      energy: { NADH: 1, CO2: 1 }
+    feedback: "First NADH! Izzy strips an electron pair and burps CO₂."
+
+  - id: alpha
+    template: enzyme_station
+    enzyme: "α-Ketoglutarate Dehydrogenase"
+    position: { x: -21, y: 0, z: -21 }   # SW — adjacent to urea-cycle portal
+    inputs:  [α-ketoglutarate, "NAD+", CoA]
+    outputs: [succinyl-CoA, NADH, CO2]
+    yields:
+      energy: { NADH: 1, CO2: 1 }
+
+  # ... succy, fumi, mal, oxi follow the same pattern.
+
+# --- Portals ---
+# Position is relative to a station (anchored at biologically accurate
+# connection points), not arbitrary world coords. The atlas decides
+# *which* portals exist; this file decides *where on deck* they sit and
+# any per-world cosmetics.
+portals:
+  - to: glycolysis
+    anchor: { station: percy, offset: { x: 0, y: 0, z: 4 } }
+    style:  { ring_color: 0xfdd835, label: "Down to the Dock" }
+    locked_until: { quest_step: meet-percy }
+  - to: urea-cycle
+    anchor: { station: alpha, offset: { x: -3, y: 0, z: -3 } }
+    style:  { ring_color: 0x6644ff, label: "α-KG → Glutamate Path" }
+
+# --- Quest (state machine as a list) ---
+quest:
+  id: tca-loop
+  hud_title: "Run the Cycle"
+  start: meet-percy
+  steps:
+    - { id: meet-percy,         trigger: { interact: percy },                                next: collect-acetyl-coa, hud: "Talk to Percy" }
+    - { id: collect-acetyl-coa, trigger: { collect: acetyl-CoA },                            next: visit-sid,          hud: "Find Acetyl-CoA on deck" }
+    - { id: visit-sid,          trigger: { interact: sid, requires: [acetyl-CoA, oxaloacetate] },
+                                effect:  { consume: [acetyl-CoA, oxaloacetate], give: [citrate] },
+                                next:    visit-aco }
+    - { id: visit-aco,          trigger: { interact: aco,    requires: [citrate] },
+                                effect:  { consume: [citrate],  give: [isocitrate] },
+                                next:    visit-izzy }
+    - { id: visit-izzy,         trigger: { interact: izzy-tca, requires: [isocitrate] },
+                                effect:  { consume: [isocitrate], give: [α-ketoglutarate, NADH] },
+                                next:    visit-alpha }
+    # ... rest of the cycle
+  on_complete:
+    feedback: "3 NADH + 1 FADH₂ + 1 GTP per turn. The engine room is hungry — feed it."
+    unlock_ability: energy-mastery
+    unlock_world:   etc-oxphos
+
+# --- Mini-games ---
+# Reference built-in templates by name; pass params. New mini-game types
+# require a JS module exporting the same .start({...}).onSuccess(cb) shape.
+minigames:
+  - id: pdh-toll
+    type: phosphate_timing
+    trigger: { interact: percy, on_step: meet-percy }
+    params: { spin_speed: 1.5, target_vertex: 1, label: "Strip the H" }
+
+# --- Escape hatch ---
+# For mechanics the DSL doesn't model (boss fight, custom shader,
+# cutscene), point at a JS file that exports init/update/cleanup hooks.
+# Those run AFTER the DSL-built scene, so they can mutate it.
+script: null   # nothing custom for vanilla TCA

@@ -7,6 +7,7 @@ import { player } from './playerManager.js';
 import { showFeedback } from './uiManager.js';
 import { getGameState, setGameState } from './gameState.js';
 import { emit } from './eventBus.js';
+import { playTransit, hasTransit } from './portalTransit.js';
 
 let currentWorld = null;
 let currentWorldId = null;
@@ -103,19 +104,32 @@ export async function transitionTo(worldId, spawnPoint) {
     const overlay = createTransitionOverlay();
     const worldModule = registeredWorlds[worldId];
     const worldName = worldModule?.config?.name || worldId;
+    const fromWorldId = currentWorldId;
 
-    // Fade to black
-    overlay.textContent = worldName;
+    // Fade to black. If a transit lesson exists, the lesson overlay
+    // takes over below — keep this overlay text empty so the two don't
+    // visually compete.
+    const showsTransit = hasTransit(fromWorldId, worldId);
+    overlay.textContent = showsTransit ? '' : worldName;
     overlay.style.opacity = '1';
     overlay.style.pointerEvents = 'all';
 
     await new Promise(resolve => setTimeout(resolve, 600));
 
+    // Portal-as-lesson: if we have transit data for this edge, show the
+    // molecule transformation animation BEFORE the world swap. Player
+    // sees the reaction; then materializes in the new world.
+    if (showsTransit) {
+        await playTransit(fromWorldId, worldId);
+    }
+
     // Load the new world
     await loadWorld(worldId, spawnPoint);
 
-    // Brief pause showing world name
-    await new Promise(resolve => setTimeout(resolve, 400));
+    // Brief pause showing world name (skipped when transit already taught it)
+    if (!showsTransit) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+    }
 
     // Fade in
     overlay.style.opacity = '0';
