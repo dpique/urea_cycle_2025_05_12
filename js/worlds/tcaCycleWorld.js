@@ -17,14 +17,14 @@ import tcaData from '../../data/tca.json';
 // --- World Config ---
 export const config = {
     id: 'tca-cycle',
-    name: "Percy's Ship — TCA Cycle",
-    description: 'The main deck of the pirate ship — the metabolic hub',
-    skyColor: 0x0a1628,      // Dark ocean night sky
+    name: "Percy's Steam Barge — TCA Brewing Floor",
+    description: 'A copper-coiled brewery moored at the Mitochondrial Waterfront — the cell\'s power vessel',
+    skyColor: 0x0a1628,      // Dark harbor night sky
     fogColor: 0x0a1628,
     fogNear: 70,
     fogFar: 280,
     ambientLightIntensity: 0.45,
-    ambientLightColor: 0x99886a,  // Warm lantern-tinted ambient
+    ambientLightColor: 0x99886a,  // Warm copper-tinted ambient
     bounds: {
         minX: -60,
         maxX: 60,
@@ -86,18 +86,26 @@ let tcaQuestState = TCA_QUEST.NOT_STARTED;
 let portalToUrea = null;
 let centralFountain = null;
 
-// --- World Colors (Nautical / Pirate Ship) ---
+// --- World Colors (Steam Barge Brewery in Harbor) ---
 const COLORS = {
     deckLight: 0x9C7A3C,     // Light weathered wood planks
     deckDark: 0x6B4E2A,      // Darker wood grain
     deckPath: 0x7A5C30,      // Worn path on deck
-    ocean: 0x0a3d5c,         // Deep ocean surrounding the ship
-    oceanDeep: 0x061e2f,     // Very deep water
+    ocean: 0x0a3d5c,         // Harbor water around the barge
+    oceanDeep: 0x061e2f,     // Deep harbor
     brass: 0xb5890a,         // Brass fittings / railing caps
     rope: 0xc4a35a,          // Tan rope
     lantern: 0xff9933,       // Warm lantern glow
-    hull: 0x4a3520,          // Ship hull dark brown
+    hull: 0x4a3520,          // Hull dark brown
     railing: 0x5c3d1e,       // Railing brown
+    // Brewery / steamship palette — the cristae are these copper coils
+    copper: 0xb87333,        // Polished copper distillation pipes
+    copperBright: 0xd99857,  // Highlighted copper edges
+    verdigris: 0x4a8b73,     // Patina on aged copper
+    steel: 0x6e7681,         // Steam pipes
+    kettleAmber: 0xc46b1f,   // Brewing kettle copper-amber
+    steam: 0xeef0f3,         // Steam plume particles
+    cityWindow: 0xffd479,    // Distant warm-lit windows in the city silhouette
     nadh: 0x00ff88,          // Bright green for NADH
     fadh2: 0xff8800,         // Orange for FADH2
     gtp: 0xffdd00,           // Gold for GTP
@@ -133,14 +141,14 @@ export function init(scene) {
     setTimeout(() => {
         const setInteracting = (state) => setGameState({ isUserInteracting: state });
         import('../uiManager.js').then(({ showDialogue }) => {
-            showDialogue("Welcome aboard Percy's Ship -- the main deck of the mitochondria.\n\nThis is the TCA Cycle, the metabolic hub. Everything converges here: pyruvate from the shore, fatty acids from the cargo hold, amino acids from every port.\n\nThe gangplank north leads to shore. The crew awaits your orders.", [
+            showDialogue("Welcome aboard Percy's Steam Barge -- the brewing floor of the mitochondria, moored at the city's waterfront.\n\nThe copper column at the center is your distillation tower; the helical coils wrapping it are the cristae where electrons will eventually flow. This deck IS the TCA cycle. Everything converges here: pyruvate from the shore, fatty acids from the cargo hold, amino acids from every quarter of the city.\n\nThe gangplank north leads back to shore. The crew awaits.", [
                 { text: "Meet the crew", action: () => {
                     tcaQuestState = TCA_QUEST.MEET_PERCY;
-                    showFeedback("Find Percy the Dehydrated Pirate -- he's the captain of this ship.", 5000);
+                    showFeedback("Find Percy the Dehydrated Pirate -- captain and brewmaster of this barge.", 5000);
                     updateTCAQuestUI();
                 }},
                 { text: "Explore first", action: () => {
-                    showFeedback("Walk the deck. The gangplank north leads to shore (glycolysis). Press T to quick-travel.", 5000);
+                    showFeedback("Walk the deck. North gangplank → shore (glycolysis). Press T to quick-travel.", 5000);
                 }}
             ], setInteracting);
         });
@@ -307,63 +315,184 @@ function createTerrain(scene) {
     deepOcean.position.y = -5;
     scene.add(deepOcean);
     tcaObjects.push(deepOcean);
+
+    // === DISTANT CITY SILHOUETTE (the cell as a metropolis on the far shore) ===
+    // Low-poly building blocks arrayed in a ring at the horizon. This is
+    // the visual cue that the barge is moored in a HARBOR, not at sea —
+    // there's a city (the cell) right across the water.
+    const cityRingRadius = 200;
+    const buildingCount = 90;
+    const buildingMat = new THREE.MeshStandardMaterial({
+        color: 0x162234,        // Slate near-black against the night sky
+        roughness: 0.95,
+        metalness: 0.05,
+    });
+    const windowMat = new THREE.MeshStandardMaterial({
+        color: COLORS.cityWindow,
+        emissive: COLORS.cityWindow,
+        emissiveIntensity: 0.55,
+    });
+    for (let i = 0; i < buildingCount; i++) {
+        const angle = (i / buildingCount) * Math.PI * 2 + Math.random() * 0.04;
+        // Stagger the radius a bit so buildings don't sit on a perfect ring
+        const r = cityRingRadius + (Math.random() - 0.5) * 25;
+        // Heights vary — taller mid-rises, occasional towers
+        const isTower = Math.random() < 0.15;
+        const h = isTower ? 18 + Math.random() * 22 : 5 + Math.random() * 10;
+        const w = 5 + Math.random() * 6;
+        const d = 5 + Math.random() * 6;
+
+        const buildingGeo = new THREE.BoxGeometry(w, h, d);
+        const building = new THREE.Mesh(buildingGeo, buildingMat);
+        building.position.set(
+            Math.cos(angle) * r,
+            h / 2 - 3,    // Sit on the deeper-water level
+            Math.sin(angle) * r,
+        );
+        building.rotation.y = -angle + Math.PI / 2 + (Math.random() - 0.5) * 0.2;
+        scene.add(building);
+        tcaObjects.push(building);
+
+        // Lit windows — a few small emissive cubes on the side facing the barge
+        const windowCount = isTower ? 4 + Math.floor(Math.random() * 5) : 2 + Math.floor(Math.random() * 3);
+        for (let w_i = 0; w_i < windowCount; w_i++) {
+            const windowGeo = new THREE.BoxGeometry(0.4, 0.5, 0.05);
+            const window_ = new THREE.Mesh(windowGeo, windowMat);
+            const wy = -h / 2 + 1 + Math.random() * (h - 2);
+            const wx = (Math.random() - 0.5) * (w * 0.7);
+            window_.position.set(wx, wy, d / 2 + 0.05);
+            building.add(window_);
+        }
+    }
 }
 
-// --- Central Mast ---
+// --- Central Distillation Column (was: pirate mast) ---
+// The mitochondrion-as-power-vessel metaphor lives here. The central
+// feature is a copper distillation column wrapped in a helical coil —
+// the cristae visualized literally. Steam rises from the top. The
+// column sits atop a kettle-shaped base. This is the icon of TCA.
 function createCentralFountain(scene) {
-    // Main mast (tall wooden pole)
-    const mastGeo = new THREE.CylinderGeometry(0.35, 0.5, 16, 8);
-    const mastMat = new THREE.MeshStandardMaterial({ color: 0x5c3d1e, roughness: 0.9, metalness: 0.05 });
-    const mast = new THREE.Mesh(mastGeo, mastMat);
-    mast.position.y = 8;
-    mast.castShadow = true;
-    scene.add(mast);
-    tcaObjects.push(mast);
-
-    // Crow's nest platform (ring near the top)
-    const nestGeo = new THREE.CylinderGeometry(1.8, 1.6, 0.3, 12);
-    const nestMat = new THREE.MeshStandardMaterial({ color: COLORS.hull, roughness: 0.85 });
-    const nest = new THREE.Mesh(nestGeo, nestMat);
-    nest.position.y = 14;
-    scene.add(nest);
-    tcaObjects.push(nest);
-
-    // Crow's nest railing (torus)
-    const nestRailGeo = new THREE.TorusGeometry(1.7, 0.08, 6, 16);
-    const nestRailMat = new THREE.MeshStandardMaterial({ color: COLORS.railing, roughness: 0.8 });
-    const nestRail = new THREE.Mesh(nestRailGeo, nestRailMat);
-    nestRail.rotation.x = Math.PI / 2;
-    nestRail.position.y = 14.4;
-    scene.add(nestRail);
-    tcaObjects.push(nestRail);
-
-    // Cross-beam (yard arm)
-    const yardGeo = new THREE.CylinderGeometry(0.12, 0.12, 10, 6);
-    const yard = new THREE.Mesh(yardGeo, mastMat.clone());
-    yard.rotation.z = Math.PI / 2;
-    yard.position.y = 11;
-    yard.castShadow = true;
-    scene.add(yard);
-    tcaObjects.push(yard);
-
-    // Lantern hanging from the mast (warm glow at deck level)
-    const lanternGeo = new THREE.BoxGeometry(0.5, 0.7, 0.5);
-    const lanternMat = new THREE.MeshStandardMaterial({
-        color: COLORS.lantern,
-        emissive: COLORS.lantern,
-        emissiveIntensity: 0.6,
-        transparent: true,
-        opacity: 0.9,
+    const copperMat = new THREE.MeshStandardMaterial({
+        color: COLORS.copper,
+        metalness: 0.85,
+        roughness: 0.25,
+        emissive: COLORS.copperBright,
+        emissiveIntensity: 0.04,
     });
-    const lantern = new THREE.Mesh(lanternGeo, lanternMat);
-    lantern.position.set(0, 3.5, 0);
-    lantern.userData.isCrystal = true; // reuse crystal animation for gentle bob
-    scene.add(lantern);
-    tcaObjects.push(lantern);
-    centralFountain = lantern;
+    const copperBrightMat = new THREE.MeshStandardMaterial({
+        color: COLORS.copperBright,
+        metalness: 0.9,
+        roughness: 0.18,
+    });
+    const verdigrisMat = new THREE.MeshStandardMaterial({
+        color: COLORS.verdigris,
+        metalness: 0.5,
+        roughness: 0.55,
+    });
+    const brassMat = new THREE.MeshStandardMaterial({
+        color: COLORS.brass,
+        metalness: 0.8,
+        roughness: 0.3,
+    });
 
-    // Compass rose inlaid in the deck (dark wood circle with brass accents)
-    const roseGeo = new THREE.CircleGeometry(4.5, 32);
+    // === Kettle base (the matrix — round copper hemisphere where it brews) ===
+    const kettleGeo = new THREE.SphereGeometry(2.6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+    const kettle = new THREE.Mesh(kettleGeo, copperMat);
+    kettle.position.y = 0.05;
+    kettle.castShadow = true;
+    kettle.receiveShadow = true;
+    scene.add(kettle);
+    tcaObjects.push(kettle);
+
+    // Brass collar where kettle meets column
+    const collarGeo = new THREE.TorusGeometry(0.85, 0.15, 8, 24);
+    const collar = new THREE.Mesh(collarGeo, brassMat);
+    collar.rotation.x = Math.PI / 2;
+    collar.position.y = 2.6;
+    scene.add(collar);
+    tcaObjects.push(collar);
+
+    // === Distillation column (tall copper cylinder) ===
+    const columnGeo = new THREE.CylinderGeometry(0.75, 0.85, 11, 16);
+    const column = new THREE.Mesh(columnGeo, copperMat);
+    column.position.y = 8;
+    column.castShadow = true;
+    scene.add(column);
+    tcaObjects.push(column);
+
+    // === Helical copper coil wrapping the column (the cristae) ===
+    // A torus knot gives a clean low-poly helix without custom geometry.
+    // We stack three helical bands at different heights for a layered
+    // cristae look.
+    const helixSegments = 64;
+    for (let band = 0; band < 3; band++) {
+        const bandY = 4 + band * 3.2;
+        const helixGroup = new THREE.Group();
+        for (let i = 0; i < helixSegments; i++) {
+            const t = i / helixSegments;
+            const turns = 2.5;
+            const angle = t * Math.PI * 2 * turns;
+            const r = 1.15;
+            const segH = 2.6;
+
+            const tubeGeo = new THREE.SphereGeometry(0.13, 6, 6);
+            const seg = new THREE.Mesh(tubeGeo, band === 1 ? verdigrisMat : copperBrightMat);
+            seg.position.set(
+                Math.cos(angle) * r,
+                (t - 0.5) * segH,
+                Math.sin(angle) * r,
+            );
+            helixGroup.add(seg);
+        }
+        helixGroup.position.y = bandY;
+        helixGroup.userData.isHelix = true;
+        helixGroup.userData.spinSpeed = 0.08 + band * 0.02;
+        scene.add(helixGroup);
+        tcaObjects.push(helixGroup);
+    }
+
+    // === Steam vent cap (top of the column) ===
+    const capGeo = new THREE.CylinderGeometry(0.95, 0.75, 0.5, 12);
+    const cap = new THREE.Mesh(capGeo, brassMat);
+    cap.position.y = 13.7;
+    scene.add(cap);
+    tcaObjects.push(cap);
+
+    // Vent stack
+    const ventGeo = new THREE.CylinderGeometry(0.45, 0.55, 1.8, 10);
+    const vent = new THREE.Mesh(ventGeo, brassMat);
+    vent.position.y = 14.85;
+    scene.add(vent);
+    tcaObjects.push(vent);
+
+    // === Steam plume (animated particle column rising from the vent) ===
+    const steamCount = 80;
+    const steamGeo = new THREE.BufferGeometry();
+    const steamPositions = new Float32Array(steamCount * 3);
+    for (let i = 0; i < steamCount; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * 0.4;
+        steamPositions[i * 3] = Math.cos(a) * r;
+        steamPositions[i * 3 + 1] = 16 + Math.random() * 6;
+        steamPositions[i * 3 + 2] = Math.sin(a) * r;
+    }
+    steamGeo.setAttribute('position', new THREE.BufferAttribute(steamPositions, 3));
+    const steamMat = new THREE.PointsMaterial({
+        color: COLORS.steam,
+        size: 0.7,
+        transparent: true,
+        opacity: 0.45,
+        depthWrite: false,
+    });
+    const steam = new THREE.Points(steamGeo, steamMat);
+    steam.userData.isSteam = true;
+    steam.userData.steamRange = { baseY: 16, maxY: 24, drift: 0.6 };
+    scene.add(steam);
+    tcaObjects.push(steam);
+    centralFountain = steam;   // reused by update loop for gentle motion
+
+    // === Compass rose / pressure-gauge plate inlaid around the kettle ===
+    const roseGeo = new THREE.CircleGeometry(5.2, 32);
     const roseMat = new THREE.MeshStandardMaterial({
         color: COLORS.deckDark,
         roughness: 0.8,
@@ -375,31 +504,44 @@ function createCentralFountain(scene) {
     scene.add(rose);
     tcaObjects.push(rose);
 
-    // Brass ring around compass rose
-    const brassRingGeo = new THREE.TorusGeometry(4.8, 0.15, 8, 32);
-    const brassRingMat = new THREE.MeshStandardMaterial({
-        color: COLORS.brass,
-        metalness: 0.7,
-        roughness: 0.3,
-    });
-    const brassRing = new THREE.Mesh(brassRingGeo, brassRingMat);
+    // Brass pressure-gauge ring (replaces the plain brass compass ring)
+    const brassRingGeo = new THREE.TorusGeometry(5.4, 0.18, 8, 48);
+    const brassRing = new THREE.Mesh(brassRingGeo, brassMat);
     brassRing.rotation.x = Math.PI / 2;
     brassRing.position.y = 0.08;
     scene.add(brassRing);
     tcaObjects.push(brassRing);
 
-    // Ship name label
-    const label = createTextSprite("Percy's Ship — TCA Cycle", { x: 0, y: 5.5, z: 0 }, {
-        scale: 2.5, textColor: 'rgba(255, 220, 150, 0.9)',
+    // Tick marks on the pressure-gauge ring (12 brass studs)
+    for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        const tick = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.08, 0.08, 0.2, 6),
+            brassMat,
+        );
+        tick.position.set(Math.cos(a) * 5.4, 0.18, Math.sin(a) * 5.4);
+        scene.add(tick);
+        tcaObjects.push(tick);
+    }
+
+    // === Vessel name label ===
+    const label = createTextSprite("Percy's Steam Barge — TCA Brewing Floor", { x: 0, y: 17, z: 0 }, {
+        scale: 2.5, textColor: 'rgba(255, 220, 150, 0.92)',
     });
     scene.add(label);
     tcaObjects.push(label);
 
-    // Warm mast lantern light
-    const mastLight = new THREE.PointLight(COLORS.lantern, 1.2, 25);
-    mastLight.position.set(0, 3.5, 0);
-    scene.add(mastLight);
-    tcaObjects.push(mastLight);
+    // Warm copper-glow light from the column
+    const columnLight = new THREE.PointLight(0xffaa44, 1.3, 28);
+    columnLight.position.set(0, 6, 0);
+    scene.add(columnLight);
+    tcaObjects.push(columnLight);
+
+    // Cool steam-tinted rim light on the vent
+    const ventLight = new THREE.PointLight(0xaaccdd, 0.4, 12);
+    ventLight.position.set(0, 14.5, 0);
+    scene.add(ventLight);
+    tcaObjects.push(ventLight);
 }
 
 // --- Enzyme Station NPCs ---
@@ -1148,9 +1290,8 @@ function createDecorativeElements(scene) {
         tcaObjects.push(rope);
     }
 
-    // === BARRELS (near the mast and around deck) ===
+    // === ALE BARRELS (a few stay — the brewery has aging stock) ===
     const barrelPositions = [
-        { x: 3, z: 3 }, { x: -4, z: 2 }, { x: -2, z: -4.5 },
         { x: 18, z: 6 }, { x: -20, z: -5 },
     ];
     const barrelMat = new THREE.MeshStandardMaterial({ color: 0x6B4E2A, roughness: 0.9 });
@@ -1172,6 +1313,69 @@ function createDecorativeElements(scene) {
             scene.add(hoop);
             tcaObjects.push(hoop);
         }
+    }
+
+    // === BREWING KETTLES (small copper hemispheres on the deck) ===
+    // These dot the deck around the central column — secondary brewing
+    // vessels suggesting that this whole barge is a working brewery.
+    const kettlePositions = [
+        { x: 6, z: 5, r: 0.9 },
+        { x: -7, z: 4, r: 0.75 },
+        { x: 4, z: -7, r: 0.85 },
+        { x: -6, z: -8, r: 0.7 },
+        { x: 14, z: -2, r: 1.0 },
+        { x: -15, z: 3, r: 0.95 },
+    ];
+    const kettleMat = new THREE.MeshStandardMaterial({
+        color: COLORS.kettleAmber,
+        metalness: 0.8,
+        roughness: 0.3,
+    });
+    const kettleBrassMat = new THREE.MeshStandardMaterial({
+        color: COLORS.brass,
+        metalness: 0.85,
+        roughness: 0.25,
+    });
+    for (const kp of kettlePositions) {
+        // Hemisphere kettle body
+        const bodyGeo = new THREE.SphereGeometry(kp.r, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+        const body = new THREE.Mesh(bodyGeo, kettleMat);
+        body.position.set(kp.x, 0.05, kp.z);
+        body.castShadow = true;
+        body.receiveShadow = true;
+        scene.add(body);
+        tcaObjects.push(body);
+
+        // Brass collar at the rim
+        const rimGeo = new THREE.TorusGeometry(kp.r * 0.95, 0.05, 6, 18);
+        const rim = new THREE.Mesh(rimGeo, kettleBrassMat);
+        rim.rotation.x = Math.PI / 2;
+        rim.position.set(kp.x, kp.r * 0.92, kp.z);
+        scene.add(rim);
+        tcaObjects.push(rim);
+
+        // Small steam wisp from each kettle (single billboard)
+        const wispGeo = new THREE.BufferGeometry();
+        const wispCount = 12;
+        const wispPos = new Float32Array(wispCount * 3);
+        for (let i = 0; i < wispCount; i++) {
+            wispPos[i * 3] = kp.x + (Math.random() - 0.5) * 0.3;
+            wispPos[i * 3 + 1] = kp.r * 0.92 + Math.random() * 1.2;
+            wispPos[i * 3 + 2] = kp.z + (Math.random() - 0.5) * 0.3;
+        }
+        wispGeo.setAttribute('position', new THREE.BufferAttribute(wispPos, 3));
+        const wispMat = new THREE.PointsMaterial({
+            color: COLORS.steam,
+            size: 0.35,
+            transparent: true,
+            opacity: 0.3,
+            depthWrite: false,
+        });
+        const wisp = new THREE.Points(wispGeo, wispMat);
+        wisp.userData.isSteam = true;
+        wisp.userData.steamRange = { baseY: kp.r * 0.92, maxY: kp.r * 0.92 + 1.4, drift: 0.3 };
+        scene.add(wisp);
+        tcaObjects.push(wisp);
     }
 
     // === FLOATING PARTICLES (sea spray / lantern sparks, warm-tinted) ===
@@ -1219,11 +1423,11 @@ function createWorldLighting(scene) {
 export function update(delta, elapsedTime) {
     if (!worldScene) return;
 
-    // Animate central crystal rotation
+    // Animate central feature: helical copper coils (cristae) spin gently;
+    // steam plume rises and recycles at the top.
     for (const obj of tcaObjects) {
-        if (obj.userData && obj.userData.isCrystal) {
-            obj.rotation.y = elapsedTime * 0.5;
-            obj.position.y = 3.5 + Math.sin(elapsedTime * 1.5) * 0.2;
+        if (obj.userData && obj.userData.isHelix) {
+            obj.rotation.y = elapsedTime * obj.userData.spinSpeed;
         }
         if (obj.userData && obj.userData.isFlame) {
             obj.scale.y = 1 + Math.sin(elapsedTime * 5 + obj.position.x) * 0.2;
@@ -1232,11 +1436,29 @@ export function update(delta, elapsedTime) {
         if (obj.userData && obj.userData.isParticles) {
             obj.rotation.y = -elapsedTime * 0.1;
         }
-    }
-
-    // Animate central lantern glow
-    if (centralFountain) {
-        centralFountain.material.emissiveIntensity = 0.4 + Math.sin(elapsedTime * 1.5) * 0.2;
+        if (obj.userData && obj.userData.isSteam && obj.geometry) {
+            // Each particle drifts upward and resets when it clears the top.
+            const range = obj.userData.steamRange;
+            const verts = obj.geometry.attributes.position.array;
+            for (let i = 0; i < verts.length; i += 3) {
+                verts[i + 1] += range.drift * delta;
+                if (verts[i + 1] > range.maxY) {
+                    verts[i + 1] = range.baseY;
+                    const a = Math.random() * Math.PI * 2;
+                    const r = Math.random() * 0.4;
+                    verts[i] = Math.cos(a) * r;
+                    verts[i + 2] = Math.sin(a) * r;
+                }
+                // Slight horizontal drift as the steam rises
+                verts[i] += Math.sin(elapsedTime * 0.5 + i) * 0.003;
+                verts[i + 2] += Math.cos(elapsedTime * 0.5 + i) * 0.003;
+            }
+            obj.geometry.attributes.position.needsUpdate = true;
+            // Fade the plume's overall opacity slightly with the boil
+            if (obj.material) {
+                obj.material.opacity = 0.4 + Math.sin(elapsedTime * 1.2) * 0.08;
+            }
+        }
     }
 
     // Animate ocean waves
