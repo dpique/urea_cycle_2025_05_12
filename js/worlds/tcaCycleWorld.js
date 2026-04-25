@@ -1274,11 +1274,11 @@ export function update(delta, elapsedTime) {
     if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
         // Jumping
         player.position.y += player.userData.verticalVelocity * delta;
-        player.userData.verticalVelocity -= 1.2 * delta; // gravity: 0.02/frame → 1.2/s
+        player.userData.verticalVelocity -= 72 * delta; // gravity: 0.02/frame @ 60fps = 72 units/s²
     } else if (player.position.y > tcaGroundY + 0.1) {
         // Falling
         if (!player.userData.verticalVelocity) player.userData.verticalVelocity = 0;
-        player.userData.verticalVelocity -= 1.2 * delta;
+        player.userData.verticalVelocity -= 72 * delta;
         player.position.y += player.userData.verticalVelocity * delta;
         if (player.position.y <= tcaGroundY) {
             player.position.y = tcaGroundY;

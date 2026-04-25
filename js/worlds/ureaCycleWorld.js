@@ -229,7 +229,7 @@ export function update(delta, elapsedTime) {
 
         if (player.position.y > targetY + 0.1) {
             if (!player.userData.verticalVelocity) player.userData.verticalVelocity = 0;
-            player.userData.verticalVelocity -= 1.2 * delta; // gravity: 0.02/frame → 1.2/s
+            player.userData.verticalVelocity -= 72 * delta; // gravity: 0.02/frame @ 60fps = 72 units/s²
             player.position.y += player.userData.verticalVelocity * delta;
             if (player.position.y <= targetY) {
                 player.position.y = targetY;
@@ -244,7 +244,7 @@ export function update(delta, elapsedTime) {
     // Jump velocity
     if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
         player.position.y += player.userData.verticalVelocity * delta;
-        player.userData.verticalVelocity -= 1.2 * delta;
+        player.userData.verticalVelocity -= 72 * delta;
     }
 
     // --- Update subsystems ---

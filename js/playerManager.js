@@ -1,4 +1,4 @@
-// js/playerManager.js -- Third-person (Zelda/RSC-style)
+// js/playerManager.js -- Third-person (Zelda-rounded)
 import * as THREE from 'three';
 import * as CONSTANTS from './constants.js';
 import { camera, controls } from './sceneSetup.js';
@@ -11,14 +11,15 @@ const targetQuaternion = new THREE.Quaternion();
 const upVector = new THREE.Vector3(0, 1, 0);
 
 // Camera perspectives
-let cameraMode = 'behind'; // 'behind' or 'overhead'
+let cameraMode = 'behind';
 const cameraOverheadOffset = new THREE.Vector3(0, 10, -12);
 const cameraBehindOffset = new THREE.Vector3(0, 3, -6);
 const cameraIdealLookAt = new THREE.Vector3(0, 1.5, 0);
 const cameraPositionSmoothFactor = 0.08;
 const cameraTargetSmoothFactor = 0.1;
 
-let playerLeftArm, playerRightArm, playerLeftLeg, playerRightLeg;
+// Limb pivot groups (rotate at shoulder/hip, not center)
+let leftArmPivot, rightArmPivot, leftLegPivot, rightLegPivot;
 let dustParticles = [];
 let lastFootstepTime = 0;
 
@@ -27,101 +28,139 @@ export function toggleCameraMode() {
     return cameraMode === 'overhead' ? 'Overhead View' : 'Behind View';
 }
 
+// Build an arm: a pivot group at the shoulder, with a cylindrical arm hanging
+// below it and a spherical hand at the end. Rotating the pivot rotates the
+// whole arm + hand around the shoulder joint.
+function buildLimb(shoulderPos, length, limbRadius, handRadius, limbMat, handMat) {
+    const pivot = new THREE.Group();
+    pivot.position.copy(shoulderPos);
+
+    const limb = new THREE.Mesh(
+        new THREE.CylinderGeometry(limbRadius * 0.85, limbRadius, length, 10),
+        limbMat
+    );
+    limb.position.y = -length / 2;
+    limb.castShadow = true;
+    pivot.add(limb);
+
+    const hand = new THREE.Mesh(
+        new THREE.SphereGeometry(handRadius, 10, 8),
+        handMat
+    );
+    hand.position.y = -length;
+    hand.castShadow = true;
+    pivot.add(hand);
+
+    return pivot;
+}
+
 export function initPlayer(scene) {
     player = new THREE.Group();
     player.userData.isPlayer = true;
     player.position.set(-10, 0, -5);
     scene.add(player);
 
-    // RSC-style blocky player character
-    const shirtMat = new THREE.MeshStandardMaterial({ color: 0x2288dd, roughness: 0.75, metalness: 0.05 });
-    const pantsMat = new THREE.MeshStandardMaterial({ color: 0x335577, roughness: 0.8, metalness: 0.05 });
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0xffcc99, roughness: 0.8 });
-    const bootMat = new THREE.MeshStandardMaterial({ color: 0x553322, roughness: 0.9 });
+    // Materials
+    const tunicMat = new THREE.MeshStandardMaterial({ color: 0x2c8c4d, roughness: 0.7 }); // Link green
+    const pantsMat = new THREE.MeshStandardMaterial({ color: 0xd9b870, roughness: 0.75 }); // tan
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xffd5a8, roughness: 0.8 });
+    const bootMat = new THREE.MeshStandardMaterial({ color: 0x6b3a1a, roughness: 0.85 });
+    const hairMat = new THREE.MeshStandardMaterial({ color: 0xc88a2c, roughness: 0.7 }); // dirty blond
 
-    // Head
-    const headSize = CONSTANTS.PLAYER_HEAD_HEIGHT * 1.1;
-    const head = new THREE.Mesh(new THREE.BoxGeometry(headSize, headSize * 1.05, headSize * 0.9), skinMat);
-    head.position.y = CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT + headSize / 2;
+    const legY = CONSTANTS.PLAYER_LEG_HEIGHT;
+    const bodyY = legY + CONSTANTS.PLAYER_BODY_HEIGHT;
+    const headRadius = CONSTANTS.PLAYER_HEAD_HEIGHT * 0.65;
+
+    // --- Head: sphere ---
+    const head = new THREE.Mesh(
+        new THREE.SphereGeometry(headRadius, 16, 14),
+        skinMat
+    );
+    head.position.y = bodyY + headRadius * 0.95;
     head.castShadow = true;
     player.add(head);
 
-    // Face
+    // Hair cap (top of head)
+    const hairCap = new THREE.Mesh(
+        new THREE.SphereGeometry(headRadius * 1.02, 16, 14, 0, Math.PI * 2, 0, Math.PI * 0.55),
+        hairMat
+    );
+    hairCap.position.copy(head.position);
+    hairCap.position.y += 0.01;
+    player.add(hairCap);
+
+    // Face (painted plane stuck to the front of the sphere)
     const faceCanvas = document.createElement('canvas');
     faceCanvas.width = 128; faceCanvas.height = 128;
     const fCtx = faceCanvas.getContext('2d');
     fCtx.clearRect(0, 0, 128, 128);
     fCtx.fillStyle = '#222';
     fCtx.beginPath();
-    fCtx.arc(46, 48, 7, 0, Math.PI * 2);
-    fCtx.arc(82, 48, 7, 0, Math.PI * 2);
+    fCtx.arc(48, 60, 6, 0, Math.PI * 2);
+    fCtx.arc(80, 60, 6, 0, Math.PI * 2);
     fCtx.fill();
     fCtx.fillStyle = '#fff';
     fCtx.beginPath();
-    fCtx.arc(49, 45, 3, 0, Math.PI * 2);
-    fCtx.arc(85, 45, 3, 0, Math.PI * 2);
+    fCtx.arc(50, 57, 2.5, 0, Math.PI * 2);
+    fCtx.arc(82, 57, 2.5, 0, Math.PI * 2);
     fCtx.fill();
     fCtx.strokeStyle = '#222';
-    fCtx.lineWidth = 2.5;
+    fCtx.lineWidth = 2;
     fCtx.beginPath();
-    fCtx.arc(64, 82, 12, 0.1, Math.PI - 0.1);
+    fCtx.arc(64, 88, 9, 0.15, Math.PI - 0.15);
     fCtx.stroke();
     const faceTexture = new THREE.CanvasTexture(faceCanvas);
     const facePlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(headSize * 0.8, headSize * 0.8),
+        new THREE.PlaneGeometry(headRadius * 1.4, headRadius * 1.4),
         new THREE.MeshBasicMaterial({ map: faceTexture, transparent: true })
     );
-    facePlane.position.set(0, head.position.y, headSize * 0.45 + 0.001);
+    facePlane.position.set(0, head.position.y, headRadius * 0.92);
     player.add(facePlane);
 
-    // Body
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, CONSTANTS.PLAYER_BODY_HEIGHT, 0.3), shirtMat);
-    body.position.y = CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT / 2;
-    body.castShadow = true;
-    player.add(body);
+    // --- Body: rounded cylinder torso ---
+    const torso = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.28, 0.32, CONSTANTS.PLAYER_BODY_HEIGHT, 12),
+        tunicMat
+    );
+    torso.position.y = legY + CONSTANTS.PLAYER_BODY_HEIGHT / 2;
+    torso.castShadow = true;
+    player.add(torso);
 
-    // Shoulders
-    const shoulders = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.08, 0.34), shirtMat);
-    shoulders.position.y = CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT - 0.04;
-    player.add(shoulders);
+    // Belt
+    const belt = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.33, 0.33, 0.08, 12),
+        new THREE.MeshStandardMaterial({ color: 0x4a2a14, roughness: 0.8 })
+    );
+    belt.position.y = legY + 0.04;
+    player.add(belt);
 
-    // Arms
-    const armW = 0.11;
-    playerLeftArm = new THREE.Mesh(new THREE.BoxGeometry(armW, CONSTANTS.PLAYER_ARM_LENGTH * 0.55, armW), shirtMat);
-    playerLeftArm.position.set(-0.35, CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT * 0.75, 0);
-    playerLeftArm.castShadow = true;
-    player.add(playerLeftArm);
+    // --- Arms: pivot at shoulder, hand at end ---
+    const armLen = CONSTANTS.PLAYER_ARM_LENGTH * 0.85;
+    const shoulderY = legY + CONSTANTS.PLAYER_BODY_HEIGHT * 0.92;
+    leftArmPivot = buildLimb(
+        new THREE.Vector3(-0.32, shoulderY, 0),
+        armLen, 0.07, 0.085, tunicMat, skinMat
+    );
+    player.add(leftArmPivot);
+    rightArmPivot = buildLimb(
+        new THREE.Vector3(0.32, shoulderY, 0),
+        armLen, 0.07, 0.085, tunicMat, skinMat
+    );
+    player.add(rightArmPivot);
 
-    playerRightArm = new THREE.Mesh(new THREE.BoxGeometry(armW, CONSTANTS.PLAYER_ARM_LENGTH * 0.55, armW), shirtMat);
-    playerRightArm.position.set(0.35, CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT * 0.75, 0);
-    playerRightArm.castShadow = true;
-    player.add(playerRightArm);
-
-    // Hands
-    [-0.35, 0.35].forEach(x => {
-        const hand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), skinMat);
-        hand.position.set(x, CONSTANTS.PLAYER_LEG_HEIGHT + CONSTANTS.PLAYER_BODY_HEIGHT * 0.45, 0);
-        player.add(hand);
-    });
-
-    // Legs
-    const legW = 0.14;
-    playerLeftLeg = new THREE.Mesh(new THREE.BoxGeometry(legW, CONSTANTS.PLAYER_LEG_HEIGHT, legW * 1.1), pantsMat);
-    playerLeftLeg.position.set(-0.1, CONSTANTS.PLAYER_LEG_HEIGHT / 2, 0);
-    playerLeftLeg.castShadow = true;
-    player.add(playerLeftLeg);
-
-    playerRightLeg = new THREE.Mesh(new THREE.BoxGeometry(legW, CONSTANTS.PLAYER_LEG_HEIGHT, legW * 1.1), pantsMat);
-    playerRightLeg.position.set(0.1, CONSTANTS.PLAYER_LEG_HEIGHT / 2, 0);
-    playerRightLeg.castShadow = true;
-    player.add(playerRightLeg);
-
-    // Boots
-    [-0.1, 0.1].forEach(x => {
-        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.2), bootMat);
-        boot.position.set(x, 0.03, 0.03);
-        player.add(boot);
-    });
+    // --- Legs: pivot at hip, boot at end ---
+    const legLen = CONSTANTS.PLAYER_LEG_HEIGHT;
+    const hipY = legY;
+    leftLegPivot = buildLimb(
+        new THREE.Vector3(-0.13, hipY, 0),
+        legLen, 0.085, 0.11, pantsMat, bootMat
+    );
+    player.add(leftLegPivot);
+    rightLegPivot = buildLimb(
+        new THREE.Vector3(0.13, hipY, 0),
+        legLen, 0.085, 0.11, pantsMat, bootMat
+    );
+    player.add(rightLegPivot);
 
     // Initial camera position
     const playerWorldPos = new THREE.Vector3();
@@ -190,10 +229,12 @@ export function updatePlayer(delta, isUserInteracting, checkCollisionCallback) {
         const swingPhase = (walkCycleTime / CONSTANTS.PLAYER_WALK_CYCLE_DURATION) * Math.PI * 2;
         const armSwing = Math.sin(swingPhase) * CONSTANTS.PLAYER_MAX_ARM_SWING;
         const legSwing = Math.sin(swingPhase) * CONSTANTS.PLAYER_MAX_LIMB_SWING;
-        playerLeftArm.rotation.x = Math.PI + armSwing;
-        playerRightArm.rotation.x = Math.PI - armSwing;
-        playerLeftLeg.rotation.x = legSwing;
-        playerRightLeg.rotation.x = -legSwing;
+        // With pivots at the shoulder/hip, default rotation 0 = limb hanging
+        // straight down. Positive rotation.x swings the limb forward.
+        leftArmPivot.rotation.x = -armSwing;
+        rightArmPivot.rotation.x = armSwing;
+        leftLegPivot.rotation.x = legSwing;
+        rightLegPivot.rotation.x = -legSwing;
 
         const cameraForward = new THREE.Vector3();
         camera.getWorldDirection(cameraForward);
@@ -236,10 +277,10 @@ export function updatePlayer(delta, isUserInteracting, checkCollisionCallback) {
         }
     } else {
         walkCycleTime = 0;
-        playerLeftArm.rotation.x = Math.PI;
-        playerRightArm.rotation.x = Math.PI;
-        playerLeftLeg.rotation.x = 0;
-        playerRightLeg.rotation.x = 0;
+        leftArmPivot.rotation.x = 0;
+        rightArmPivot.rotation.x = 0;
+        leftLegPivot.rotation.x = 0;
+        rightLegPivot.rotation.x = 0;
     }
 
     // Camera follow

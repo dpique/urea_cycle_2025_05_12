@@ -2022,7 +2022,7 @@ export function update(delta, elapsedTime) {
     if (player.userData.verticalVelocity && player.userData.verticalVelocity > 0) {
         // Jumping -- apply velocity and gravity
         player.position.y += player.userData.verticalVelocity * delta;
-        player.userData.verticalVelocity -= 45.0 * delta;
+        player.userData.verticalVelocity -= 72 * delta;
         if (player.position.y <= terrainY) {
             player.position.y = terrainY;
             player.userData.verticalVelocity = 0;
