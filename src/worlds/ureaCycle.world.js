@@ -92,11 +92,12 @@ export function init(ctx) {
   makeAtpCrystal(ctx, new THREE.Vector3(-9, 0, 12), 2);
   makeAspartate(ctx, new THREE.Vector3(4, 0, 10));
 
-  // an ammonia cloud at the spawn, to sell where the poison comes from
+  // a wisp of ammonia haze near the spawn, to sell where the poison comes from
+  // (kept small and lifted so it reads as a source, not a screen-filling fog)
   const cloud = props.cloud();
-  cloud.scale.setScalar(0.9);
-  cloud.position.set(-26, 3.2, -4);
-  cloud.traverse((o) => { if (o.isMesh) o.material = mat.glass(0x8ed64a, 0.4); });
+  cloud.scale.setScalar(0.5);
+  cloud.position.set(-29, 5, -8);
+  cloud.traverse((o) => { if (o.isMesh) o.material = mat.glass(0x8ed64a, 0.32); });
   ctx.worldRoot.add(cloud);
 
   // --- the 6 reaction steps ---

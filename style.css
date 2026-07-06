@@ -18,6 +18,12 @@
 * {
   box-sizing: border-box;
 }
+/* The hidden attribute must always win over the id-level display rules below
+   (#help/#dialogue/#minigame/#transit set display, which otherwise out-specifies
+   the user-agent [hidden] rule and leaves those overlays stuck on screen). */
+[hidden] {
+  display: none !important;
+}
 html,
 body {
   margin: 0;
