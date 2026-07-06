@@ -1,539 +1,236 @@
-# Metabolon: Game Design Document
+# Metabolon — Game Design Document (v2)
 
-**Version:** 1.0
-**Date:** April 4, 2026
-**Studio:** StudyRare
-**Platform:** Web browser (Three.js)
-**Genre:** 3D educational adventure (Zelda-like)
+A 3D browser game that teaches the fundamentals of metabolic genetics by letting you
+run the machinery of a living cell with your own hands. Built by StudyRare for ABMGG
+and ABGC board preparation.
 
----
-
-## 1. Elevator Pitch
-
-> "Here's the flat PDF metabolic map. Now walk through it in 3D."
-
-Metabolon is a 3D browser game where every metabolic pathway from the Stanford "Pathways of Human Metabolism" map becomes a walkable game world. Players physically carry molecules, operate enzyme machines, and navigate biologically accurate geography to learn biochemistry. Target audience: genetics board candidates (ABMGG/ABGC). No competitor has anything like it.
+This is the canonical design document. Where earlier docs (`world-bible.md`,
+`character-bible.md`) disagree with this file, this file wins. Those files are retained
+only as a biochemistry and mnemonic reference.
 
 ---
 
-## 2. Vision & Core Pillars
+## 1. The one-sentence pitch
 
-### 2.1 The Vision
+You are the newest operator inside a single living liver cell, and your job is to keep
+it alive by running the pathways that make its energy and clear its poisons. Every
+pathway you learn is one more part of the cell you can keep running.
 
-A Zelda-like metabolic adventure where the cell is a living kingdom. Each metabolic pathway is a world. Each enzyme is a character or machine. Each reaction is something the player *does*, not reads about. Completing a world means you understand that pathway well enough to answer board-level questions.
+## 2. What was wrong with v1, and what changes
 
-### 2.2 Design Pillars
+v1 was three disconnected worlds (urea cycle, TCA, glycolysis) with three clashing
+themes (a graveyard, a pirate ship, a demolition yard), a 32-step urea quest hard-coded
+as a giant switch statement, and no shared story or shared stakes. It taught the steps
+of each pathway but not the *purpose*, and nothing tied the worlds together.
 
-| Pillar | What It Means | What It Rejects |
-|--------|--------------|-----------------|
-| **Show, Don't Tell** | Player carries molecules, physically transforms them, operates machines. Terrain encodes energy (uphill = costs ATP, downhill = earns ATP). | Dialogue walls. Lectures. Text-heavy explanations. |
-| **Player as Agent** | The player straps dynamite (phosphates), squeezes rings, pulls molecules apart, extracts electrons. Enzymes are workstations, not lecturers. | Passive observation. Cutscenes. "Watch the animation." |
-| **Spatial = Biological** | Portal placement and world adjacency reflect real metabolic connections. Students learn pathway connections through physical geography. | Arbitrary level design. Teleporters with no biological basis. |
-| **Character = Mnemonic** | Every NPC's name, appearance, and personality is a memory aid. Percy's missing ring finger *is* the teaching point about B4. | Generic NPCs. Characters whose design is decorative, not educational. |
-| **Board-Relevant** | Every world teaches high-yield content for ABMGG/ABGC exams. Every quiz question is board-caliber. | Trivia. Deep enzymology that isn't tested. |
+v2 fixes the four things that were broken:
 
----
+1. **One cohesive world, one story.** The whole game is the inside of one cell. Every
+   pathway is a district of that cell with a shared visual language. One recurring
+   guide travels with you across all districts.
+2. **Purpose is the point.** Each pathway has a live gauge that *is* its reason to
+   exist. Glycolysis feeds an energy gauge. The urea cycle holds down a toxicity gauge.
+   You learn why a pathway matters by feeling what happens when it stalls.
+3. **A shared metabolic economy is the connective tissue.** There is one inventory of
+   currencies (ATP, NADH, NADPH, FADH2, GTP, carbon, nitrogen) carried across every
+   world. Glycolysis *makes* the ATP that the urea cycle *spends*. The player physically
+   moves currency between districts, so the interconnection of metabolism is felt, not
+   described.
+4. **Pathways are data, not bespoke code.** A declarative pathway runner turns a pathway
+   into a data file plus a layout. Adding the next of 25 worlds is content work, not an
+   engineering project.
 
-## 3. The Pirate Ship Metaphor
+## 3. Design pillars (from v1, sharpened)
 
-The entire game maps to a single continuous spatial metaphor:
+1. **Show, do not tell.** The player carries molecules, operates machines, and does
+   construction work. Terrain and gauges encode meaning. Dialogue is 1 to 2 lines per
+   screen, never a wall.
+2. **Player as agent.** Enzymes are workstations you operate, not lecturers. You strap
+   phosphates on, squeeze rings, pull molecules apart, capture ammonia.
+3. **Space is biology.** Adjacency and portal placement reflect real metabolic
+   connections. Students learn pathway links through geography.
+4. **Character is mnemonic.** Every enzyme character's name, look, and behavior encodes
+   a board fact. Percy's missing ring finger *is* the teaching point that vitamin B4
+   does not exist.
+5. **Board-relevant.** Every world teaches high-yield ABMGG and ABGC content. Every
+   quiz item is board caliber.
+
+## 4. The setting: one cell
+
+The game takes place inside one hepatocyte. The liver is chosen deliberately: it is the
+one cell where the most board-relevant pathways physically converge (urea cycle,
+glycolysis and gluconeogenesis, ketogenesis, and more). This makes "one cell, many
+districts" biologically honest rather than a convenient fiction.
+
+- **Macro space is horizontal.** You walk a third-person character through connected
+  districts at street level (the cytosol).
+- **Compartment boundaries are vertical.** You descend into the mitochondrion. Passive
+  transport is a staircase (free). Active transport is an elevator that charges ATP at
+  the turnstile. Membrane-transport disorders become "the elevator is broken" puzzles.
+  This teaches compartmentalization without a single line of exposition.
+
+### Districts (only the first three are built in this slice)
+
+| District | Pathways | Purpose gauge | Status |
+|---|---|---|---|
+| **The Atrium** (hub, central cytosol) | none — the crossroads | shows all gauges | built |
+| **Furnace Row** | Glycolysis (then TCA, ETC) | Energy (ATP) | glycolysis built |
+| **The Nitrogen Works** | Urea cycle (then amino-acid catabolism) | Toxicity (ammonia) | built |
+| Warehouse Row (lipids), Archive (nucleotides), Ironworks (heme) | future | — | planned |
+
+## 5. The recurring guide: Coa
+
+One character travels with you into every district: **Coa**, the cell's courier, who is
+Coenzyme A. This is not decoration. Coenzyme A is the real universal acyl carrier that
+appears in glycolysis (into PDH), the TCA cycle (as succinyl-CoA), fatty-acid oxidation,
+ketone bodies, and the urea cycle (acetyl-CoA is the substrate for NAG). Coa is a small
+floating character with a reactive thiol "hand" that molecules clip onto. Because Coa is
+a companion rather than a placed NPC, one character carries story continuity across all
+25 planned worlds at zero per-world cost. Coa delivers the 1-to-2-line guidance, names
+each new district's purpose, and reacts when a gauge goes wrong.
+
+## 6. The core loop
+
+Inside any pathway world, the loop is identical, which is why the engine can drive it
+from data:
+
+1. **Approach a station.** Stations are a mix of humanoid enzyme NPCs (for regulatory and
+   gatekeeper steps) and machines (for mechanical reactions). A station shows what it
+   needs and what it makes.
+2. **Have the inputs.** You carry the substrate and any required cofactor or currency
+   (ATP, NAD+). If you are missing something, the station tells you where to get it.
+3. **Operate it.** Press E. Simple reactions resolve instantly with a transform
+   animation. Key reactions run a short skill mini-game (time a phosphate onto the right
+   carbon; hold and release a pull in the green zone to cleave a bond).
+4. **Receive the product.** The molecule you carry visibly transforms. Currencies update
+   in the shared economy. The pathway diagram HUD advances.
+5. **The gauge responds.** Producing ATP raises the energy gauge. Capturing ammonia
+   lowers the toxicity gauge. The purpose is legible in real time.
+
+## 7. Cohesion mechanisms
+
+1. **Shared economy.** One currency inventory across all worlds (see section 2, item 3).
+2. **Coa, the recurring guide** (section 5).
+3. **Portal as lesson.** Every world-to-world transit is a 1-to-2-second animated
+   reaction with a one-line caption naming the enzyme, not a loading screen. Crossing
+   from glycolysis into the mitochondrion runs pyruvate to acetyl-CoA and names PDH.
+   Over 25 worlds the player learns the entire connection table by feel.
+4. **Shared theme sets.** Every district inherits a base visual language (palette,
+   materials, floor, props) and varies one accent, so the game reads as one place.
+
+## 8. Art direction
+
+Stylized low-poly 3D in the spirit of *A Short Hike* and *Animal Crossing*: a few
+primitive shapes per object, flat or lightly toon-shaded materials, and color doing the
+heavy lifting. The craft bar is met not by polygon count but by cohesion and light:
+
+- **One palette, one material factory.** Every object in the game pulls from a shared
+  palette and a shared set of material presets. This single decision is what separates
+  "crafted" from "random primitives."
+- **Warm, soft light.** A key directional light with soft shadows, a warm ambient fill, a
+  hemispheric bounce, and gentle distance fog under a vertical gradient sky.
+- **Rounded, friendly forms.** Characters are geometric humanoids with rounded limbs and
+  expressive faces built from simple shapes. Molecules are legible models built from
+  spheres and sticks, color-coded by element, carried visibly by the player.
+- **Readability first.** A learner must be able to tell an enzyme, a molecule, and a
+  currency apart at a glance. Silhouette and color carry meaning.
+
+## 9. Teaching model
+
+The player understands a pathway when they can answer three questions without being told:
+what goes in, what comes out, and why the cell bothers. The game is built to make all
+three answerable by experience.
+
+- **What goes in / what comes out** is taught by carrying and transforming the actual
+  molecule, step by step, and by the shared economy updating as currencies are spent and
+  made.
+- **Why the cell bothers** is taught by the purpose gauge. In the urea cycle, ammonia is
+  a hazard that damages you while you carry it and poisons the district if it builds up;
+  packaging it into harmless urea is visibly the point. In glycolysis, the energy gauge
+  and the physical uphill-then-downhill terrain make the invest-then-earn logic of ATP
+  bookkeeping something you feel in your legs.
+
+Each world ends with a short board-caliber check (the "Reality Check") of 4 to 6 items,
+each independently high-yield, delivered one question per screen.
+
+## 10. Business model (unchanged)
+
+- **Free tier: normal pathways.** Glycolysis, the urea cycle, TCA, and the rest work
+  correctly. This is the marketing funnel and the hook.
+- **Paid tier: disease states.** Each world's boss is a real inborn error of metabolism.
+  A worker goes missing (the enzyme is deficient) and the player experiences the exact
+  pathology. This is the high-yield board content genetics candidates need.
+
+Boss table for the built worlds:
+
+| World | Boss (IEM) | Board hook |
+|---|---|---|
+| Glycolysis | Pyruvate kinase deficiency | hemolytic anemia; RBCs depend on glycolytic ATP |
+| Urea cycle | OTC deficiency | most common urea cycle disorder; only X-linked one; elevated orotic acid |
+
+## 11. Scope of this build (the vertical slice)
+
+This build delivers a cohesive, playable slice that proves the whole vision:
+
+- The rebuilt engine and art kit.
+- This design document.
+- Three worlds: **The Atrium** (hub), **Glycolysis**, and **The Urea Cycle**, all sharing
+  one economy, one guide, one art language, and portal-as-lesson transitions.
+- The architecture is data-driven so the remaining worlds are content, not engineering.
+
+Not in this build: TCA, ETC, fatty-acid oxidation, and the paid disease modules are
+stubbed as "coming soon" portals. The pathway runner is designed to accept them as data.
+
+## 12. Architecture summary
 
 ```
-                    THE SHORE (Cytosol)
-                    ==================
-    Glycolysis demolition yard -- glucose broken down here
-    Amino acid docks -- protein catabolism
-    Cytosolic portion of urea cycle
-                         |
-                    THE GANGPLANK
-                   (Mitochondrial membrane transport)
-                   Percy guards it. Irreversible entry.
-                   "I only sail in one direction."
-                         |
-              PERCY'S SHIP (Mitochondria)
-              ============================
-    MAIN DECK = TCA Cycle (the central hub)
-        Circular plaza, 9 enzyme crew members
-        All pathways converge here
-
-    BELOW DECK = Electron Transport Chain
-        The engine room. Complexes I-IV.
-        ATP Synthase turbine.
-
-    CARGO HOLD = Fatty Acid Oxidation
-        Beta-oxidation spiral. Chop 2 carbons per cycle.
-        Carnitine shuttle gate.
+src/
+  main.js                 boot: init systems, register worlds, load hub
+  core/
+    engine.js             game loop, system orchestration, collision
+    renderer.js           three.js scene, camera, lights, sky, fog, resize
+    input.js              keyboard, mouse, touch
+    player.js             third-person character + camera follow + terrain follow
+    router.js             world registry + portal-as-lesson transitions
+    interaction.js        proximity, highlight, E-to-interact, station callbacks
+    economy.js            shared currency + molecule inventory (the cohesion layer)
+    pathway.js            declarative pathway runner (the reuse win)
+    hud.js                HUD: gauges, objective, pathway diagram, carried molecule
+    dialogue.js           1-to-2-line dialogue + Reality Check quizzes
+    save.js               localStorage persistence
+    audio.js              lightweight WebAudio synth
+  art/
+    palette.js            shared palette + design tokens
+    materials.js          shared material presets (flat / toon)
+    props.js              reusable prop factory (floor, crystals, pipes, foliage, signs)
+    character.js          low-poly enzyme character builder (encodes mnemonics)
+    molecule.js           molecule model builder (spheres + sticks, element colors)
+  worlds/
+    hub.world.js          The Atrium
+    glycolysis.world.js   Furnace Row entry
+    ureaCycle.world.js    The Nitrogen Works
+  data/
+    pathways/             declarative pathway definitions (steps, enzymes, disease)
 ```
 
-**Why this works:** Students build one continuous mental map instead of disconnected "rooms." Shore --> dock --> deck --> below deck --> engine room. Every location has meaning tied to cell biology. The metaphor makes compartmentalization intuitive.
-
-**The Urea Cycle** straddles ship and shore (mitochondrial + cytosolic steps), which is already modeled by the existing river/bridge mechanic.
-
----
-
-## 4. Target Audience
-
-| Segment | Who | What They Need |
-|---------|-----|----------------|
-| **Primary** | ABMGG board candidates (clinical molecular geneticists, lab geneticists) | High-yield biochemistry for board prep. IEM disease recognition. Pathway connections. |
-| **Secondary** | ABGC board candidates (genetic counselors) | Metabolic pathway fundamentals. Disease mechanism understanding. |
-| **Tertiary** | Medical students, biochemistry students | Engaging way to learn metabolism beyond flashcards. |
-| **Institutional** | Genetics training programs, medical schools | Cohort tracking. Supplemental curriculum tool. |
-
----
-
-## 5. World Map & Progression
-
-### 5.1 Geography
-
-The TCA Cycle is the central hub (Hyrule Castle Town). All other worlds connect to it through biologically accurate portals.
-
-```
-                         NORTH (Shore)
-    [Cholesterol    [Glycogen     [Pentose PPP   [Aromatic AA    [Purine
-     Citadel]        Village]      Hub]            Forest]         Peaks]
-
-    [Steroid        [Glycolysis   [FA Synthesis   [Sulfur AA      [Pyrimidine
-     Sanctum]        Gauntlet]     Foundry]        Caverns]        Plains]
-
-    [Organic Acid =[===== TCA CYCLE: PERCY'S SHIP =====]= [UREA CYCLE
-     Pass]          [        (the central hub)          ]   WORLD]
-
-    [Ketone        [FA Oxidation  [ETC Engine     [BCAA           [Nucleotide
-     Caverns]       Tunnels]       Room]           Mines]          Catacombs]
-
-    [Heme          [Heme Degrad.  [Ammonia        [Lysosome       [Salvage
-     Forge]         Ruins]         Swamp]          Vaults]         Shores]
-                         SOUTH
-
-    DUNGEONS (accessible from multiple worlds):
-    [Lysosome Vaults]  [Peroxisome Workshop]  [ER/Golgi Factory]  [Mito Sanctum]
-```
-
-### 5.2 Portal Connections (Biologically Accurate)
-
-| From | Portal Location | To | Biological Basis |
-|------|----------------|-----|------------------|
-| TCA (deck) | North -- gangplank | Glycolysis (shore) | Pyruvate enters mitochondria via PDH |
-| TCA (deck) | South -- near Alpha | Urea Cycle | Alpha-KG --> glutamate --> ammonium --> urea cycle |
-| TCA (deck) | East -- near Sid | FA Oxidation (planned) | FA oxidation produces acetyl-CoA for Sid |
-| TCA (deck) | Below deck hatch | ETC Engine Room (planned) | NADH/FADH2 from TCA feed ETC |
-| Glycolysis | Side path (after Hexy) | Pentose Phosphate (planned) | G6P branches to PPP |
-| Glycolysis | End (after Pike) | TCA (via PDH/gangplank) | Pyruvate --> acetyl-CoA |
-| Urea Cycle | Fuma's station | TCA (via fumarate) | ASL produces fumarate --> enters TCA |
-
-### 5.3 Progression (Zelda-like Gating)
-
-Each completed world grants an **ability** that unlocks access to subsequent worlds:
-
-| Order | World | Ability Unlocked | Gates |
-|-------|-------|-----------------|-------|
-| 1 | **Urea Cycle** | Nitrogen Mastery | Survive toxic nitrogen in amino acid worlds |
-| 2 | **TCA Cycle** | Energy Mastery | Power energy-requiring reactions, unlock glycolysis |
-| 3 | **Glycolysis** | Glucose Handling | Process carbohydrates in glycogen/galactose worlds |
-| 4 | **FA Oxidation** | Lipid Processing | Cross lipid membrane barriers |
-| 5 | **Amino Acid worlds** | AA Mastery | Build proteins for nucleotide enzymes |
-| 6 | **ETC** | Electron Flow | Power complex machinery in advanced worlds |
-
-**Cross-pathway items** serve as biological keys: Acetyl-CoA from FA oxidation enters TCA. Fumarate from Urea Cycle enters TCA. Glutamine from AA world enters purine synthesis.
-
----
-
-## 6. Core Mechanics
-
-### 6.1 Movement & Camera
-
-- **WASD** movement, mouse look (pointer lock)
-- **Space** to jump (45 units/s^2 gravity, used for terrain traversal)
-- **Per-world terrain functions** -- each world registers a height function; player snaps to terrain when grounded
-- **Third-person camera** follows the player character
-- **World bounds** prevent falling off edges
-
-### 6.2 Interaction System
-
-- **Proximity detection** -- interactive objects highlight when player is within range (distance^2 < 16)
-- **E key** to interact
-- **Object types:**
-  - **NPCs** -- trigger dialogue (RSC-style: 1-2 lines per screen, "..." to advance)
-  - **Machines/Workstations** -- trigger mini-games or crafting
-  - **Resources** -- auto-collected on proximity (distance < 2)
-  - **Portals** -- dialogue confirmation then world transition
-- **`userData.onInteract` callback pattern** -- each world defines its own interaction logic without modifying shared code
-
-### 6.3 Inventory & Resources
-
-- **Inventory** is a simple `{ itemName: quantity }` map
-- **Resources** are 3D objects in the world (colored spheres/shapes that hover and rotate)
-- **Molecule companion** (glycolysis) -- glucose ring follows the player, physically transforms at each enzyme step
-- **Cross-world items** -- items persist across world transitions via gameState
-
-### 6.4 Quest System
-
-Each world has its own quest state machine:
-
-```
-NOT_STARTED --> STEP_1 --> STEP_2 --> ... --> CYCLE_COMPLETE --> COMPLETED
-```
-
-- **Quest UI panel** shows current objective and progress bar
-- **Quest advances** by: talking to the right NPC with the right items, collecting resources, completing mini-games
-- **Final quiz** at world end -- board-caliber multiple choice questions
-- **Reward** -- ability unlock + world progress saved
-
-### 6.5 Mini-Games
-
-Two mini-game types currently implemented (extensible via `MiniGame` base class):
-
-| Mini-Game | Mechanic | Used For | Key Parameters |
-|-----------|----------|----------|----------------|
-| **Phosphate Timing** | Molecule spins; press E when target carbon faces you | Phosphorylation reactions (Hexy, Phil) | Tolerance: ~32 degrees |
-| **Precision Pull** | Hold E to build tension bar; release in green zone (60-80%) | Bond breaking (Aldolase splitting) | Overshoot = snap back, under = not enough force |
-
-**Planned mini-games:**
-- **Electron Relay** (ETC) -- pass electrons through a chain, timing-based
-- **Spiral Chopper** (FA Oxidation) -- repeating 4-step spiral, each round chops 2 carbons
-- **Accumulation Puzzle** (Lysosome) -- clear waste before it overflows
-
-### 6.6 Health & Hazards
-
-- **Health:** 0-100, displayed as colored bar (green > 60, orange 30-60, red < 30)
-- **Ammonia toxicity** (Urea Cycle) -- collecting ammonia damages health; teaches why ammonia disposal matters
-- **Health regen** -- slow passive healing in safe zones (2 HP/sec in TCA)
-- **Death** -- triggers respawn with a teaching moment ("Your cells couldn't handle the toxicity...")
-
-### 6.7 Station Types
-
-Not everything is a humanoid NPC. The mix keeps worlds visually varied and mechanically interesting:
-
-| Type | When to Use | Examples |
-|------|-------------|---------|
-| **Humanoid NPC** | Regulatory/gatekeeper enzymes, educational context, personality-driven interactions | Percy (PDH), Phil (PFK-1), Pike (PK) |
-| **Machine/Workbench** | Mechanical reactions (phosphorylation, splitting, extraction) | Hexy's Workbench, Al's Splitting Rack, Electron Extractor |
-| **Environmental Feature** | Passive reactions, transport, environmental storytelling | CO2 vents, ORNT1 portal, river (malate-aspartate shuttle) |
-
----
-
-## 7. Story Arc: "The Dysregulation"
-
-### 7.1 Premise
-
-The Metabolic Kingdom is a living cell. **Mutagen** -- a mysterious force -- is spreading "The Dysregulation," disabling enzymes, blocking pathways, and causing toxic metabolite accumulation. You are a **Metabolic Ranger** trained by **Professor Hepaticus** to restore order.
-
-### 7.2 Structure
-
-Each world has a **boss** that is a real Inborn Error of Metabolism (IEM). Defeating a boss means understanding the broken pathway well enough to answer board-level questions about it.
-
-| World | Boss (IEM) | What Goes Wrong | Board-Relevant Facts |
-|-------|-----------|-----------------|---------------------|
-| Urea Cycle | OTC Deficiency | Can't make citrulline; ammonia accumulates | X-linked, orotic acid elevated, hyperammonemia |
-| TCA Cycle | PDH Deficiency | Can't convert pyruvate to acetyl-CoA; lactic acidosis | Thiamine-responsive subset, ketogenic diet |
-| Glycolysis | PK Deficiency | Can't make pyruvate efficiently; hemolytic anemia | Autosomal recessive, RBC-specific consequences |
-| FA Oxidation | MCAD Deficiency | Can't oxidize medium-chain FAs; hypoketotic hypoglycemia | Most common FAO disorder, newborn screening |
-| Amino Acid | PKU | Can't convert Phe to Tyr; intellectual disability | Newborn screening, dietary Phe restriction |
-| Amino Acid | MSUD | Can't degrade BCAAs; encephalopathy | Sweet-smelling urine, leucine most toxic |
-| Organic Acid | Propionic Acidemia | Can't convert propionyl-CoA; organic acid accumulation | Avoid isoleucine, valine, methionine, threonine |
-| Lysosome | Gaucher Disease | Can't degrade glucocerebroside; storage | Most common LSD, ERT available |
-
-### 7.3 Narrative Progression
-
-1. **Act I -- Awakening:** Player learns basic metabolism (Urea Cycle, TCA, Glycolysis). Professor Hepaticus provides training. The Dysregulation is hinted at through NPC dialogue.
-2. **Act II -- Investigation:** Player explores deeper pathways (FA Oxidation, Amino Acids). Each world reveals more about Mutagen's plan. Enzyme NPCs report dysfunction.
-3. **Act III -- Confrontation:** Player enters organelle dungeons (Lysosome, Peroxisome). Faces the consequences of accumulated damage. Must use cross-pathway knowledge.
-4. **Endgame:** Player confronts Mutagen (final exam -- comprehensive board-style quiz across all pathways).
-
----
-
-## 8. Art Direction
-
-### 8.1 Visual Style
-
-**RuneScape Classic (RSC) aesthetic:**
-- Blocky, low-poly characters with box geometry bodies
-- Canvas-painted faces (6 expressions: stern, friendly, intense, wise, surprised, smug)
-- Two-tone clothing (shirt color + auto-darkened pants)
-- Hats and accessories for visual distinction
-- No imported textures -- everything is procedurally built from Three.js primitives
-
-**Why RSC:** Charming, distinctive, fast to build, performs well in browser, instantly recognizable aesthetic that signals "game" not "simulation."
-
-### 8.2 World Palettes
-
-Each world has a distinct color mood (like Zelda dungeons):
-
-| World | Palette Mood | Key Colors | Lighting |
-|-------|-------------|------------|----------|
-| **TCA (Ship)** | Warm nautical night | Wood browns, brass gold, ocean blue-green | Lantern glow + moonlight |
-| **Glycolysis (Shore)** | Daytime energy gradient | Green hills, warm sunset, machine metals | Bright sun, uphill/downhill shadow |
-| **Urea Cycle** | Split zones | Red/warm (mitochondria), green/cool (cytosol) | Zone-based ambient |
-| **ETC (Engine Room)** | Industrial glow | Dark steel, electron blue, chain lightning | Pulsing machine light |
-| **FA Oxidation (Cargo Hold)** | Dark, cramped | Ship interior, crate wood, oil lamp amber | Low ceiling, close walls |
-| **Lysosome (Vaults)** | Underground decay | Stone gray, toxic green accumulation | Dim, progressively brighter as waste accumulates |
-
-### 8.3 Enzyme Visual Language
-
-Enzyme classification maps to visual treatment:
-
-| Enzyme Class | Visual | Personality |
-|-------------|--------|-------------|
-| **Kinases** | Yellow glow (ATP energy) | Energetic, bouncy |
-| **Lyases** | Jagged silhouette | Dramatic ("I CLEAVE things!") |
-| **Dehydrogenases** | Parched/cracked aesthetic | Thirsty, dry humor |
-| **Synthases** | Rounded, careful hands | Patient craftsman |
-| **Transferases** | Blue-tinted, arms extended | Always passing things around |
-| **Isomerases** | Flexible, acrobatic pose | "Just rearranging things!" |
-
-### 8.4 Character Builder System
-
-All NPCs are procedurally generated via `characterBuilder.js`:
-
-**Body types:** stocky, average, tall, large, small, wide
-**Head shapes:** round, boxy, tall, flat, pointy
-**Hats:** cone, tophat, fedora, helmet, crown, beret, hardhat, pirate (tricorn)
-**Accessories:** shield, apron, glasses, cape, belt, medal, eyepatch, wrench
-**Presets:** gatekeeper, craftsman, detective, powerhouse, showman, scientist, proud, worker, acrobat, pirate
-
----
-
-## 9. Audio Design
-
-### 9.1 Current System
-
-All audio is procedurally generated (no audio files):
-
-| Sound | Implementation | When |
-|-------|---------------|------|
-| **Background music** | 3-oscillator procedural composition (bass, lead, pad) | Always playing, pattern changes per world |
-| **GameBoy sounds** | Single oscillator tones at specified frequency | NPC interaction, UI feedback |
-| **Molecule generation** | 4-note ascending sequence | Resource created by enzyme |
-| **Portal celebration** | 6-note triumphant fanfare | World transition |
-| **Error tone** | Low-frequency buzz | Failed mini-game, wrong action |
-
-### 9.2 Planned
-
-- **Per-world music themes** (nautical shanty for TCA, industrial rhythm for ETC)
-- **Ocean ambient** for TCA deck (waves, creaking wood)
-- **Tension sounds** during mini-games (creaking at thresholds)
-- **Boss encounter music** (darker, higher tempo)
-
----
-
-## 10. UI / HUD
-
-### 10.1 Layout
-
-```
-+--[Health Bar]----[Quest Log]---------+------[Minimap]--+
-|                                      |                  |
-|                                      |                  |
-|              3D GAME VIEW            |                  |
-|                                      |                  |
-|  [Inventory]                         |                  |
-|                                      +------------------+
-|                                                         |
-|            [Interaction Prompt: "E to talk"]             |
-|                                                         |
-|         [Dialogue Box / Mini-Game Overlay]               |
-+---------------------------------------------------------+
-                              [Mute] [Help] [Glossary]
-```
-
-### 10.2 Panels
-
-| Panel | Location | Content |
-|-------|----------|---------|
-| **Health Bar** | Top-left | 0-100%, color-coded (green/orange/red) |
-| **Quest Log** | Top-left (below health) | Quest name, current objective, progress % |
-| **Inventory** | Left side | Item names + quantities |
-| **Minimap** | Top-right (toggle: M) | Overhead view of current world |
-| **Interaction Prompt** | Bottom-center | "[E] Talk to Percy" / "[E] Collect NADH" |
-| **Dialogue Box** | Center | NPC text + response buttons (RSC-style) |
-| **Urea Cycle Diagram** | Right side (collapsible) | SVG progress visualization |
-| **Help Menu** | Overlay (H key) | Controls reference |
-| **Glossary** | Overlay (G key) | Enzyme/molecule definitions |
-| **Reality River Quiz** | Full overlay | Question + 4 choices + feedback |
-
-### 10.3 Dialogue Style (RSC Rules)
-
-- **Max 1-2 lines per dialogue screen**
-- **`greetingChain` arrays** for multi-line conversations -- player clicks "..." to advance
-- **No text walls.** If you need 6 lines, that's 3-6 dialogue screens.
-- **Response buttons** are short actions ("Tell me more", "I'm ready!", "Just passing through")
-- **Feedback messages** (non-blocking) for quick confirmations ("Collected NADH!", "Visit Sid next.")
-
----
-
-## 11. Save / Load
-
-### 11.1 Storage
-
-- **localStorage** with key `metabolonSaveGame`
-- **Auto-save** on quest state changes
-- **Manual save/load** via F5/F9 keys
-
-### 11.2 Data Schema
-
-```json
-{
-    "version": 1,
-    "inventory": { "NADH": 2, "GTP": 1 },
-    "currentQuest": { "id": "ureaCycle", "state": "STEP_9_TALK_TO_DONKEY" },
-    "playerLocation": "cytosol",
-    "hasPortalPermission": true,
-    "playerPosition": { "x": 15.2, "y": 0.5, "z": -8.7 },
-    "currentWorldId": "urea-cycle",
-    "abilities": ["nitrogen-mastery"],
-    "unlockedWorlds": ["tca-cycle", "urea-cycle"],
-    "worldProgress": { "urea-cycle": { "completed": true } },
-    "timestamp": 1712188800000
-}
-```
-
-### 11.3 Migration
-
-Version field allows schema upgrades. Unknown fields are preserved. Missing fields get defaults.
-
----
-
-## 12. Business Model
-
-### 12.1 Free vs. Paid
-
-| Tier | Content | Why |
-|------|---------|-----|
-| **Free** | Normal metabolic pathways (glycolysis, TCA, urea cycle, FA oxidation, etc.) | Marketing funnel. Broad audience. Hook. |
-| **Paid** | Disease states / IEM bosses (OTC Def, MCAD Def, PKU, MSUD, etc.) | High-yield board prep. Narrow audience willing to pay. |
-
-**Why this split works:**
-1. Normal pathways = general biochemistry (broad audience, good marketing)
-2. Disease states = specialized genetics knowledge (board candidates *need* this)
-3. Students get hooked on free gameplay, then pay for disease content
-4. Institutional buyers (med schools, GC programs) specifically want the disease modules
-
-### 12.2 Revenue Streams
-
-| Stream | Model | Status |
-|--------|-------|--------|
-| **Individual subscriptions** | Monthly/annual access to disease modules | Planned |
-| **Institutional licensing** | Professor dashboards, cohort progress, bulk pricing | Planned |
-| **Qbank integration** | "Continue learning at qbank.studyrare.com" post-world | Planned |
-| **Conference demos** | ACMG/NSGC booth demos, free marketing | Planned |
-
-### 12.3 Launch Strategy
-
-1. **play.studyrare.com** -- free landing page with the first 3 worlds
-2. Social sharing ("I just walked through glycolysis in 3D!")
-3. Conference demo at ACMG/NSGC
-4. Integration with existing StudyRare qbank for cross-sell
-
----
-
-## 13. Technical Architecture
-
-### 13.1 Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Rendering** | Three.js v0.160.0 |
-| **Build** | Vite |
-| **Language** | Vanilla JavaScript (ES modules) |
-| **Testing** | Vitest (99 tests) |
-| **Hosting** | Static (Vercel/Netlify compatible) |
-| **State** | Module-scoped state + localStorage persistence |
-| **Audio** | Web Audio API (procedural, no audio files) |
-
-### 13.2 Module Architecture
-
-```
-main.js                     # World-agnostic game loop, input, rendering
-js/sceneManager.js          # World registration, transitions (fade effect)
-js/sceneSetup.js            # Scene, camera, lights, clouds (persistent)
-js/playerManager.js         # Player mesh, movement, camera
-js/gameState.js             # Global state (inventory, abilities, world progress)
-js/interactionManager.js    # Proximity detection, E-key, highlighting
-js/worldManager.js          # Shared: createResource(), createWall(), terrainFn
-js/characterBuilder.js      # Procedural RSC-style character generation
-js/uiManager.js             # Dialogue, feedback, HUD panels
-js/persistenceManager.js    # Save/load
-js/audioManager.js          # Procedural sound effects + music
-js/eventBus.js              # Pub/sub (health:change, item:pickup, quest:advance, world:transition)
-js/miniGame.js              # Base class for mini-games
-js/minigames/*.js           # Specific mini-game implementations
-js/worlds/*.js              # One module per world
-data/*.json                 # NPC/enzyme data per world
-```
-
-### 13.3 World Module Interface
-
-Every world must export:
-```js
-export const config = { id, name, skyColor, fogColor, bounds, spawnPoint, portals };
-export function init(scene) { /* build 3D objects, NPCs, register interactiveObjects */ }
-export function update(delta, elapsedTime) { /* per-frame logic */ }
-export function cleanup(scene) { /* remove all objects, clear from interactiveObjects */ }
-```
-
-### 13.4 Adding a New World
-
-1. Create `js/worlds/myWorld.js` exporting `config`, `init`, `update`, `cleanup`
-2. Create `data/my-world.json` with NPC definitions
-3. In `init`: build terrain, create stations/NPCs, push to `interactiveObjects`
-4. Each interactive object needs `userData: { name, type, isInteractable: true, onInteract: (obj, scene, tools) => {...} }`
-5. Register in `main.js`: `import * as myWorld from './js/worlds/myWorld.js'; registerWorld('my-world', myWorld);`
-6. Add portal from TCA hub (or adjacent world)
-
----
-
-## 14. Roadmap
-
-### Phase 1: Foundation (DONE)
-
-- [x] Vite build system
-- [x] Multi-world architecture (SceneManager, world module interface)
-- [x] Character builder (RSC-style procedural characters)
-- [x] Event bus, mini-game framework
-- [x] Save/load with multi-world support
-- [x] 3 playable worlds (Urea Cycle, TCA Hub, Glycolysis)
-
-### Phase 2: Nautical Retheme + New Worlds (IN PROGRESS)
-
-- [x] TCA nautical retheme (pirate ship deck)
-- [ ] ETC / Oxidative Phosphorylation -- the engine room below deck
-- [ ] Fatty Acid Oxidation -- the cargo hold
-- [ ] Glycolysis-to-TCA transition redesign (walking from shore onto the ship)
-- [ ] greetingChain dialogue for all TCA NPCs (currently only Percy has one)
-- [ ] World select screen
-
-### Phase 3: Pathway Expansion
-
-- [ ] Pentose Phosphate Pathway (branches from glycolysis)
-- [ ] Glycogen Metabolism
-- [ ] Amino Acid Catabolism (BCAA -- MSUD)
-- [ ] Aromatic AA Metabolism (PKU, Tyrosinemia)
-- [ ] Organic Acid Disorders (PA, MMA)
-
-### Phase 4: Organelle Dungeons
-
-- [ ] Lysosome Vaults (storage disorder accumulation puzzle)
-- [ ] Peroxisome Workshop (VLCFA processing)
-- [ ] ER/Golgi Factory (CDG, glycosylation assembly line)
-
-### Phase 5: Polish & Launch
-
-- [ ] Story framing (The Dysregulation narrative)
-- [ ] IEM boss encounters (disease state paywall)
-- [ ] Landing page (play.studyrare.com)
-- [ ] Qbank integration
-- [ ] Share/social features
-
-### Phase 6: Multiplayer (Post-Launch)
-
-- [ ] Async leaderboard (cohort progress)
-- [ ] "Metabolic Relay" (one player does glycolysis, passes pyruvate to a friend doing TCA)
-- [ ] Institutional dashboards
-
----
-
-## Appendices
-
-- **[World Design Bible](world-bible.md)** -- Detailed specs for every world (built + planned)
-- **[Character Bible](character-bible.md)** -- Every NPC, their mnemonic, visual design, dialogue
+The world modules are thin: they build terrain and set a layout, then hand a pathway
+definition to the runner. The biochemistry lives in `data/pathways/*.js`, so a
+biochemist can audit a pathway without reading engine code.
+
+## 13. Biochemistry the built worlds must teach
+
+Faithful to board content. Full detail (cofactors, diseases, discriminators) lives in
+`data/pathways/*.js` and `world-bible.md`. Summary:
+
+**Glycolysis** (cytosol). Net per glucose: 2 ATP, 2 NADH, 2 pyruvate. Invest 2 ATP
+(hexokinase at carbon 6; PFK-1 at carbon 1 — the rate-limiting, committed step), split
+at aldolase, then earn 4 ATP and 2 NADH on the payoff half. Boss: pyruvate kinase
+deficiency (hemolytic anemia).
+
+**Urea cycle** (liver; first two steps mitochondrial, rest cytosolic). Disposes of
+neurotoxic ammonia as urea. NAGS makes NAG, the obligate activator of CPS1 (rate-limiting,
+2 ATP, first nitrogen from free ammonia); OTC makes citrulline; citrulline crosses to the
+cytosol via ORNT1; ASS adds the second nitrogen from aspartate (1 ATP to AMP);
+ASL splits off arginine and fumarate (the link to the TCA cycle); arginase 1 releases urea
+and regenerates ornithine. Boss: OTC deficiency (X-linked, most common, elevated orotic
+acid — the discriminator from CPS1 deficiency).

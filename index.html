@@ -1,217 +1,64 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Metabolon (StudyRare)</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <!-- Canvas for Three.js rendering -->
-    <div id="game-container">
-        <canvas id="gameCanvas"></canvas>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Metabolon — a living cell</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD overlay (non-interactive) -->
+    <div id="hud"></div>
+
+    <!-- interactive overlays -->
+    <div id="dialogue" hidden></div>
+    <div id="minigame" hidden></div>
+    <div id="transit" hidden></div>
+
+    <!-- full-screen fade for transitions -->
+    <div id="fade"></div>
+
+    <!-- toxicity vignette (toggled by class on body) -->
+    <div id="vignette"></div>
+
+    <!-- help panel -->
+    <div id="help" hidden>
+      <div class="help-card">
+        <h2>How to play</h2>
+        <ul>
+          <li><b>Move</b> — W A S D or arrow keys</li>
+          <li><b>Look</b> — click and drag; scroll to zoom</li>
+          <li><b>Interact</b> — E (operate a station, talk, take an item)</li>
+          <li><b>Jump</b> — Space</li>
+          <li><b>Travel</b> — T cycles districts; use portals for the story route</li>
+          <li><b>Sound</b> — M &nbsp;·&nbsp; <b>Save</b> — F5 &nbsp;·&nbsp; <b>Help</b> — H</li>
+        </ul>
+        <p class="help-goal">Carry the molecule from station to station. Watch it transform. Keep the cell alive.</p>
+        <button id="help-close">Close</button>
+      </div>
     </div>
 
-    <!-- UI Overlays -->
-    <div id="ui-container">
-        <!-- Top Left Panels -->
-        <div>
-            <!-- Health Bar -->
-            <div id="healthDisplay" class="ui-panel">
-                <h3>Health</h3>
-                <div class="health-bar-container">
-                    <div id="healthBar" class="health-bar"></div>
-                    <span id="healthText" class="health-text">100</span>
-                </div>
-                <p id="healthWarning" class="health-warning hidden">⚠️ Ammonia is toxic! Deposit it quickly!</p>
-            </div>
+    <!-- loading -->
+    <div id="loading">
+      <div class="loading-inner">
+        <div class="loading-logo">METABOLON</div>
+        <div class="loading-sub">a living cell</div>
+        <div class="loading-track"><div class="loading-bar" id="loadingBar"></div></div>
+        <div class="loading-status" id="loadingStatus">Warming up the cell…</div>
+      </div>
+    </div>
 
-            <!-- Inventory Display -->
-            <div id="inventoryDisplay" class="ui-panel">
-                <h3>Inventory</h3>
-                <ul id="inventoryList">
-                    <!-- Items will be listed here -->
-                </ul>
-            </div>
+    <!-- fatal error -->
+    <div id="errorScreen" class="hidden">
+      <div class="error-card">
+        <h2>The cell stalled</h2>
+        <p id="errorMessage"></p>
+        <p class="error-hint">Reload to try again.</p>
+      </div>
+    </div>
 
-            <!-- Quest Log (Simplified) -->
-            <div id="questLog" class="ui-panel">
-                <h3>Quest: <span id="questName">None</span></h3>
-                <p>Objective: <span id="questObjective"></span></p>
-                <div id="progressBar" class="progress-bar">
-                    <div id="progressFill" class="progress-fill"></div>
-                    <span id="progressText" class="progress-text">0%</span>
-                </div>
-            </div>
-        </div>
-
-
-        <!-- Centered Panels -->
-        <div>
-             <!-- Help Menu -->
-             <div id="helpMenu" class="ui-panel hidden">
-                <h2>Controls & Help</h2>
-                <div class="help-section">
-                    <h3>Movement</h3>
-                    <p><strong>W/A/S/D or Arrow Keys:</strong> Move character</p>
-                    <p><strong>Spacebar:</strong> Jump</p>
-                    <p><strong>Shift (hold):</strong> Run faster</p>
-                </div>
-                <div class="help-section">
-                    <h3>Interaction</h3>
-                    <p><strong>E:</strong> Interact with objects/NPCs</p>
-                    <p><strong>Mouse:</strong> Click and drag to rotate camera</p>
-                    <p><strong>C:</strong> Toggle camera view (behind / overhead)</p>
-                    <p><strong>T:</strong> Quick-travel between worlds</p>
-                </div>
-                <div class="help-section">
-                    <h3>General</h3>
-                    <p><strong>H:</strong> Toggle this help menu</p>
-                    <p><strong>F5:</strong> Save game</p>
-                    <p><strong>F9:</strong> Load game</p>
-                    <p><strong>M:</strong> Toggle minimap (when available)</p>
-                </div>
-                <div class="help-section">
-                    <h3>Other</h3>
-                    <p><strong>G:</strong> Toggle glossary</p>
-                </div>
-                <button onclick="toggleHelpMenu()">Close (H)</button>
-             </div>
-             
-             <!-- Glossary -->
-             <div id="glossary" class="ui-panel hidden">
-                <h2>Urea Cycle Glossary</h2>
-                <div id="glossaryContent" class="glossary-content">
-                    <h3>Key Terms</h3>
-                    <dl>
-                        <dt>Urea Cycle</dt>
-                        <dd>A series of biochemical reactions that convert toxic ammonia (NH3) to urea for safe excretion. Takes place partly in mitochondria and partly in cytosol.</dd>
-                        
-                        <dt>Mitochondria</dt>
-                        <dd>The "powerhouse" of the cell where the first steps of the urea cycle occur. Contains enzymes CPS1 and OTC.</dd>
-                        
-                        <dt>Cytosol</dt>
-                        <dd>The liquid inside cells (but outside organelles) where the final steps of the urea cycle take place.</dd>
-                        
-                        <dt>Ammonia (NH3)</dt>
-                        <dd>A toxic waste product from protein breakdown that must be converted to urea for safe disposal.</dd>
-                        
-                        <dt>Carbamoyl Phosphate</dt>
-                        <dd>First intermediate in the urea cycle, made from NH3, CO2, and 2 ATP by enzyme CPS1.</dd>
-                        
-                        <dt>Ornithine</dt>
-                        <dd>An amino acid that carries the cycle forward and is regenerated at the end.</dd>
-                        
-                        <dt>Citrulline</dt>
-                        <dd>Product of ornithine + carbamoyl phosphate, transported from mitochondria to cytosol.</dd>
-                        
-                        <dt>Argininosuccinate</dt>
-                        <dd>Intermediate formed from citrulline + aspartate in the cytosol by enzyme ASS.</dd>
-                        
-                        <dt>Arginine</dt>
-                        <dd>Precursor to urea, split by arginase to produce urea and regenerate ornithine.</dd>
-                        
-                        <dt>Fumarate</dt>
-                        <dd>Byproduct that enters the citric acid cycle, converted to malate by fumarase.</dd>
-                        
-                        <dt>Urea</dt>
-                        <dd>Final non-toxic product containing two nitrogen atoms, safely excreted in urine.</dd>
-                    </dl>
-                    
-                    <h3>Key Enzymes</h3>
-                    <dl>
-                        <dt>CPS1 (Carbamoyl Phosphate Synthetase I)</dt>
-                        <dd>First enzyme, combines NH3 + CO2 + 2ATP to make carbamoyl phosphate. Requires N-acetylglutamate.</dd>
-                        
-                        <dt>OTC (Ornithine Transcarbamylase)</dt>
-                        <dd>Combines ornithine + carbamoyl phosphate to make citrulline in mitochondria.</dd>
-                        
-                        <dt>ASS (Argininosuccinate Synthetase)</dt>
-                        <dd>Combines citrulline + aspartate + ATP to make argininosuccinate in cytosol.</dd>
-                        
-                        <dt>ASL (Argininosuccinate Lyase)</dt>
-                        <dd>Splits argininosuccinate into arginine + fumarate.</dd>
-                        
-                        <dt>ARG1 (Arginase)</dt>
-                        <dd>Final enzyme, splits arginine into urea + ornithine.</dd>
-                    </dl>
-                </div>
-                <button onclick="toggleGlossary()">Close (G)</button>
-             </div>
-             
-             <!-- Reality River Mini-Game -->
-             <div id="realityRiver" class="ui-panel hidden">
-                <h2>Urea Cycle Quiz</h2>
-                <div id="riverVisual"> <!-- Basic representation -->
-                    <span>START</span> ----- <span id="riverProgress"></span> ----- <span>END</span>
-                </div>
-                <p id="riverQuestion">Question text...</p>
-                <div id="riverAnswers">
-                    <!-- Answer buttons will be added here -->
-                </div>
-                <p id="riverFeedback"></p>
-            </div>
-
-            <!-- Interaction Prompt -->
-            <div id="interactionPrompt" class="ui-panel hidden">
-                 <span id="interactionText">Object</span>
-            </div>
-
-             <!-- Dialogue Box -->
-            <div id="dialogueBox" class="ui-panel hidden">
-                <p id="dialogueText">Dialogue goes here...</p>
-                <div id="dialogueOptions">
-                    <!-- Buttons will be added here dynamically -->
-                </div>
-            </div>
-        </div>
-
-
-         <!-- Loading Indicator -->
-         <div id="loadingScreen" class="ui-panel loading-screen">
-             <h2>Metabolon</h2>
-             <p id="loadingStatus">Initializing...</p>
-             <div class="loading-bar-container">
-                 <div id="loadingBar" class="loading-bar"></div>
-             </div>
-         </div>
-
-         <!-- Error Screen (hidden by default) -->
-         <div id="errorScreen" class="ui-panel hidden" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);max-width:500px;z-index:9999;background:rgba(30,0,0,0.95);border:2px solid #f44;padding:24px;text-align:center;">
-             <h2 style="color:#f66;">Something went wrong</h2>
-             <p id="errorMessage" style="color:#ccc;margin:12px 0;"></p>
-             <button onclick="location.reload()" style="padding:8px 24px;cursor:pointer;">Reload Game</button>
-         </div>
-
-         <!-- Minimap -->
-         <div id="minimapContainer" class="minimap-container">
-             <canvas id="minimapCanvas"></canvas>
-             <div id="minimapLabel" class="minimap-label">Map (M to toggle)</div>
-         </div>
-         
-         <!-- Urea Cycle Diagram -->
-         <div id="ureaCycleDiagram" class="urea-cycle-diagram">
-             <h3>Urea Cycle Progress</h3>
-             <svg id="cycleChart" width="250" height="250" viewBox="0 0 250 250">
-                 <!-- Will be populated by JavaScript -->
-             </svg>
-             <div id="cycleToggle" class="cycle-toggle">▼</div>
-         </div>
-         
-         <!-- Bottom Left Text -->
-         <div id="devCredit" class="subtle-text">StudyRare 2025 (in development)</div>
-
-         <!-- Bottom Right Buttons -->
-         <div id="bottomRightButtons">
-            <button id="muteButton" class="survey-button">🔊 Mute Music</button>
-            <button id="preTestSurveyButton" class="survey-button">Pre-Test Survey</button>
-            <button id="postTestSurveyButton" class="survey-button">Post-Test Survey</button>
-            <button id="feedbackButton" class="survey-button">Feedback</button>
-         </div>
-
-
-    </div> <!-- End ui-container -->
-
-    <script type="module" src="main.js"></script>
-</body>
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>
